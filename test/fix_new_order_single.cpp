@@ -4,6 +4,9 @@
 
 // note! the NewOrderSingle template doesn't yet create 2-way bindings
 
+#include "roq/debug/fix/message.hpp"
+#include "roq/debug/hex/message.hpp"
+
 #include "roq/fix/new_order_single.hpp"
 
 // #include "roq/fix_bridge/fix/new_order_single.hpp"
@@ -33,5 +36,10 @@ TEST_CASE("fix_new_order_single", "[fix_new_order_single]") {
       .sending_time = 1685157508123ms,
   };
   auto message = reject.encode(header, buffer);
-  CHECK(std::size(message) > 0);
+  REQUIRE(std::size(message) > 0);
+  auto tmp = fmt::format("{}"sv, roq::debug::fix::Message{message});
+  auto expected =
+      "8=FIX.4.4|9=0000084|35=3|49=sender|56=target|34=1|52=20230527-03:18:28.123|45=1|58=failure|372=D|373=11|10=154|"sv;
+  CHECK(tmp == expected);
+  fmt::print(stderr, "{}\n"sv, roq::debug::hex::Message{message});
 }
