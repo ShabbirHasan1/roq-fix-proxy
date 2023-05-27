@@ -9,6 +9,7 @@ target_link_libraries(
   PRIVATE "${TARGET_NAME}-flags"
           "${PROJECT_NAME}-tools"
           roq-fix-bridge::roq-fix-bridge-fix
+          roq-fix::roq-fix
           roq-client::roq-client
           roq-logging::roq-logging
           roq-api::roq-api
