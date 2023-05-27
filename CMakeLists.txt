@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(strategy)
+project(fix-bridge-client)
 
 if(DEFINED ENV{CONDA_PREFIX} AND NOT DEFINED ENV{CONDA_BUILD})
   set(CMAKE_INSTALL_PREFIX $ENV{CONDA_PREFIX})

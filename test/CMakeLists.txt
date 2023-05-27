@@ -1,12 +1,13 @@
 set(TARGET_NAME "${PROJECT_NAME}-test")
 
-set(SOURCES simple.cpp main.cpp)
+set(SOURCES fix_new_order_single.cpp simple.cpp main.cpp)
 
 add_executable("${TARGET_NAME}" ${SOURCES})
 
 target_link_libraries(
-  "${TARGET_NAME}" PRIVATE "${PROJECT_NAME}-tools" roq-client::roq-client roq-logging::roq-logging
-                           Catch2::Catch2 ${RT_LIBRARIES})
+  "${TARGET_NAME}"
+  PRIVATE "${PROJECT_NAME}-tools" roq-fix-bridge::roq-fix-bridge-fix roq-client::roq-client
+          roq-logging::roq-logging Catch2::Catch2 ${RT_LIBRARIES})
 
 set_target_properties("${TARGET_NAME}" PROPERTIES LINK_FLAGS_RELEASE -s)
 

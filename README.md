@@ -1,14 +1,12 @@
-A template project for creating your own strateiges.
+A template project for creating your own FIX Bridge client.
 
 The project includes
 
-* Bare-minimum implementation needed to support strategy development
-
-  * Supports live and simulation.
+* Bare-minimum implementation needed to support client development
 
 * A static library (named `tools`)
 
-  * Allows you to build testable logic separate from the actual strategy.
+  * Allows you to build testable logic separate from the actual bridge.
 
 * Test target
 
