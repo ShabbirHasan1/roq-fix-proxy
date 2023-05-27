@@ -25,7 +25,7 @@ TEST_CASE("fix_new_order_single", "[fix_new_order_single]") {
       .text = "failure"sv,
       .ref_tag_id = {},
       .ref_msg_type = roq::fix::NewOrderSingle::msg_type,
-      .session_reject_reason = roq::fix::SessionRejectReason ::INVALID_MSG_TYPE,
+      .session_reject_reason = roq::fix::SessionRejectReason::INVALID_MSG_TYPE,
   };
   auto header = Header{
       .version = roq::fix::Version::FIX_44,
