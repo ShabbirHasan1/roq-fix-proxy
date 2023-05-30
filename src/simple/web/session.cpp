@@ -1,6 +1,6 @@
 /* Copyright (c) 2017-2023, Hans Erik Thrane */
 
-#include "simple/session.hpp"
+#include "simple/web/session.hpp"
 
 #include <utility>
 
@@ -13,66 +13,65 @@
 
 using namespace std::literals;
 
-using namespace roq;
-
 namespace simple {
+namespace web {
 
 // === IMPLEMENTATION ===
 
-Session::Session(uint64_t session_id, io::net::tcp::Connection::Factory &factory, Shared &shared)
-    : session_id_{session_id}, server_{web::rest::ServerFactory::create(*this, factory)}, shared_{shared} {
+Session::Session(uint64_t session_id, roq::io::net::tcp::Connection::Factory &factory, Shared &shared)
+    : session_id_{session_id}, server_{roq::web::rest::ServerFactory::create(*this, factory)}, shared_{shared} {
 }
 
 // web::rest::Server::Handler
 
-void Session::operator()(web::rest::Server::Disconnected const &) {
+void Session::operator()(roq::web::rest::Server::Disconnected const &) {
   shared_.sessions_to_remove.emplace(session_id_);
 }
 
-void Session::operator()(web::rest::Server::Request const &request) {
-  if (request.headers.connection == web::http::Connection::UPGRADE) {
-    log::info("Upgrading session_id={} to websocket..."sv, session_id_);
+void Session::operator()(roq::web::rest::Server::Request const &request) {
+  if (request.headers.connection == roq::web::http::Connection::UPGRADE) {
+    roq::log::info("Upgrading session_id={} to websocket..."sv, session_id_);
     (*server_).upgrade(request);
   } else {
-    log::info("request={}"sv, request);
+    roq::log::info("request={}"sv, request);
     try {
       // XXX expect POST
       auto result = process_request(request.body);
-      web::rest::Server::Response response{
-          .status = web::http::Status::OK,  // XXX should depend on result type
+      auto response = roq::web::rest::Server::Response{
+          .status = roq::web::http::Status::OK,  // XXX should depend on result type
           .connection = request.headers.connection,
           .sec_websocket_accept = {},
           .cache_control = {},
-          .content_type = web::http::ContentType::APPLICATION_JSON,
+          .content_type = roq::web::http::ContentType::APPLICATION_JSON,
           .body = result,
       };
       (*server_).send(response);
-    } catch (RuntimeError &e) {
-      log::error("Error: {}"sv, e);
+    } catch (roq::RuntimeError &e) {
+      roq::log::error("Error: {}"sv, e);
       (*server_).close();
     } catch (std::exception &e) {
-      log::error("Error: {}"sv, e.what());
+      roq::log::error("Error: {}"sv, e.what());
       (*server_).close();
     }
   }
 }
 
-void Session::operator()(web::rest::Server::Text const &text) {
-  log::info(R"(message="{})"sv, text.payload);
+void Session::operator()(roq::web::rest::Server::Text const &text) {
+  roq::log::info(R"(message="{})"sv, text.payload);
   try {
     auto result = process_request(text.payload);
     (*server_).send_text(result);
-  } catch (RuntimeError &e) {
-    log::error("Error: {}"sv, e);
+  } catch (roq::RuntimeError &e) {
+    roq::log::error("Error: {}"sv, e);
     (*server_).close();
   } catch (std::exception &e) {
-    log::error("Error: {}"sv, e.what());
+    roq::log::error("Error: {}"sv, e.what());
     (*server_).close();
   }
 }
 
-void Session::operator()(web::rest::Server::Binary const &) {
-  log::warn("Unexpected"sv);
+void Session::operator()(roq::web::rest::Server::Binary const &) {
+  roq::log::warn("Unexpected"sv);
   (*server_).close();
 }
 
@@ -137,4 +136,5 @@ std::string_view Session::format(fmt::format_string<Args...> const &fmt, Args &&
   return std::string_view{std::data(buffer_), std::size(buffer_)};
 }
 
+}  // namespace web
 }  // namespace simple

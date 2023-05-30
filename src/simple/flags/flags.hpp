@@ -9,7 +9,7 @@ namespace flags {
 
 struct Flags final {
   static std::string_view config_file();
-  static uint16_t port();
+  static uint16_t listen_port();
   static std::string_view accounts();
   static std::string_view exchange();
   static std::string_view symbols();

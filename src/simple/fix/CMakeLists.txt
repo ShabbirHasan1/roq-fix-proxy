@@ -1,6 +1,6 @@
-set(TARGET_NAME "${PROJECT_NAME}-tools")
+set(TARGET_NAME "${PROJECT_NAME}-fix")
 
-set(SOURCES simple.cpp)
+set(SOURCES session.cpp)
 
 add_library("${TARGET_NAME}" OBJECT ${SOURCES})
 

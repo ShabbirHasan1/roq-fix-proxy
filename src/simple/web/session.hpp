@@ -14,6 +14,7 @@
 #include "simple/shared.hpp"
 
 namespace simple {
+namespace web {
 
 // note! supports both rest and websocket
 
@@ -46,4 +47,5 @@ struct Session final : public roq::web::rest::Server::Handler {
   std::vector<char> buffer_;
 };
 
+}  // namespace web
 }  // namespace simple

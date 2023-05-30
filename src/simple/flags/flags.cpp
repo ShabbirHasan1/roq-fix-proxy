@@ -14,7 +14,7 @@ ABSL_FLAG(  //
 
 ABSL_FLAG(  //
     uint16_t,
-    port,
+    listen_port,
     {},
     "listen port");
 
@@ -50,8 +50,8 @@ std::string_view Flags::config_file() {
   return result;
 }
 
-uint16_t Flags::port() {
-  static uint16_t const result = absl::GetFlag(FLAGS_port);
+uint16_t Flags::listen_port() {
+  static uint16_t const result = absl::GetFlag(FLAGS_listen_port);
   return result;
 }
 

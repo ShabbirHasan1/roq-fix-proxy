@@ -16,8 +16,6 @@
 
 using namespace std::literals;
 
-using namespace roq;
-
 namespace simple {
 
 // === IMPLEMENTATION ===
@@ -25,7 +23,7 @@ namespace simple {
 int Application::main_helper(std::span<std::string_view> const &args) {
   auto settings = Settings::create();
   auto config = Config::parse_file(settings.config_file);
-  auto context = io::engine::libevent::ContextFactory::create();
+  auto context = roq::io::engine::libevent::ContextFactory::create();
   auto connections = args.subspan(1);
   Controller controller{settings, config, *context, connections};
   try {
@@ -34,13 +32,13 @@ int Application::main_helper(std::span<std::string_view> const &args) {
   } catch (...) {
     try {
       throw;
-    } catch (Exception &e) {
-      log::error("Unhandled exception: {}"sv, e);
+    } catch (roq::Exception &e) {
+      roq::log::error("Unhandled exception: {}"sv, e);
     } catch (std::exception &e) {
-      log::error(R"(Unhandled exception: type="{}", what="{}")"sv, typeid(e).name(), e.what());
+      roq::log::error(R"(Unhandled exception: type="{}", what="{}")"sv, typeid(e).name(), e.what());
     } catch (...) {
       auto e = std::current_exception();
-      log::error(R"(Unhandled exception: type="{}")"sv, typeid(e).name());
+      roq::log::error(R"(Unhandled exception: type="{}")"sv, typeid(e).name());
     }
   }
   return EXIT_FAILURE;
