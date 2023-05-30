@@ -47,6 +47,9 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
 
   void remove_zombies(std::chrono::nanoseconds now);
 
+  template <typename... Args>
+  void dispatch(Args &&...);
+
  private:
   roq::io::Context &context_;
   std::unique_ptr<roq::io::sys::Signal> terminate_;

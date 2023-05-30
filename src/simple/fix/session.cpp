@@ -38,24 +38,26 @@ Session::Session(Settings const &settings, roq::io::Context &context, roq::io::w
       connection_manager_{create_connection_manager(*this, settings, *connection_factory_)} {
 }
 
-void Session::start() {
+void Session::operator()(roq::Event<roq::Start> const &) {
   (*connection_manager_).start();
 }
 
-void Session::stop() {
+void Session::operator()(roq::Event<roq::Stop> const &) {
   (*connection_manager_).stop();
 }
 
-void Session::refresh(std::chrono::nanoseconds now) {
-  (*connection_manager_).refresh(now);
+void Session::operator()(roq::Event<roq::Timer> const &event) {
+  (*connection_manager_).refresh(event.value.now);
 }
 
 // io::net::ConnectionManager::Handler
 
 void Session::operator()(roq::io::net::ConnectionManager::Connected const &) {
+  roq::log::debug("Connected"sv);
 }
 
 void Session::operator()(roq::io::net::ConnectionManager::Disconnected const &) {
+  roq::log::debug("Disconnected"sv);
 }
 
 void Session::operator()(roq::io::net::ConnectionManager::Read const &) {

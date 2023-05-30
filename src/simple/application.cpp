@@ -25,9 +25,8 @@ int Application::main_helper(std::span<std::string_view> const &args) {
   auto config = Config::parse_file(settings.config_file);
   auto context = roq::io::engine::libevent::ContextFactory::create();
   auto connections = args.subspan(1);
-  Controller controller{settings, config, *context, connections};
   try {
-    (*context).dispatch();
+    Controller{settings, config, *context, connections}.run();
     return EXIT_SUCCESS;
   } catch (...) {
     try {

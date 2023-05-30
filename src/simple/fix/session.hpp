@@ -7,6 +7,11 @@
 #include <memory>
 #include <vector>
 
+#include "roq/event.hpp"
+#include "roq/start.hpp"
+#include "roq/stop.hpp"
+#include "roq/timer.hpp"
+
 #include "roq/io/context.hpp"
 
 #include "roq/io/web/uri.hpp"
@@ -24,9 +29,9 @@ namespace fix {
 struct Session final : public roq::io::net::ConnectionManager::Handler {
   Session(Settings const &, roq::io::Context &, roq::io::web::URI const &);
 
-  void start();
-  void stop();
-  void refresh(std::chrono::nanoseconds now);
+  void operator()(roq::Event<roq::Start> const &);
+  void operator()(roq::Event<roq::Stop> const &);
+  void operator()(roq::Event<roq::Timer> const &);
 
  protected:
   // io::net::ConnectionManager::Handler

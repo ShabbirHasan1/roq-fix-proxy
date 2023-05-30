@@ -2,7 +2,10 @@
 
 #include "simple/controller.hpp"
 
+#include "roq/event.hpp"
 #include "roq/exceptions.hpp"
+#include "roq/timer.hpp"
+
 #include "roq/logging.hpp"
 
 using namespace std::literals;
@@ -49,11 +52,12 @@ Controller::Controller(
 
 void Controller::run() {
   roq::log::info("Event loop is now running"sv);
-  for (auto &item : fix_sessions_)
-    (*item).start();
+  auto start = roq::Start{};
+  dispatch(start);
+  (*timer_).resume();
   context_.dispatch();
-  for (auto &item : fix_sessions_)
-    (*item).stop();
+  auto stop = roq::Stop{};
+  dispatch(stop);
   roq::log::info("Event loop has terminated"sv);
 }
 
@@ -67,8 +71,10 @@ void Controller::operator()(roq::io::sys::Signal::Event const &event) {
 // io::sys::Timer::Handler
 
 void Controller::operator()(roq::io::sys::Timer::Event const &event) {
-  for (auto &item : fix_sessions_)
-    (*item).refresh(event.now);
+  auto timer = roq::Timer{
+      .now = event.now,
+  };
+  dispatch(timer);
   remove_zombies(event.now);
 }
 
@@ -92,6 +98,14 @@ void Controller::remove_zombies(std::chrono::nanoseconds now) {
     web_sessions_.erase(session_id);
   }
   shared_.sessions_to_remove.clear();
+}
+
+template <typename... Args>
+void Controller::dispatch(Args &&...args) {
+  auto message_info = roq::MessageInfo{};
+  roq::Event event{message_info, std::forward<Args>(args)...};
+  for (auto &item : fix_sessions_)
+    (*item)(event);
 }
 
 }  // namespace simple
