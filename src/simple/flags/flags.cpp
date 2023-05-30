@@ -19,6 +19,12 @@ ABSL_FLAG(  //
     "listen port");
 
 ABSL_FLAG(  //
+    bool,
+    fix_debug,
+    false,
+    "fix debug?");
+
+ABSL_FLAG(  //
     std::string,
     accounts,
     "A1",
@@ -52,6 +58,11 @@ std::string_view Flags::config_file() {
 
 uint16_t Flags::listen_port() {
   static uint16_t const result = absl::GetFlag(FLAGS_listen_port);
+  return result;
+}
+
+bool Flags::fix_debug() {
+  static bool const result = absl::GetFlag(FLAGS_fix_debug);
   return result;
 }
 

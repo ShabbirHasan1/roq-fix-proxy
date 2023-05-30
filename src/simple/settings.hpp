@@ -17,6 +17,10 @@ struct Settings final {
     std::chrono::nanoseconds connection_timeout = {};
     bool tls_validate_certificate = {};
   } net;
+
+  struct {
+    bool debug = {};
+  } fix;
 };
 
 }  // namespace simple

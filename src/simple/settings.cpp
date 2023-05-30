@@ -26,6 +26,10 @@ Settings Settings::create() {
               .connection_timeout = CONNECTION_TIMEOUT,
               .tls_validate_certificate = TLS_VALIDATE_CERTIFICATE,
           },
+      .fix =
+          {
+              .debug = flags::Flags::fix_debug(),
+          },
   };
 }
 
