@@ -21,6 +21,7 @@ requirements:
     - roq-eb
     - roq-fix-bridge
     - roq-io
+    - roq-oss-tomlplusplus
 
 about:
   license: BSD-3-Clause

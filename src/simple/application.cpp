@@ -6,32 +6,44 @@
 
 #include "roq/exceptions.hpp"
 
+#include "roq/logging.hpp"
+
 #include "roq/io/engine/libevent/context_factory.hpp"
 
 #include "simple/config.hpp"
 #include "simple/controller.hpp"
+#include "simple/settings.hpp"
 
 using namespace std::literals;
+
+using namespace roq;
 
 namespace simple {
 
 // === IMPLEMENTATION ===
 
 int Application::main_helper(std::span<std::string_view> const &args) {
-  assert(!std::empty(args));
-  Config config;
-  // note!
-  //   absl::flags will have removed all flags and we're left with arguments
-  //   the arguments should be a list of unix domain sockets
-  auto connections = args.subspan(1);  // first argument is the program name
-  // note!
-  //   client::Bridge allows us to
-  //   * can dispatch events through the Timer event
-  //   * connect directly to the gateways (if we later should decide to do that)
-  //   we will use an explicit IO context so we can implement a networked solution
-  auto context = roq::io::engine::libevent::ContextFactory::create();
-  roq::client::Bridge{config, connections}.dispatch<Controller>(*context);
-  return EXIT_SUCCESS;
+  auto settings = Settings::create();
+  auto config = Config::parse_file(settings.config_file);
+  auto context = io::engine::libevent::ContextFactory::create();
+  auto connections = args.subspan(1);
+  Controller controller{settings, config, *context, connections};
+  try {
+    (*context).dispatch();
+    return EXIT_SUCCESS;
+  } catch (...) {
+    try {
+      throw;
+    } catch (Exception &e) {
+      log::error("Unhandled exception: {}"sv, e);
+    } catch (std::exception &e) {
+      log::error(R"(Unhandled exception: type="{}", what="{}")"sv, typeid(e).name(), e.what());
+    } catch (...) {
+      auto e = std::current_exception();
+      log::error(R"(Unhandled exception: type="{}")"sv, typeid(e).name());
+    }
+  }
+  return EXIT_FAILURE;
 }
 
 int Application::main(int argc, char **argv) {

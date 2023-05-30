@@ -2,18 +2,13 @@
 
 #pragma once
 
-#include "roq/client/config.hpp"
+#include <string>
 
 namespace simple {
 
-struct Config final : public roq::client::Config {
-  Config() = default;
-
-  Config(Config &&) = default;
-  Config(Config const &) = delete;
-
- protected:
-  void dispatch(Handler &) const override;
+struct Config final {
+  static Config parse_file(std::string_view const &);
+  static Config parse_text(std::string_view const &);
 };
 
 }  // namespace simple

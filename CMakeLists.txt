@@ -22,6 +22,7 @@ find_package(roq-fix REQUIRED)
 find_package(roq-io REQUIRED)
 find_package(roq-logging REQUIRED)
 find_package(roq-web REQUIRED)
+find_package(tomlplusplus REQUIRED)
 
 if(UNIX AND NOT APPLE)
   set(RT_LIBRARIES "rt")

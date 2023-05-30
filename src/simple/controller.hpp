@@ -8,24 +8,34 @@
 #include <memory>
 #include <vector>
 
-#include "roq/client.hpp"
-
 #include "roq/io/context.hpp"
 
+#include "roq/io/sys/signal.hpp"
+#include "roq/io/sys/timer.hpp"
+
+#include "simple/config.hpp"
 #include "simple/session.hpp"
+#include "simple/settings.hpp"
 #include "simple/shared.hpp"
 
 namespace simple {
 
-struct Controller final : public roq::client::Handler, public roq::io::net::tcp::Listener::Handler {
-  Controller(roq::client::Dispatcher &, roq::io::Context &);
+struct Controller final : public roq::io::net::tcp::Listener::Handler,
+                          public roq::io::sys::Signal::Handler,
+                          public roq::io::sys::Timer::Handler {
+  Controller(Settings const &, Config const &, roq::io::Context &, std::span<std::string_view> const &connections);
 
   Controller(Controller &&) = default;
   Controller(Controller const &) = delete;
 
+  void run();
+
  protected:
-  // client::Handler
-  void operator()(roq::Event<roq::Timer> const &) override;
+  // io::sys::Signal::Handler
+  void operator()(roq::io::sys::Signal::Event const &) override;
+
+  // io::sys::Timer::Handler
+  void operator()(roq::io::sys::Timer::Event const &) override;
 
   // io::net::tcp::Listener::Handler
   void operator()(roq::io::net::tcp::Connection::Factory &) override;
@@ -35,8 +45,10 @@ struct Controller final : public roq::client::Handler, public roq::io::net::tcp:
   void remove_zombies(std::chrono::nanoseconds now);
 
  private:
-  roq::client::Dispatcher &dispatcher_;
   roq::io::Context &context_;
+  std::unique_ptr<roq::io::sys::Signal> terminate_;
+  std::unique_ptr<roq::io::sys::Signal> interrupt_;
+  std::unique_ptr<roq::io::sys::Timer> timer_;
   std::unique_ptr<roq::io::net::tcp::Listener> const listener_;
   absl::flat_hash_map<uint64_t, std::unique_ptr<Session>> sessions_;
   std::chrono::nanoseconds next_garbage_collection_ = {};

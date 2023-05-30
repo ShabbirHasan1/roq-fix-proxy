@@ -2,32 +2,29 @@
 
 #include "simple/config.hpp"
 
-#include "simple/flags/flags.hpp"
+#include <toml++/toml.h>
 
 namespace simple {
 
-using flags::Flags;
+// === HELPERS ===
 
-void Config::dispatch(Handler &handler) const {
-  // settings
-  handler(roq::client::Settings{
-      .order_cancel_policy = roq::OrderCancelPolicy::BY_ACCOUNT,
-      .order_management = {},
-  });
-  // accounts
-  handler(roq::client::Account{
-      .regex = Flags::accounts(),
-  });
-  // symbols
-  handler(roq::client::Symbol{
-      .regex = Flags::symbols(),
-      .exchange = Flags::exchange(),
-  });
-  // currencies
-  handler(roq::client::Symbol{
-      .regex = Flags::currencies(),
-      .exchange = {},
-  });
+namespace {
+auto parse(auto &root) {
+  Config config;
+  return config;
+}
+}  // namespace
+
+// === IMPLEMENTATION ===
+
+Config Config::parse_file(std::string_view const &path) {
+  auto root = toml::parse_file(path);
+  return parse(root);
+}
+
+Config Config::parse_text(std::string_view const &text) {
+  auto root = toml::parse(text);
+  return parse(root);
 }
 
 }  // namespace simple

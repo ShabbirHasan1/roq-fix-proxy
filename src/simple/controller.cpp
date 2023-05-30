@@ -2,11 +2,10 @@
 
 #include "simple/controller.hpp"
 
+#include "roq/exceptions.hpp"
 #include "roq/logging.hpp"
 
 #include "tools/simple.hpp"
-
-#include "simple/flags/flags.hpp"
 
 using namespace std::literals;
 
@@ -14,26 +13,47 @@ using namespace roq;
 
 namespace simple {
 
+// === CONSTANTS ===
+
+namespace {
+auto const TIMER_FREQUENCY = 100ms;
+}
+
 // === HELPERS ===
 
 namespace {
-auto create_listener(auto &handler, auto &context) {
-  auto network_address = io::NetworkAddress{flags::Flags::port()};
+auto create_listener(auto &handler, auto &settings, auto &context) {
+  auto network_address = io::NetworkAddress{settings.port};
   return context.create_tcp_listener(handler, network_address);
 }
 }  // namespace
 
 // === IMPLEMENTATION ===
 //
-Controller::Controller(client::Dispatcher &dispatcher, io::Context &context)
-    : dispatcher_{dispatcher}, context_{context}, listener_{create_listener(*this, context_)} {
+Controller::Controller(
+    Settings const &settings, Config const &, io::Context &context, std::span<std::string_view> const &connections)
+    : context_{context}, terminate_{context.create_signal(*this, roq::io::sys::Signal::Type::TERMINATE)},
+      interrupt_{context.create_signal(*this, roq::io::sys::Signal::Type::INTERRUPT)},
+      timer_{context.create_timer(*this, TIMER_FREQUENCY)}, listener_{create_listener(*this, settings, context_)} {
 }
 
-// client::Handler
+void Controller::run() {
+  log::info("Event loop is now running"sv);
+  context_.dispatch();
+  log::info("Event loop has terminated"sv);
+}
 
-void Controller::operator()(Event<Timer> const &event) {
-  context_.drain();
-  remove_zombies(event.value.now);
+// io::sys::Signal::Handler
+
+void Controller::operator()(io::sys::Signal::Event const &event) {
+  log::warn("*** SIGNAL: {} ***"sv, magic_enum::enum_name(event.type));
+  context_.stop();
+}
+
+// io::sys::Timer::Handler
+
+void Controller::operator()(io::sys::Timer::Event const &event) {
+  remove_zombies(event.now);
 }
 
 // io::net::tcp::Listener::Handler

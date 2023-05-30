@@ -2,7 +2,8 @@ set(TARGET_NAME "${PROJECT_NAME}-simple")
 
 add_subdirectory(flags)
 
-add_executable("${TARGET_NAME}" application.cpp config.cpp controller.cpp session.cpp main.cpp)
+add_executable("${TARGET_NAME}" application.cpp config.cpp controller.cpp session.cpp settings.cpp
+                                main.cpp)
 
 target_link_libraries(
   "${TARGET_NAME}"
@@ -10,11 +11,11 @@ target_link_libraries(
           "${PROJECT_NAME}-tools"
           roq-fix-bridge::roq-fix-bridge-fix
           roq-fix::roq-fix
-          roq-client::roq-client
           roq-web::roq-web
           roq-io::roq-io
           roq-logging::roq-logging
           roq-api::roq-api
+          tomlplusplus::tomlplusplus
           fmt::fmt
           absl::flags)
 

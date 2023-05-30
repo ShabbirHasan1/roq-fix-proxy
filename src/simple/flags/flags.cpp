@@ -7,10 +7,16 @@
 #include <absl/flags/flag.h>
 
 ABSL_FLAG(  //
+    std::string,
+    config_file,
+    {},
+    "config file (path)");
+
+ABSL_FLAG(  //
     uint16_t,
     port,
     {},
-    "http port");
+    "listen port");
 
 ABSL_FLAG(  //
     std::string,
@@ -38,6 +44,11 @@ ABSL_FLAG(  //
 
 namespace simple {
 namespace flags {
+
+std::string_view Flags::config_file() {
+  static std::string const result = absl::GetFlag(FLAGS_config_file);
+  return result;
+}
 
 uint16_t Flags::port() {
   static uint16_t const result = absl::GetFlag(FLAGS_port);
