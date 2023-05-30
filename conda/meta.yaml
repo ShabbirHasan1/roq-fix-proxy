@@ -14,10 +14,13 @@ requirements:
     - cmake
     - make
   host:
-    - roq-fix-bridge
-    - roq-client
     - abseil-cpp
     - catch2
+    - nlohmann_json
+    - roq-client
+    - roq-eb
+    - roq-fix-bridge
+    - roq-io
 
 about:
   license: BSD-3-Clause

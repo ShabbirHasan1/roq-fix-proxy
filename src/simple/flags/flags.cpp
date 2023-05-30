@@ -7,10 +7,10 @@
 #include <absl/flags/flag.h>
 
 ABSL_FLAG(  //
-    bool,
-    simulation,
-    false,
-    "simulation mode?");
+    uint16_t,
+    port,
+    {},
+    "http port");
 
 ABSL_FLAG(  //
     std::string,
@@ -39,8 +39,8 @@ ABSL_FLAG(  //
 namespace simple {
 namespace flags {
 
-bool Flags::simulation() {
-  static bool const result = absl::GetFlag(FLAGS_simulation);
+uint16_t Flags::port() {
+  static uint16_t const result = absl::GetFlag(FLAGS_port);
   return result;
 }
 
