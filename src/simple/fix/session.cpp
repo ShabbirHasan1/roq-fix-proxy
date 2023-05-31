@@ -257,7 +257,7 @@ void Session::send_logon() {
       .encrypt_method = {},
       .heart_bt_int = std::chrono::duration_cast<std::chrono::seconds>(ping_freq_).count(),
       .reset_seq_num_flag = true,
-      .next_expected_msg_seq_num = 1,
+      .next_expected_msg_seq_num = inbound_.msg_seq_num + 1,  // note!
       .username = {},
       .password = {},
   };
