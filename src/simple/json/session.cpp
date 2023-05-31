@@ -1,6 +1,6 @@
 /* Copyright (c) 2017-2023, Hans Erik Thrane */
 
-#include "simple/web/session.hpp"
+#include "simple/json/session.hpp"
 
 #include <utility>
 
@@ -14,7 +14,7 @@
 using namespace std::literals;
 
 namespace simple {
-namespace web {
+namespace json {
 
 // === IMPLEMENTATION ===
 
@@ -136,5 +136,5 @@ std::string_view Session::format(fmt::format_string<Args...> const &fmt, Args &&
   return std::string_view{std::data(buffer_), std::size(buffer_)};
 }
 
-}  // namespace web
+}  // namespace json
 }  // namespace simple

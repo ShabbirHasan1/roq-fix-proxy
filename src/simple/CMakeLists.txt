@@ -2,7 +2,7 @@ set(TARGET_NAME "${PROJECT_NAME}-simple")
 
 add_subdirectory(flags)
 add_subdirectory(fix)
-add_subdirectory(web)
+add_subdirectory(json)
 
 add_executable("${TARGET_NAME}" application.cpp config.cpp controller.cpp settings.cpp main.cpp)
 
@@ -10,7 +10,7 @@ target_link_libraries(
   "${TARGET_NAME}"
   PRIVATE "${PROJECT_NAME}-flags"
           "${PROJECT_NAME}-fix"
-          "${PROJECT_NAME}-web"
+          "${PROJECT_NAME}-json"
           roq-fix-bridge::roq-fix-bridge-fix
           roq-fix::roq-fix
           roq-web::roq-web

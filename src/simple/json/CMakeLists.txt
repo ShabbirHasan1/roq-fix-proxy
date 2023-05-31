@@ -1,4 +1,4 @@
-set(TARGET_NAME "${PROJECT_NAME}-web")
+set(TARGET_NAME "${PROJECT_NAME}-json")
 
 set(SOURCES session.cpp)
 

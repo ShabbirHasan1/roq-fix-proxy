@@ -32,7 +32,7 @@ auto create_fix_sessions(auto &settings, auto &context, auto &connections) {
   return result;
 }
 
-auto create_web_listener(auto &handler, auto &settings, auto &context) {
+auto create_json_listener(auto &handler, auto &settings, auto &context) {
   auto network_address = roq::io::NetworkAddress{settings.listen_port};
   roq::log::debug("{}"sv, network_address);
   return context.create_tcp_listener(handler, network_address);
@@ -47,7 +47,7 @@ Controller::Controller(
       interrupt_{context.create_signal(*this, roq::io::sys::Signal::Type::INTERRUPT)},
       timer_{context.create_timer(*this, TIMER_FREQUENCY)},
       fix_sessions_{create_fix_sessions(settings, context, connections)},
-      web_listener_{create_web_listener(*this, settings, context_)} {
+      json_listener_{create_json_listener(*this, settings, context_)} {
 }
 
 void Controller::run() {
@@ -83,8 +83,8 @@ void Controller::operator()(roq::io::sys::Timer::Event const &event) {
 void Controller::operator()(roq::io::net::tcp::Connection::Factory &factory) {
   auto session_id = ++next_session_id_;
   roq::log::info("Adding session_id={}..."sv, session_id);
-  auto session = std::make_unique<web::Session>(session_id, factory, shared_);
-  web_sessions_.try_emplace(session_id, std::move(session));
+  auto session = std::make_unique<json::Session>(session_id, factory, shared_);
+  json_sessions_.try_emplace(session_id, std::move(session));
 }
 
 // utilities
@@ -95,7 +95,7 @@ void Controller::remove_zombies(std::chrono::nanoseconds now) {
   next_garbage_collection_ = now + 1s;
   for (auto session_id : shared_.sessions_to_remove) {
     roq::log::info("Removing session_id={}..."sv, session_id);
-    web_sessions_.erase(session_id);
+    json_sessions_.erase(session_id);
   }
   shared_.sessions_to_remove.clear();
 }

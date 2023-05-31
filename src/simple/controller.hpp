@@ -19,7 +19,7 @@
 
 #include "simple/fix/session.hpp"
 
-#include "simple/web/session.hpp"
+#include "simple/json/session.hpp"
 
 namespace simple {
 
@@ -57,9 +57,9 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
   std::unique_ptr<roq::io::sys::Timer> timer_;
   // fix
   std::vector<std::unique_ptr<fix::Session>> fix_sessions_;
-  // web
-  std::unique_ptr<roq::io::net::tcp::Listener> const web_listener_;
-  absl::flat_hash_map<uint64_t, std::unique_ptr<web::Session>> web_sessions_;
+  // json
+  std::unique_ptr<roq::io::net::tcp::Listener> const json_listener_;
+  absl::flat_hash_map<uint64_t, std::unique_ptr<json::Session>> json_sessions_;
   std::chrono::nanoseconds next_garbage_collection_ = {};
   uint64_t next_session_id_ = {};
   Shared shared_;
