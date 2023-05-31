@@ -13,6 +13,8 @@
 #include "roq/fix/reader.hpp"
 
 #include "roq/fix_bridge/fix/market_data_request.hpp"
+#include "roq/fix_bridge/fix/new_order_single.hpp"
+#include "roq/fix_bridge/fix/order_cancel_request.hpp"
 
 using namespace std::literals;
 
@@ -253,6 +255,8 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &event) {
   auto &[trace_info, logon] = event;
   roq::log::debug("logon={}, trace_info={}"sv, logon, trace_info);
   send_market_data_request();  // XXX TODO proper download + subscribe
+  // send_new_order_single();
+  // send_order_cancel_request();
   (*this)(roq::ConnectionStatus::READY);
 }
 
@@ -360,6 +364,8 @@ void Session::send_test_request(std::chrono::nanoseconds now) {
   send(test_request);
 }
 
+// XXX following to demonstrate some ideas
+
 void Session::send_market_data_request() {
   auto md_entry_types = std::array<roq::fix_bridge::fix::MDReq, 2>{{
       {.md_entry_type = roq::fix::MDEntryType::BID},
@@ -376,7 +382,7 @@ void Session::send_market_data_request() {
       .subscription_request_type = roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
       .market_depth = 5,  // note! 0=full book, 1=top of book, >1=best N
       .md_update_type = roq::fix::MDUpdateType::INCREMENTAL_REFRESH,
-      .aggregated_book = true,  // note! MbP
+      .aggregated_book = true,  // note! false=MbO, true=MbP
       .no_md_entry_types = md_entry_types,
       .no_related_sym = related_sym,
       .no_trading_sessions = {},
@@ -385,6 +391,45 @@ void Session::send_market_data_request() {
       .custom_value = std::numeric_limits<double>::quiet_NaN(),
   };
   send(market_data_request);
+}
+
+void Session::send_new_order_single() {
+  auto new_order_single = roq::fix_bridge::fix::NewOrderSingle{
+      .cl_ord_id = "xxx"sv,
+      .no_party_ids = {},
+      .account = {},
+      .handl_inst = roq::fix::HandlInst{},
+      .exec_inst = {},
+      .no_trading_sessions = {},
+      .symbol = "BTC-PERPETUAL"sv,
+      .security_exchange = "deribit"sv,
+      .side = roq::fix::Side::BUY,
+      .transact_time = {},
+      .order_qty = 1.0,
+      .ord_type = roq::fix::OrdType::LIMIT,
+      .price = 123.4,
+      .stop_px = std::numeric_limits<double>::quiet_NaN(),
+      .time_in_force = roq::fix::TimeInForce::GTC,
+      .text = {},
+      .position_effect = roq::fix::PositionEffect{},
+      .max_show = std::numeric_limits<double>::quiet_NaN(),
+  };
+  send(new_order_single);
+}
+
+void Session::send_order_cancel_request() {
+  auto order_cancel_request = roq::fix_bridge::fix::OrderCancelRequest{
+      .orig_cl_ord_id = "xxx"sv,
+      .order_id = {},
+      .cl_ord_id = "yyy"sv,
+      .symbol = "BTC-PERPETUAL"sv,
+      .security_exchange = "deribit"sv,
+      .side = roq::fix::Side::BUY,
+      .transact_time = {},
+      .order_qty = std::numeric_limits<double>::quiet_NaN(),
+      .text = {},
+  };
+  send(order_cancel_request);
 }
 
 }  // namespace fix

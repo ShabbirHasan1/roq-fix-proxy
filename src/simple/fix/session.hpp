@@ -99,7 +99,11 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   void send_logout(std::string_view const &text);
   void send_heartbeat(std::string_view const &test_req_id);
   void send_test_request(std::chrono::nanoseconds now);
+
   void send_market_data_request();
+
+  void send_new_order_single();
+  void send_order_cancel_request();
 
  private:
   // config
