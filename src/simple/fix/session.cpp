@@ -163,52 +163,53 @@ void Session::check(roq::fix::Header const &header) {
 
 void Session::parse(roq::Trace<roq::fix::Message> const &event) {
   auto &[trace_info, message] = event;
-  switch (message.header.msg_type) {
+  auto &header = message.header;
+  switch (header.msg_type) {
     using enum roq::fix::MsgType;
     case HEARTBEAT: {
       auto heartbeat = roq::fix_bridge::fix::Heartbeat::create(message);
       dispatch(event, heartbeat);
-      return;
+      break;
     }
     case LOGON: {
       auto logon = roq::fix_bridge::fix::Logon::create(message);
       dispatch(event, logon);
-      return;
+      break;
     }
     case LOGOUT: {
       auto logout = roq::fix_bridge::fix::Heartbeat::create(message);
       dispatch(event, logout);
-      return;
+      break;
     }
     case RESEND_REQUEST: {
       auto resend_request = roq::fix_bridge::fix::ResendRequest::create(message);
       dispatch(event, resend_request);
-      return;
+      break;
     }
     case TEST_REQUEST: {
       auto test_request = roq::fix_bridge::fix::TestRequest::create(message);
       dispatch(event, test_request);
-      return;
+      break;
     }
     case EXECUTION_REPORT: {
       auto execution_report = roq::fix_bridge::fix::ExecutionReport::create(message, decode_buffer_);
       dispatch(event, execution_report);
-      return;
+      break;
     }
     case ORDER_CANCEL_REJECT: {
       auto order_cancel_reject = roq::fix_bridge::fix::OrderCancelReject::create(message, decode_buffer_);
       dispatch(event, order_cancel_reject);
-      return;
+      break;
     }
     case REJECT: {
       auto reject = roq::fix_bridge::fix::Reject::create(message);
       dispatch(event, reject);
-      return;
+      break;
     }
     default:
+      roq::log::warn("Unexpected msg_type={}"sv, header.msg_type);
       break;
   }
-  roq::log::warn("Unexpected msg_type={}"sv, message.header.msg_type);
 }
 
 template <typename T>
