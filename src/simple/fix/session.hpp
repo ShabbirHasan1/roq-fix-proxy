@@ -63,17 +63,17 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   void parse(roq::Trace<roq::fix::Message> const &);
 
   template <typename T>
-  void dispatch(roq::TraceInfo const &, T const &, roq::fix::Header const &);
+  void dispatch(roq::Trace<roq::fix::Message> const &, T const &);
 
-  void operator()(roq::Trace<roq::fix_bridge::fix::Heartbeat> const &, roq::fix::Header const &);
-  void operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &, roq::fix::Header const &);
-  void operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &, roq::fix::Header const &);
-  void operator()(roq::Trace<roq::fix_bridge::fix::ResendRequest> const &, roq::fix::Header const &);
-  void operator()(roq::Trace<roq::fix_bridge::fix::TestRequest> const &, roq::fix::Header const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::Heartbeat> const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::ResendRequest> const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::TestRequest> const &);
 
-  void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &, roq::fix::Header const &);
-  void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &, roq::fix::Header const &);
-  void operator()(roq::Trace<roq::fix_bridge::fix::Reject> const &, roq::fix::Header const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::Reject> const &);
 
   // outbound
 

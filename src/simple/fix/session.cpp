@@ -167,42 +167,42 @@ void Session::parse(roq::Trace<roq::fix::Message> const &event) {
     using enum roq::fix::MsgType;
     case HEARTBEAT: {
       auto heartbeat = roq::fix_bridge::fix::Heartbeat::create(message);
-      dispatch(trace_info, heartbeat, message.header);
+      dispatch(event, heartbeat);
       return;
     }
     case LOGON: {
       auto logon = roq::fix_bridge::fix::Logon::create(message);
-      dispatch(trace_info, logon, message.header);
+      dispatch(event, logon);
       return;
     }
     case LOGOUT: {
       auto logout = roq::fix_bridge::fix::Heartbeat::create(message);
-      dispatch(trace_info, logout, message.header);
+      dispatch(event, logout);
       return;
     }
     case RESEND_REQUEST: {
       auto resend_request = roq::fix_bridge::fix::ResendRequest::create(message);
-      dispatch(trace_info, resend_request, message.header);
+      dispatch(event, resend_request);
       return;
     }
     case TEST_REQUEST: {
       auto test_request = roq::fix_bridge::fix::TestRequest::create(message);
-      dispatch(trace_info, test_request, message.header);
+      dispatch(event, test_request);
       return;
     }
     case EXECUTION_REPORT: {
       auto execution_report = roq::fix_bridge::fix::ExecutionReport::create(message, decode_buffer_);
-      dispatch(trace_info, execution_report, message.header);
+      dispatch(event, execution_report);
       return;
     }
     case ORDER_CANCEL_REJECT: {
       auto order_cancel_reject = roq::fix_bridge::fix::OrderCancelReject::create(message, decode_buffer_);
-      dispatch(trace_info, order_cancel_reject, message.header);
+      dispatch(event, order_cancel_reject);
       return;
     }
     case REJECT: {
       auto reject = roq::fix_bridge::fix::Reject::create(message);
-      dispatch(trace_info, reject, message.header);
+      dispatch(event, reject);
       return;
     }
     default:
@@ -212,42 +212,57 @@ void Session::parse(roq::Trace<roq::fix::Message> const &event) {
 }
 
 template <typename T>
-void Session::dispatch(roq::TraceInfo const &trace_info, T const &value, roq::fix::Header const &header) {
-  roq::log::debug("trace_info={}, value={}, header={}"sv, trace_info, value, header);
-  roq::Trace event{trace_info, value};
-  (*this)(event, header);
+void Session::dispatch(roq::Trace<roq::fix::Message> const &event, T const &value) {
+  auto &[trace_info, message] = event;
+  roq::Trace event_2{trace_info, value};
+  (*this)(event_2);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::Heartbeat> const &, roq::fix::Header const &) {
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::Heartbeat> const &event) {
+  auto &[trace_info, heartbeat] = event;
+  roq::log::debug("heartbeat={}, trace_info={}"sv, heartbeat, trace_info);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &, roq::fix::Header const &) {
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &event) {
+  auto &[trace_info, logon] = event;
+  roq::log::debug("logon={}, trace_info={}"sv, logon, trace_info);
   // XXX TODO download + subscribe
   (*this)(roq::ConnectionStatus::READY);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &event, roq::fix::Header const &) {
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &event) {
+  auto &[trace_info, logout] = event;
+  roq::log::debug("logout={}, trace_info={}"sv, logout, trace_info);
   // note! mandated, must send a logout response
   send_logout(LOGOUT_RESPONSE);
   roq::log::warn("closing connection"sv);
   (*connection_manager_).close();
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::ResendRequest> const &, roq::fix::Header const &) {
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::ResendRequest> const &event) {
+  auto &[trace_info, resend_request] = event;
+  roq::log::debug("resend_request={}, trace_info={}"sv, resend_request, trace_info);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::TestRequest> const &event, roq::fix::Header const &) {
-  auto &test_request = event.value;
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::TestRequest> const &event) {
+  auto &[trace_info, test_request] = event;
+  roq::log::debug("test_request={}, trace_info={}"sv, test_request, trace_info);
   send_heartbeat(test_request.test_req_id);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &, roq::fix::Header const &) {
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &event) {
+  auto &[trace_info, execution_report] = event;
+  roq::log::debug("execution_report={}, trace_info={}"sv, execution_report, trace_info);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &, roq::fix::Header const &) {
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &event) {
+  auto &[trace_info, order_cancel_reject] = event;
+  roq::log::debug("order_cancel_reject={}, trace_info={}"sv, order_cancel_reject, trace_info);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::Reject> const &, roq::fix::Header const &) {
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::Reject> const &event) {
+  auto &[trace_info, reject] = event;
+  roq::log::debug("reject={}, trace_info={}"sv, reject, trace_info);
 }
 
 // outbound
