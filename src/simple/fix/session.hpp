@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "roq/connection_status.hpp"
 #include "roq/event.hpp"
 #include "roq/start.hpp"
 #include "roq/stop.hpp"
@@ -46,6 +47,10 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   void operator()(roq::Event<roq::Timer> const &);
 
  protected:
+  bool ready() const;
+
+  void operator()(roq::ConnectionStatus);
+
   // io::net::ConnectionManager::Handler
   void operator()(roq::io::net::ConnectionManager::Connected const &) override;
   void operator()(roq::io::net::ConnectionManager::Disconnected const &) override;
@@ -73,6 +78,8 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   // outbound
 
   void send_logon();
+  void send_logout(std::string_view const &text);
+  void send_test_request(std::chrono::nanoseconds now);
   void send_heartbeat(std::string_view const &test_req_id);
 
   template <typename T>
@@ -82,6 +89,7 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   // config
   std::string_view const sender_comp_id_;
   std::string_view const target_comp_id_;
+  std::chrono::nanoseconds const ping_freq_;
   bool const debug_;
   // connection
   std::unique_ptr<roq::io::net::ConnectionFactory> const connection_factory_;
@@ -95,6 +103,9 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   } outbound_;
   std::vector<std::byte> decode_buffer_;
   std::vector<std::byte> encode_buffer_;
+  // state
+  roq::ConnectionStatus connection_status_ = {};
+  std::chrono::nanoseconds next_heartbeat_ = {};
 };
 
 }  // namespace fix

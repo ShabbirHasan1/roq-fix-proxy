@@ -42,6 +42,13 @@ ABSL_FLAG(  //
     65536,
     "fix encode buffer size");
 
+// XXX TODO make this absl duration
+ABSL_FLAG(  //
+    uint32_t,
+    fix_ping_freq,
+    {30},
+    "fix ping freq (seconds)");
+
 ABSL_FLAG(  //
     bool,
     fix_debug,
@@ -72,12 +79,17 @@ std::string_view Flags::fix_target_comp_id() {
 }
 
 uint32_t Flags::fix_decode_buffer_size() {
-  static bool const result = absl::GetFlag(FLAGS_fix_decode_buffer_size);
+  static uint32_t const result = absl::GetFlag(FLAGS_fix_decode_buffer_size);
   return result;
 }
 
 uint32_t Flags::fix_encode_buffer_size() {
-  static bool const result = absl::GetFlag(FLAGS_fix_encode_buffer_size);
+  static uint32_t const result = absl::GetFlag(FLAGS_fix_encode_buffer_size);
+  return result;
+}
+
+std::chrono::seconds Flags::fix_ping_freq() {
+  static std::chrono::seconds const result{absl::GetFlag(FLAGS_fix_ping_freq)};
   return result;
 }
 

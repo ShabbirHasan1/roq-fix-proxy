@@ -4,6 +4,8 @@
 
 #include "roq/logging.hpp"
 
+#include "roq/utils/update.hpp"
+
 #include "roq/debug/fix/message.hpp"
 #include "roq/debug/hex/message.hpp"
 
@@ -21,7 +23,8 @@ namespace fix {
 
 namespace {
 auto const FIX_VERSION = roq::fix::Version::FIX_44;
-}
+auto const LOGOUT_RESPONSE = "LOGOUT"sv;
+}  // namespace
 
 // === HELPERS ===
 
@@ -49,7 +52,8 @@ auto create_connection_manager(auto &handler, auto &settings, auto &connection_f
 
 Session::Session(Settings const &settings, roq::io::Context &context, roq::io::web::URI const &uri)
     : sender_comp_id_{settings.fix.sender_comp_id}, target_comp_id_{settings.fix.target_comp_id},
-      debug_{settings.fix.debug}, connection_factory_{create_connection_factory(settings, context, uri)},
+      ping_freq_{settings.fix.ping_freq}, debug_{settings.fix.debug},
+      connection_factory_{create_connection_factory(settings, context, uri)},
       connection_manager_{create_connection_manager(*this, settings, *connection_factory_)},
       decode_buffer_(settings.fix.decode_buffer_size), encode_buffer_(settings.fix.encode_buffer_size) {
 }
@@ -63,7 +67,24 @@ void Session::operator()(roq::Event<roq::Stop> const &) {
 }
 
 void Session::operator()(roq::Event<roq::Timer> const &event) {
-  (*connection_manager_).refresh(event.value.now);
+  auto now = event.value.now;
+  (*connection_manager_).refresh(now);
+  if (!ready())
+    return;
+  if (next_heartbeat_ <= now) {
+    next_heartbeat_ = now + ping_freq_;
+    send_test_request(now);
+  }
+}
+
+bool Session::ready() const {
+  return connection_status_ == roq::ConnectionStatus::READY;
+}
+
+void Session::operator()(roq::ConnectionStatus connection_status) {
+  if (!roq::utils::update(connection_status_, connection_status))
+    return;
+  roq::log::debug("connection_status={}"sv, connection_status);
 }
 
 // io::net::ConnectionManager::Handler
@@ -71,10 +92,15 @@ void Session::operator()(roq::Event<roq::Timer> const &event) {
 void Session::operator()(roq::io::net::ConnectionManager::Connected const &) {
   roq::log::debug("Connected"sv);
   send_logon();
+  (*this)(roq::ConnectionStatus::LOGIN_SENT);
 }
 
 void Session::operator()(roq::io::net::ConnectionManager::Disconnected const &) {
   roq::log::debug("Disconnected"sv);
+  outbound_ = {};
+  inbound_ = {};
+  next_heartbeat_ = {};
+  (*this)(roq::ConnectionStatus::DISCONNECTED);
 }
 
 void Session::operator()(roq::io::net::ConnectionManager::Read const &) {
@@ -196,9 +222,15 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::Heartbeat> const &, ro
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &, roq::fix::Header const &) {
+  // XXX TODO download + subscribe
+  (*this)(roq::ConnectionStatus::READY);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &, roq::fix::Header const &) {
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &event, roq::fix::Header const &) {
+  // note! mandated, must send a logout response
+  send_logout(LOGOUT_RESPONSE);
+  roq::log::warn("closing connection"sv);
+  (*connection_manager_).close();
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::ResendRequest> const &, roq::fix::Header const &) {
@@ -223,13 +255,28 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::Reject> const &, roq::
 void Session::send_logon() {
   auto logon = roq::fix_bridge::fix::Logon{
       .encrypt_method = {},
-      .heart_bt_int = 30,  // note! seconds
+      .heart_bt_int = std::chrono::duration_cast<std::chrono::seconds>(ping_freq_).count(),
       .reset_seq_num_flag = true,
       .next_expected_msg_seq_num = 1,
       .username = {},
       .password = {},
   };
   send(logon);
+}
+
+void Session::send_logout(std::string_view const &text) {
+  auto logout = roq::fix_bridge::fix::Logout{
+      .text = text,
+  };
+  send(logout);
+}
+
+void Session::send_test_request(std::chrono::nanoseconds now) {
+  auto test_req_id = fmt::format("{}"sv, now.count());
+  auto test_request = roq::fix_bridge::fix::TestRequest{
+      .test_req_id = test_req_id,
+  };
+  send(test_request);
 }
 
 void Session::send_heartbeat(std::string_view const &test_req_id) {

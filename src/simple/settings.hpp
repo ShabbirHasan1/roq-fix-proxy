@@ -23,6 +23,7 @@ struct Settings final {
     std::string_view target_comp_id;
     uint32_t decode_buffer_size = {};
     uint32_t encode_buffer_size = {};
+    std::chrono::seconds ping_freq = {};
     bool debug = {};
   } fix;
 };

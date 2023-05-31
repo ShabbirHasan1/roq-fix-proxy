@@ -32,6 +32,7 @@ Settings Settings::create() {
               .target_comp_id = flags::Flags::fix_target_comp_id(),
               .decode_buffer_size = flags::Flags::fix_decode_buffer_size(),
               .encode_buffer_size = flags::Flags::fix_encode_buffer_size(),
+              .ping_freq = flags::Flags::fix_ping_freq(),
               .debug = flags::Flags::fix_debug(),
           },
   };
