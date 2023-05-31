@@ -21,6 +21,7 @@
 
 #include "roq/fix/message.hpp"
 
+#include "roq/fix_bridge/fix/business_message_reject.hpp"
 #include "roq/fix_bridge/fix/execution_report.hpp"
 #include "roq/fix_bridge/fix/heartbeat.hpp"
 #include "roq/fix_bridge/fix/logon.hpp"
@@ -66,19 +67,28 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   template <typename T>
   void dispatch(roq::Trace<roq::fix::Message> const &, T const &);
 
-  void operator()(roq::Trace<roq::fix_bridge::fix::Heartbeat> const &);
+  // - session
+
+  void operator()(roq::Trace<roq::fix_bridge::fix::Reject> const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::ResendRequest> const &);
+
   void operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &);
   void operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &);
-  void operator()(roq::Trace<roq::fix_bridge::fix::ResendRequest> const &);
+
+  void operator()(roq::Trace<roq::fix_bridge::fix::Heartbeat> const &);
+
   void operator()(roq::Trace<roq::fix_bridge::fix::TestRequest> const &);
+
+  // - business
+
+  void operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &);
 
   void operator()(roq::Trace<roq::fix_bridge::fix::MarketDataRequestReject> const &);
   void operator()(roq::Trace<roq::fix_bridge::fix::MarketDataSnapshotFullRefresh> const &);
   void operator()(roq::Trace<roq::fix_bridge::fix::MarketDataIncrementalRefresh> const &);
 
-  void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &);
   void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &);
-  void operator()(roq::Trace<roq::fix_bridge::fix::Reject> const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &);
 
   // outbound
 
@@ -87,8 +97,8 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
 
   void send_logon();
   void send_logout(std::string_view const &text);
-  void send_test_request(std::chrono::nanoseconds now);
   void send_heartbeat(std::string_view const &test_req_id);
+  void send_test_request(std::chrono::nanoseconds now);
   void send_market_data_request();
 
  private:

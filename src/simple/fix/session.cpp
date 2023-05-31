@@ -165,9 +165,14 @@ void Session::parse(roq::Trace<roq::fix::Message> const &event) {
   auto &header = message.header;
   switch (header.msg_type) {
     using enum roq::fix::MsgType;
-    case HEARTBEAT: {
-      auto heartbeat = roq::fix_bridge::fix::Heartbeat::create(message);
-      dispatch(event, heartbeat);
+    case REJECT: {
+      auto reject = roq::fix_bridge::fix::Reject::create(message);
+      dispatch(event, reject);
+      break;
+    }
+    case RESEND_REQUEST: {
+      auto resend_request = roq::fix_bridge::fix::ResendRequest::create(message);
+      dispatch(event, resend_request);
       break;
     }
     case LOGON: {
@@ -180,9 +185,9 @@ void Session::parse(roq::Trace<roq::fix::Message> const &event) {
       dispatch(event, logout);
       break;
     }
-    case RESEND_REQUEST: {
-      auto resend_request = roq::fix_bridge::fix::ResendRequest::create(message);
-      dispatch(event, resend_request);
+    case HEARTBEAT: {
+      auto heartbeat = roq::fix_bridge::fix::Heartbeat::create(message);
+      dispatch(event, heartbeat);
       break;
     }
     case TEST_REQUEST: {
@@ -190,19 +195,9 @@ void Session::parse(roq::Trace<roq::fix::Message> const &event) {
       dispatch(event, test_request);
       break;
     }
-    case EXECUTION_REPORT: {
-      auto execution_report = roq::fix_bridge::fix::ExecutionReport::create(message, decode_buffer_);
-      dispatch(event, execution_report);
-      break;
-    }
-    case ORDER_CANCEL_REJECT: {
-      auto order_cancel_reject = roq::fix_bridge::fix::OrderCancelReject::create(message, decode_buffer_);
-      dispatch(event, order_cancel_reject);
-      break;
-    }
-    case REJECT: {
-      auto reject = roq::fix_bridge::fix::Reject::create(message);
-      dispatch(event, reject);
+    case BUSINESS_MESSAGE_REJECT: {
+      auto business_message_reject = roq::fix_bridge::fix::BusinessMessageReject::create(message);
+      dispatch(event, business_message_reject);
       break;
     }
     case MARKET_DATA_REQUEST_REJECT: {
@@ -222,6 +217,16 @@ void Session::parse(roq::Trace<roq::fix::Message> const &event) {
       dispatch(event, market_data_incremental_refresh);
       break;
     }
+    case ORDER_CANCEL_REJECT: {
+      auto order_cancel_reject = roq::fix_bridge::fix::OrderCancelReject::create(message, decode_buffer_);
+      dispatch(event, order_cancel_reject);
+      break;
+    }
+    case EXECUTION_REPORT: {
+      auto execution_report = roq::fix_bridge::fix::ExecutionReport::create(message, decode_buffer_);
+      dispatch(event, execution_report);
+      break;
+    }
     default:
       roq::log::warn("Unexpected msg_type={}"sv, header.msg_type);
   }
@@ -234,9 +239,14 @@ void Session::dispatch(roq::Trace<roq::fix::Message> const &event, T const &valu
   (*this)(event_2);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::Heartbeat> const &event) {
-  auto &[trace_info, heartbeat] = event;
-  roq::log::debug("heartbeat={}, trace_info={}"sv, heartbeat, trace_info);
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::Reject> const &event) {
+  auto &[trace_info, reject] = event;
+  roq::log::debug("reject={}, trace_info={}"sv, reject, trace_info);
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::ResendRequest> const &event) {
+  auto &[trace_info, resend_request] = event;
+  roq::log::debug("resend_request={}, trace_info={}"sv, resend_request, trace_info);
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &event) {
@@ -255,15 +265,20 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &event) 
   (*connection_manager_).close();
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::ResendRequest> const &event) {
-  auto &[trace_info, resend_request] = event;
-  roq::log::debug("resend_request={}, trace_info={}"sv, resend_request, trace_info);
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::Heartbeat> const &event) {
+  auto &[trace_info, heartbeat] = event;
+  roq::log::debug("heartbeat={}, trace_info={}"sv, heartbeat, trace_info);
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::TestRequest> const &event) {
   auto &[trace_info, test_request] = event;
   roq::log::debug("test_request={}, trace_info={}"sv, test_request, trace_info);
   send_heartbeat(test_request.test_req_id);
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &event) {
+  auto &[trace_info, business_message_reject] = event;
+  roq::log::debug("business_message_reject={}, trace_info={}"sv, business_message_reject, trace_info);
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::MarketDataRequestReject> const &event) {
@@ -282,19 +297,14 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::MarketDataIncrementalR
   roq::log::debug("market_data_incremental_refresh={}, trace_info={}"sv, market_data_incremental_refresh, trace_info);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &event) {
-  auto &[trace_info, execution_report] = event;
-  roq::log::debug("execution_report={}, trace_info={}"sv, execution_report, trace_info);
-}
-
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &event) {
   auto &[trace_info, order_cancel_reject] = event;
   roq::log::debug("order_cancel_reject={}, trace_info={}"sv, order_cancel_reject, trace_info);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::Reject> const &event) {
-  auto &[trace_info, reject] = event;
-  roq::log::debug("reject={}, trace_info={}"sv, reject, trace_info);
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &event) {
+  auto &[trace_info, execution_report] = event;
+  roq::log::debug("execution_report={}, trace_info={}"sv, execution_report, trace_info);
 }
 
 // outbound
@@ -335,19 +345,19 @@ void Session::send_logout(std::string_view const &text) {
   send(logout);
 }
 
+void Session::send_heartbeat(std::string_view const &test_req_id) {
+  auto heartbeat = roq::fix_bridge::fix::Heartbeat{
+      .test_req_id = test_req_id,
+  };
+  send(heartbeat);
+}
+
 void Session::send_test_request(std::chrono::nanoseconds now) {
   auto test_req_id = fmt::format("{}"sv, now.count());
   auto test_request = roq::fix_bridge::fix::TestRequest{
       .test_req_id = test_req_id,
   };
   send(test_request);
-}
-
-void Session::send_heartbeat(std::string_view const &test_req_id) {
-  auto heartbeat = roq::fix_bridge::fix::Heartbeat{
-      .test_req_id = test_req_id,
-  };
-  send(heartbeat);
 }
 
 void Session::send_market_data_request() {
