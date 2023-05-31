@@ -361,11 +361,11 @@ void Session::send_test_request(std::chrono::nanoseconds now) {
 }
 
 void Session::send_market_data_request() {
-  std::array<roq::fix_bridge::fix::MDReq, 2> md_entry_types{{
+  auto md_entry_types = std::array<roq::fix_bridge::fix::MDReq, 2>{{
       {.md_entry_type = roq::fix::MDEntryType::BID},
       {.md_entry_type = roq::fix::MDEntryType::OFFER},
   }};
-  std::array<roq::fix_bridge::fix::InstrmtMDReq, 1> related_sym{{
+  auto related_sym = std::array<roq::fix_bridge::fix::InstrmtMDReq, 1>{{
       {
           .symbol = "BTC-PERPETUAL"sv,
           .security_exchange = "deribit"sv,
