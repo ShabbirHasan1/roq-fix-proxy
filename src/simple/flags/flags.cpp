@@ -32,6 +32,12 @@ ABSL_FLAG(  //
 
 ABSL_FLAG(  //
     uint32_t,
+    fix_decode_buffer_size,
+    1048576,
+    "fix deode buffer size");
+
+ABSL_FLAG(  //
+    uint32_t,
     fix_encode_buffer_size,
     65536,
     "fix encode buffer size");
@@ -62,6 +68,11 @@ std::string_view Flags::fix_sender_comp_id() {
 
 std::string_view Flags::fix_target_comp_id() {
   static std::string const result = absl::GetFlag(FLAGS_fix_target_comp_id);
+  return result;
+}
+
+uint32_t Flags::fix_decode_buffer_size() {
+  static bool const result = absl::GetFlag(FLAGS_fix_decode_buffer_size);
   return result;
 }
 

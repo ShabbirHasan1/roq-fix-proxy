@@ -22,7 +22,14 @@
 
 #include "roq/fix/message.hpp"
 
+#include "roq/fix_bridge/fix/execution_report.hpp"
 #include "roq/fix_bridge/fix/heartbeat.hpp"
+#include "roq/fix_bridge/fix/logon.hpp"
+#include "roq/fix_bridge/fix/logout.hpp"
+#include "roq/fix_bridge/fix/order_cancel_reject.hpp"
+#include "roq/fix_bridge/fix/reject.hpp"
+#include "roq/fix_bridge/fix/resend_request.hpp"
+#include "roq/fix_bridge/fix/test_request.hpp"
 
 #include "simple/settings.hpp"
 
@@ -47,16 +54,29 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   // inbound
 
   void check(roq::fix::Header const &);
+
   void parse(roq::Trace<roq::fix::Message> const &);
 
+  template <typename T>
+  void dispatch(roq::TraceInfo const &, T const &, roq::fix::Header const &);
+
   void operator()(roq::Trace<roq::fix_bridge::fix::Heartbeat> const &, roq::fix::Header const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &, roq::fix::Header const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &, roq::fix::Header const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::ResendRequest> const &, roq::fix::Header const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::TestRequest> const &, roq::fix::Header const &);
+
+  void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &, roq::fix::Header const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &, roq::fix::Header const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::Reject> const &, roq::fix::Header const &);
 
   // outbound
 
   void send_logon();
+  void send_heartbeat(std::string_view const &test_req_id);
 
   template <typename T>
-  void send(T const &event, std::chrono::nanoseconds sending_time);
+  void send(T const &);
 
  private:
   // config
@@ -73,6 +93,7 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   struct {
     uint64_t msg_seq_num = {};
   } outbound_;
+  std::vector<std::byte> decode_buffer_;
   std::vector<std::byte> encode_buffer_;
 };
 

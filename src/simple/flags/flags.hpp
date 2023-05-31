@@ -12,6 +12,7 @@ struct Flags final {
   static uint16_t listen_port();
   static std::string_view fix_sender_comp_id();
   static std::string_view fix_target_comp_id();
+  static uint32_t fix_decode_buffer_size();
   static uint32_t fix_encode_buffer_size();
   static bool fix_debug();
 };

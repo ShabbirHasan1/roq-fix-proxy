@@ -51,7 +51,7 @@ Session::Session(Settings const &settings, roq::io::Context &context, roq::io::w
     : sender_comp_id_{settings.fix.sender_comp_id}, target_comp_id_{settings.fix.target_comp_id},
       debug_{settings.fix.debug}, connection_factory_{create_connection_factory(settings, context, uri)},
       connection_manager_{create_connection_manager(*this, settings, *connection_factory_)},
-      encode_buffer_(settings.fix.encode_buffer_size) {
+      decode_buffer_(settings.fix.decode_buffer_size), encode_buffer_(settings.fix.encode_buffer_size) {
 }
 
 void Session::operator()(roq::Event<roq::Start> const &) {
@@ -141,8 +141,42 @@ void Session::parse(roq::Trace<roq::fix::Message> const &event) {
     using enum roq::fix::MsgType;
     case HEARTBEAT: {
       auto heartbeat = roq::fix_bridge::fix::Heartbeat::create(message);
-      roq::Trace trace{trace_info, heartbeat};
-      (*this)(trace, message.header);
+      dispatch(trace_info, heartbeat, message.header);
+      return;
+    }
+    case LOGON: {
+      auto logon = roq::fix_bridge::fix::Logon::create(message);
+      dispatch(trace_info, logon, message.header);
+      return;
+    }
+    case LOGOUT: {
+      auto logout = roq::fix_bridge::fix::Heartbeat::create(message);
+      dispatch(trace_info, logout, message.header);
+      return;
+    }
+    case RESEND_REQUEST: {
+      auto resend_request = roq::fix_bridge::fix::ResendRequest::create(message);
+      dispatch(trace_info, resend_request, message.header);
+      return;
+    }
+    case TEST_REQUEST: {
+      auto test_request = roq::fix_bridge::fix::TestRequest::create(message);
+      dispatch(trace_info, test_request, message.header);
+      return;
+    }
+    case EXECUTION_REPORT: {
+      auto execution_report = roq::fix_bridge::fix::ExecutionReport::create(message, decode_buffer_);
+      dispatch(trace_info, execution_report, message.header);
+      return;
+    }
+    case ORDER_CANCEL_REJECT: {
+      auto order_cancel_reject = roq::fix_bridge::fix::OrderCancelReject::create(message, decode_buffer_);
+      dispatch(trace_info, order_cancel_reject, message.header);
+      return;
+    }
+    case REJECT: {
+      auto reject = roq::fix_bridge::fix::Reject::create(message);
+      dispatch(trace_info, reject, message.header);
       return;
     }
     default:
@@ -151,7 +185,37 @@ void Session::parse(roq::Trace<roq::fix::Message> const &event) {
   roq::log::warn("Unexpected msg_type={}"sv, message.header.msg_type);
 }
 
+template <typename T>
+void Session::dispatch(roq::TraceInfo const &trace_info, T const &value, roq::fix::Header const &header) {
+  roq::log::debug("trace_info={}, value={}, header={}"sv, trace_info, value, header);
+  roq::Trace event{trace_info, value};
+  (*this)(event, header);
+}
+
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::Heartbeat> const &, roq::fix::Header const &) {
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &, roq::fix::Header const &) {
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &, roq::fix::Header const &) {
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::ResendRequest> const &, roq::fix::Header const &) {
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::TestRequest> const &event, roq::fix::Header const &) {
+  auto &test_request = event.value;
+  send_heartbeat(test_request.test_req_id);
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &, roq::fix::Header const &) {
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &, roq::fix::Header const &) {
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::Reject> const &, roq::fix::Header const &) {
 }
 
 // outbound
@@ -165,12 +229,19 @@ void Session::send_logon() {
       .username = {},
       .password = {},
   };
-  auto sending_time = roq::clock::get_realtime();
-  send(logon, sending_time);
+  send(logon);
+}
+
+void Session::send_heartbeat(std::string_view const &test_req_id) {
+  auto heartbeat = roq::fix_bridge::fix::Heartbeat{
+      .test_req_id = test_req_id,
+  };
+  send(heartbeat);
 }
 
 template <typename T>
-void Session::send(T const &event, std::chrono::nanoseconds sending_time) {
+void Session::send(T const &event) {
+  auto sending_time = roq::clock::get_realtime();
   auto header = roq::fix::Header{
       .version = FIX_VERSION,
       .msg_type = T::msg_type,
