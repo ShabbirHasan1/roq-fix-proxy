@@ -352,12 +352,8 @@ void Session::send_heartbeat(std::string_view const &test_req_id) {
 
 void Session::send_market_data_request() {
   std::array<roq::fix_bridge::fix::MDReq, 2> md_entry_types{{
-      {
-          .md_entry_type = roq::fix::MDEntryType::BID,
-      },
-      {
-          .md_entry_type = roq::fix::MDEntryType::OFFER,
-      },
+      {.md_entry_type = roq::fix::MDEntryType::BID},
+      {.md_entry_type = roq::fix::MDEntryType::OFFER},
   }};
   std::array<roq::fix_bridge::fix::InstrmtMDReq, 1> related_sym{{
       {
