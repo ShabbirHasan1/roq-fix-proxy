@@ -79,9 +79,8 @@ bool Session::ready() const {
 }
 
 void Session::operator()(roq::ConnectionStatus connection_status) {
-  if (!roq::utils::update(connection_status_, connection_status))
-    return;
-  roq::log::debug("connection_status={}"sv, connection_status);
+  if (roq::utils::update(connection_status_, connection_status))
+    roq::log::debug("connection_status={}"sv, connection_status);
 }
 
 // io::net::ConnectionManager::Handler
@@ -263,6 +262,23 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::Reject> const &event) 
 
 // outbound
 
+template <typename T>
+void Session::send(T const &event) {
+  auto sending_time = roq::clock::get_realtime();
+  auto header = roq::fix::Header{
+      .version = FIX_VERSION,
+      .msg_type = T::msg_type,
+      .sender_comp_id = sender_comp_id_,
+      .target_comp_id = target_comp_id_,
+      .msg_seq_num = ++outbound_.msg_seq_num,  // note!
+      .sending_time = sending_time,
+  };
+  auto message = event.encode(header, encode_buffer_);
+  if (debug_) [[unlikely]]
+    roq::log::info("{}"sv, roq::debug::fix::Message{message});
+  (*connection_manager_).send(message);
+}
+
 void Session::send_logon() {
   auto logon = roq::fix_bridge::fix::Logon{
       .encrypt_method = {},
@@ -295,23 +311,6 @@ void Session::send_heartbeat(std::string_view const &test_req_id) {
       .test_req_id = test_req_id,
   };
   send(heartbeat);
-}
-
-template <typename T>
-void Session::send(T const &event) {
-  auto sending_time = roq::clock::get_realtime();
-  auto header = roq::fix::Header{
-      .version = FIX_VERSION,
-      .msg_type = T::msg_type,
-      .sender_comp_id = sender_comp_id_,
-      .target_comp_id = target_comp_id_,
-      .msg_seq_num = ++outbound_.msg_seq_num,  // note!
-      .sending_time = sending_time,
-  };
-  auto message = event.encode(header, encode_buffer_);
-  if (debug_) [[unlikely]]
-    roq::log::info("{}"sv, roq::debug::fix::Message{message});
-  (*connection_manager_).send(message);
 }
 
 }  // namespace fix

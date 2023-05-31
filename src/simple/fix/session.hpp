@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include <fmt/format.h>
-
 #include <memory>
 #include <vector>
 
@@ -77,13 +75,13 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
 
   // outbound
 
+  template <typename T>
+  void send(T const &);
+
   void send_logon();
   void send_logout(std::string_view const &text);
   void send_test_request(std::chrono::nanoseconds now);
   void send_heartbeat(std::string_view const &test_req_id);
-
-  template <typename T>
-  void send(T const &);
 
  private:
   // config
