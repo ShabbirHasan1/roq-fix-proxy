@@ -28,8 +28,9 @@ Settings Settings::create() {
           },
       .fix =
           {
-              .sender_comp_id = flags::Flags::fix_sender_comp_id(),
               .target_comp_id = flags::Flags::fix_target_comp_id(),
+              .sender_comp_id = flags::Flags::fix_sender_comp_id(),
+              .username = flags::Flags::fix_username(),
               .decode_buffer_size = flags::Flags::fix_decode_buffer_size(),
               .encode_buffer_size = flags::Flags::fix_encode_buffer_size(),
               .ping_freq = flags::Flags::fix_ping_freq(),

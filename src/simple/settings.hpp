@@ -19,8 +19,9 @@ struct Settings final {
   } net;
 
   struct {
-    std::string_view sender_comp_id;
     std::string_view target_comp_id;
+    std::string_view sender_comp_id;
+    std::string_view username;
     uint32_t decode_buffer_size = {};
     uint32_t encode_buffer_size = {};
     std::chrono::seconds ping_freq = {};

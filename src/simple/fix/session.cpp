@@ -48,8 +48,8 @@ auto create_connection_manager(auto &handler, auto &settings, auto &connection_f
 // === IMPLEMENTATION ===
 
 Session::Session(Settings const &settings, roq::io::Context &context, roq::io::web::URI const &uri)
-    : sender_comp_id_{settings.fix.sender_comp_id}, target_comp_id_{settings.fix.target_comp_id},
-      ping_freq_{settings.fix.ping_freq}, debug_{settings.fix.debug},
+    : target_comp_id_{settings.fix.target_comp_id}, sender_comp_id_{settings.fix.sender_comp_id},
+      username_{settings.fix.username}, ping_freq_{settings.fix.ping_freq}, debug_{settings.fix.debug},
       connection_factory_{create_connection_factory(settings, context, uri)},
       connection_manager_{create_connection_manager(*this, settings, *connection_factory_)},
       decode_buffer_(settings.fix.decode_buffer_size), encode_buffer_(settings.fix.encode_buffer_size) {
@@ -285,7 +285,7 @@ void Session::send_logon() {
       .heart_bt_int = std::chrono::duration_cast<std::chrono::seconds>(ping_freq_).count(),
       .reset_seq_num_flag = true,
       .next_expected_msg_seq_num = inbound_.msg_seq_num + 1,  // note!
-      .username = {},
+      .username = username_,
       .password = {},
   };
   send(logon);

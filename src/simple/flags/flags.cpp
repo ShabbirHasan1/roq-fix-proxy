@@ -20,15 +20,21 @@ ABSL_FLAG(  //
 
 ABSL_FLAG(  //
     std::string,
+    fix_target_comp_id,
+    {},
+    "fix target comp id");
+
+ABSL_FLAG(  //
+    std::string,
     fix_sender_comp_id,
     {},
     "fix sender comp id");
 
 ABSL_FLAG(  //
     std::string,
-    fix_target_comp_id,
+    fix_username,
     {},
-    "fix target comp id");
+    "fix username");
 
 ABSL_FLAG(  //
     uint32_t,
@@ -68,13 +74,18 @@ uint16_t Flags::listen_port() {
   return result;
 }
 
+std::string_view Flags::fix_target_comp_id() {
+  static std::string const result = absl::GetFlag(FLAGS_fix_target_comp_id);
+  return result;
+}
+
 std::string_view Flags::fix_sender_comp_id() {
   static std::string const result = absl::GetFlag(FLAGS_fix_sender_comp_id);
   return result;
 }
 
-std::string_view Flags::fix_target_comp_id() {
-  static std::string const result = absl::GetFlag(FLAGS_fix_target_comp_id);
+std::string_view Flags::fix_username() {
+  static std::string const result = absl::GetFlag(FLAGS_fix_username);
   return result;
 }
 

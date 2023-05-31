@@ -85,8 +85,9 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
 
  private:
   // config
-  std::string_view const sender_comp_id_;
   std::string_view const target_comp_id_;
+  std::string_view const sender_comp_id_;
+  std::string_view const username_;
   std::chrono::nanoseconds const ping_freq_;
   bool const debug_;
   // connection
