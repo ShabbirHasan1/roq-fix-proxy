@@ -10,6 +10,7 @@
 #include "roq/fix/reader.hpp"
 
 #include "roq/fix_bridge/fix/heartbeat.hpp"
+#include "roq/fix_bridge/fix/logon.hpp"
 
 using namespace std::literals;
 
@@ -47,9 +48,10 @@ auto create_connection_manager(auto &handler, auto &settings, auto &connection_f
 // === IMPLEMENTATION ===
 
 Session::Session(Settings const &settings, roq::io::Context &context, roq::io::web::URI const &uri)
-    : connection_factory_{create_connection_factory(settings, context, uri)},
+    : sender_comp_id_{settings.fix.sender_comp_id}, target_comp_id_{settings.fix.target_comp_id},
+      debug_{settings.fix.debug}, connection_factory_{create_connection_factory(settings, context, uri)},
       connection_manager_{create_connection_manager(*this, settings, *connection_factory_)},
-      debug_{settings.fix.debug} {
+      encode_buffer_(settings.fix.encode_buffer_size) {
 }
 
 void Session::operator()(roq::Event<roq::Start> const &) {
@@ -68,6 +70,7 @@ void Session::operator()(roq::Event<roq::Timer> const &event) {
 
 void Session::operator()(roq::io::net::ConnectionManager::Connected const &) {
   roq::log::debug("Connected"sv);
+  send_logon();
 }
 
 void Session::operator()(roq::io::net::ConnectionManager::Disconnected const &) {
@@ -106,6 +109,8 @@ void Session::operator()(roq::io::net::ConnectionManager::Read const &) {
   }
   (*connection_manager_).drain(total_bytes);
 }
+
+// inbound
 
 void Session::check(roq::fix::Header const &header) {
   auto current = header.msg_seq_num;
@@ -147,6 +152,37 @@ void Session::parse(roq::Trace<roq::fix::Message> const &event) {
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::Heartbeat> const &, roq::fix::Header const &) {
+}
+
+// outbound
+
+void Session::send_logon() {
+  auto logon = roq::fix_bridge::fix::Logon{
+      .encrypt_method = {},
+      .heart_bt_int = 30,  // note! seconds
+      .reset_seq_num_flag = true,
+      .next_expected_msg_seq_num = 1,
+      .username = {},
+      .password = {},
+  };
+  auto sending_time = roq::clock::get_realtime();
+  send(logon, sending_time);
+}
+
+template <typename T>
+void Session::send(T const &event, std::chrono::nanoseconds sending_time) {
+  auto header = roq::fix::Header{
+      .version = FIX_VERSION,
+      .msg_type = T::msg_type,
+      .sender_comp_id = sender_comp_id_,
+      .target_comp_id = target_comp_id_,
+      .msg_seq_num = ++outbound_.msg_seq_num,  // note!
+      .sending_time = sending_time,
+  };
+  auto message = event.encode(header, encode_buffer_);
+  if (debug_) [[unlikely]]
+    roq::log::info("{}"sv, roq::debug::fix::Message{message});
+  (*connection_manager_).send(message);
 }
 
 }  // namespace fix

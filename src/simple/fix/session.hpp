@@ -44,21 +44,36 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   void operator()(roq::io::net::ConnectionManager::Disconnected const &) override;
   void operator()(roq::io::net::ConnectionManager::Read const &) override;
 
+  // inbound
+
   void check(roq::fix::Header const &);
   void parse(roq::Trace<roq::fix::Message> const &);
 
   void operator()(roq::Trace<roq::fix_bridge::fix::Heartbeat> const &, roq::fix::Header const &);
 
+  // outbound
+
+  void send_logon();
+
+  template <typename T>
+  void send(T const &event, std::chrono::nanoseconds sending_time);
+
  private:
+  // config
+  std::string_view const sender_comp_id_;
+  std::string_view const target_comp_id_;
+  bool const debug_;
+  // connection
   std::unique_ptr<roq::io::net::ConnectionFactory> const connection_factory_;
   std::unique_ptr<roq::io::net::ConnectionManager> const connection_manager_;
-  struct {
-    uint64_t msg_seq_num = {};
-  } outbound_;
+  // messaging
   struct {
     uint64_t msg_seq_num = {};
   } inbound_;
-  bool const debug_;
+  struct {
+    uint64_t msg_seq_num = {};
+  } outbound_;
+  std::vector<std::byte> encode_buffer_;
 };
 
 }  // namespace fix

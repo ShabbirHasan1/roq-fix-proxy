@@ -28,6 +28,9 @@ Settings Settings::create() {
           },
       .fix =
           {
+              .sender_comp_id = flags::Flags::fix_sender_comp_id(),
+              .target_comp_id = flags::Flags::fix_target_comp_id(),
+              .encode_buffer_size = flags::Flags::fix_encode_buffer_size(),
               .debug = flags::Flags::fix_debug(),
           },
   };

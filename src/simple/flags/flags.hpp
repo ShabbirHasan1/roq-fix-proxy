@@ -10,11 +10,10 @@ namespace flags {
 struct Flags final {
   static std::string_view config_file();
   static uint16_t listen_port();
+  static std::string_view fix_sender_comp_id();
+  static std::string_view fix_target_comp_id();
+  static uint32_t fix_encode_buffer_size();
   static bool fix_debug();
-  static std::string_view accounts();
-  static std::string_view exchange();
-  static std::string_view symbols();
-  static std::string_view currencies();
 };
 
 }  // namespace flags

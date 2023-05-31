@@ -19,6 +19,9 @@ struct Settings final {
   } net;
 
   struct {
+    std::string_view sender_comp_id;
+    std::string_view target_comp_id;
+    size_t encode_buffer_size = {};
     bool debug = {};
   } fix;
 };

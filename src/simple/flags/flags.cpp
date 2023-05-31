@@ -19,34 +19,28 @@ ABSL_FLAG(  //
     "listen port");
 
 ABSL_FLAG(  //
+    std::string,
+    fix_sender_comp_id,
+    {},
+    "fix sender comp id");
+
+ABSL_FLAG(  //
+    std::string,
+    fix_target_comp_id,
+    {},
+    "fix target comp id");
+
+ABSL_FLAG(  //
+    uint32_t,
+    fix_encode_buffer_size,
+    65536,
+    "fix encode buffer size");
+
+ABSL_FLAG(  //
     bool,
     fix_debug,
     false,
     "fix debug?");
-
-ABSL_FLAG(  //
-    std::string,
-    accounts,
-    "A1",
-    "account");
-
-ABSL_FLAG(  //
-    std::string,
-    exchange,
-    "deribit",
-    "exchange");
-
-ABSL_FLAG(  //
-    std::string,
-    symbols,
-    "BTC-PERPETUAL",
-    "symbol (regex)");
-
-ABSL_FLAG(  //
-    std::string,
-    currencies,
-    "BTC|USD",
-    "currencies (regex)");
 
 namespace simple {
 namespace flags {
@@ -61,28 +55,23 @@ uint16_t Flags::listen_port() {
   return result;
 }
 
+std::string_view Flags::fix_sender_comp_id() {
+  static std::string const result = absl::GetFlag(FLAGS_fix_sender_comp_id);
+  return result;
+}
+
+std::string_view Flags::fix_target_comp_id() {
+  static std::string const result = absl::GetFlag(FLAGS_fix_target_comp_id);
+  return result;
+}
+
+uint32_t Flags::fix_encode_buffer_size() {
+  static bool const result = absl::GetFlag(FLAGS_fix_encode_buffer_size);
+  return result;
+}
+
 bool Flags::fix_debug() {
   static bool const result = absl::GetFlag(FLAGS_fix_debug);
-  return result;
-}
-
-std::string_view Flags::accounts() {
-  static std::string const result = absl::GetFlag(FLAGS_accounts);
-  return result;
-}
-
-std::string_view Flags::exchange() {
-  static std::string const result = absl::GetFlag(FLAGS_exchange);
-  return result;
-}
-
-std::string_view Flags::symbols() {
-  static std::string const result = absl::GetFlag(FLAGS_symbols);
-  return result;
-}
-
-std::string_view Flags::currencies() {
-  static std::string const result = absl::GetFlag(FLAGS_currencies);
   return result;
 }
 
