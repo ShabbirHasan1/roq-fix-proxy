@@ -11,9 +11,6 @@
 
 #include "roq/fix/reader.hpp"
 
-#include "roq/fix_bridge/fix/heartbeat.hpp"
-#include "roq/fix_bridge/fix/logon.hpp"
-
 using namespace std::literals;
 
 namespace simple {
@@ -207,7 +204,6 @@ void Session::parse(roq::Trace<roq::fix::Message> const &event) {
     }
     default:
       roq::log::warn("Unexpected msg_type={}"sv, header.msg_type);
-      break;
   }
 }
 
