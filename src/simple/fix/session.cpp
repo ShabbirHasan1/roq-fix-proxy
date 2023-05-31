@@ -104,29 +104,28 @@ void Session::operator()(roq::io::net::ConnectionManager::Disconnected const &) 
 }
 
 void Session::operator()(roq::io::net::ConnectionManager::Read const &) {
+  auto logger = [this](auto &message) {
+    if (debug_) [[unlikely]]
+      roq::log::info("{}"sv, roq::debug::fix::Message{message});
+  };
   auto buffer = (*connection_manager_).buffer();
   size_t total_bytes = 0;
   while (!std::empty(buffer)) {
     roq::TraceInfo trace_info;
-    auto bytes = roq::fix::Reader<FIX_VERSION>::dispatch(
-        buffer,
-        [&](roq::fix::Message const &message) {
-          try {
-            check(message.header);
-            roq::Trace event{trace_info, message};
-            parse(event);
-          } catch (std::exception &) {
-            roq::log::warn("{}"sv, roq::debug::fix::Message{buffer});
+    auto parser = [&](auto &message) {
+      try {
+        check(message.header);
+        roq::Trace event{trace_info, message};
+        parse(event);
+      } catch (std::exception &) {
+        roq::log::warn("{}"sv, roq::debug::fix::Message{buffer});
 #ifndef NDEBUG
-            roq::log::warn("{}"sv, roq::debug::hex::Message{buffer});
+        roq::log::warn("{}"sv, roq::debug::hex::Message{buffer});
 #endif
-            roq::log::error("Message could not be parsed. PLEASE REPORT!"sv);
-          }
-        },
-        [this](auto &message) {
-          if (debug_)
-            roq::log::info("{}"sv, roq::debug::fix::Message{message});
-        });
+        roq::log::error("Message could not be parsed. PLEASE REPORT!"sv);
+      }
+    };
+    auto bytes = roq::fix::Reader<FIX_VERSION>::dispatch(buffer, parser, logger);
     if (bytes == 0)
       break;
     assert(bytes <= std::size(buffer));
