@@ -37,6 +37,12 @@ ABSL_FLAG(  //
     "fix username");
 
 ABSL_FLAG(  //
+    std::string,
+    fix_password,
+    {},
+    "fix password");
+
+ABSL_FLAG(  //
     uint32_t,
     fix_decode_buffer_size,
     1048576,
@@ -86,6 +92,11 @@ std::string_view Flags::fix_sender_comp_id() {
 
 std::string_view Flags::fix_username() {
   static std::string const result = absl::GetFlag(FLAGS_fix_username);
+  return result;
+}
+
+std::string_view Flags::fix_password() {
+  static std::string const result = absl::GetFlag(FLAGS_fix_password);
   return result;
 }
 
