@@ -18,10 +18,10 @@ requirements:
     - catch2
     - nlohmann_json
     - roq-client
-    - roq-eb
     - roq-fix-bridge
     - roq-io
     - roq-oss-tomlplusplus
+    - roq-web
 
 about:
   license: BSD-3-Clause
