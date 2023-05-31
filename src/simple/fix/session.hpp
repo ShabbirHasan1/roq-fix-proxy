@@ -25,6 +25,9 @@
 #include "roq/fix_bridge/fix/heartbeat.hpp"
 #include "roq/fix_bridge/fix/logon.hpp"
 #include "roq/fix_bridge/fix/logout.hpp"
+#include "roq/fix_bridge/fix/market_data_incremental_refresh.hpp"
+#include "roq/fix_bridge/fix/market_data_request_reject.hpp"
+#include "roq/fix_bridge/fix/market_data_snapshot_full_refresh.hpp"
 #include "roq/fix_bridge/fix/order_cancel_reject.hpp"
 #include "roq/fix_bridge/fix/reject.hpp"
 #include "roq/fix_bridge/fix/resend_request.hpp"
@@ -69,6 +72,10 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   void operator()(roq::Trace<roq::fix_bridge::fix::ResendRequest> const &);
   void operator()(roq::Trace<roq::fix_bridge::fix::TestRequest> const &);
 
+  void operator()(roq::Trace<roq::fix_bridge::fix::MarketDataRequestReject> const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::MarketDataSnapshotFullRefresh> const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::MarketDataIncrementalRefresh> const &);
+
   void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &);
   void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &);
   void operator()(roq::Trace<roq::fix_bridge::fix::Reject> const &);
@@ -82,6 +89,7 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   void send_logout(std::string_view const &text);
   void send_test_request(std::chrono::nanoseconds now);
   void send_heartbeat(std::string_view const &test_req_id);
+  void send_market_data_request();
 
  private:
   // config

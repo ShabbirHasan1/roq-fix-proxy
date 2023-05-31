@@ -4,12 +4,15 @@
 
 #include "roq/logging.hpp"
 
+#include "roq/utils/chrono.hpp"
 #include "roq/utils/update.hpp"
 
 #include "roq/debug/fix/message.hpp"
 #include "roq/debug/hex/message.hpp"
 
 #include "roq/fix/reader.hpp"
+
+#include "roq/fix_bridge/fix/market_data_request.hpp"
 
 using namespace std::literals;
 
@@ -119,6 +122,7 @@ void Session::operator()(roq::io::net::ConnectionManager::Read const &) {
         roq::log::warn("{}"sv, roq::debug::hex::Message{buffer});
 #endif
         roq::log::error("Message could not be parsed. PLEASE REPORT!"sv);
+        throw;
       }
     };
     auto bytes = roq::fix::Reader<FIX_VERSION>::dispatch(buffer, parser, logger);
@@ -201,6 +205,23 @@ void Session::parse(roq::Trace<roq::fix::Message> const &event) {
       dispatch(event, reject);
       break;
     }
+    case MARKET_DATA_REQUEST_REJECT: {
+      auto market_data_request_reject = roq::fix_bridge::fix::MarketDataRequestReject::create(message, decode_buffer_);
+      dispatch(event, market_data_request_reject);
+      break;
+    }
+    case MARKET_DATA_SNAPSHOT_FULL_REFRESH: {
+      auto market_data_snapshot_full_refresh =
+          roq::fix_bridge::fix::MarketDataSnapshotFullRefresh::create(message, decode_buffer_);
+      dispatch(event, market_data_snapshot_full_refresh);
+      break;
+    }
+    case MARKET_DATA_INCREMENTAL_REFRESH: {
+      auto market_data_incremental_refresh =
+          roq::fix_bridge::fix::MarketDataIncrementalRefresh::create(message, decode_buffer_);
+      dispatch(event, market_data_incremental_refresh);
+      break;
+    }
     default:
       roq::log::warn("Unexpected msg_type={}"sv, header.msg_type);
   }
@@ -221,7 +242,7 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::Heartbeat> const &even
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &event) {
   auto &[trace_info, logon] = event;
   roq::log::debug("logon={}, trace_info={}"sv, logon, trace_info);
-  // XXX TODO download + subscribe
+  send_market_data_request();  // XXX TODO proper download + subscribe
   (*this)(roq::ConnectionStatus::READY);
 }
 
@@ -243,6 +264,22 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::TestRequest> const &ev
   auto &[trace_info, test_request] = event;
   roq::log::debug("test_request={}, trace_info={}"sv, test_request, trace_info);
   send_heartbeat(test_request.test_req_id);
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::MarketDataRequestReject> const &event) {
+  auto &[trace_info, market_data_request_reject] = event;
+  roq::log::debug("market_data_request_reject={}, trace_info={}"sv, market_data_request_reject, trace_info);
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::MarketDataSnapshotFullRefresh> const &event) {
+  auto &[trace_info, market_data_snapshot_full_refresh] = event;
+  roq::log::debug(
+      "market_data_snapshot_full_refresh={}, trace_info={}"sv, market_data_snapshot_full_refresh, trace_info);
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::MarketDataIncrementalRefresh> const &event) {
+  auto &[trace_info, market_data_incremental_refresh] = event;
+  roq::log::debug("market_data_incremental_refresh={}, trace_info={}"sv, market_data_incremental_refresh, trace_info);
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &event) {
@@ -311,6 +348,37 @@ void Session::send_heartbeat(std::string_view const &test_req_id) {
       .test_req_id = test_req_id,
   };
   send(heartbeat);
+}
+
+void Session::send_market_data_request() {
+  std::array<roq::fix_bridge::fix::MDReq, 2> md_entry_types{{
+      {
+          .md_entry_type = roq::fix::MDEntryType::BID,
+      },
+      {
+          .md_entry_type = roq::fix::MDEntryType::OFFER,
+      },
+  }};
+  std::array<roq::fix_bridge::fix::InstrmtMDReq, 1> related_sym{{
+      {
+          .symbol = "BTC-PERPETUAL"sv,
+          .security_exchange = "deribit"sv,
+      },
+  }};
+  auto market_data_request = roq::fix_bridge::fix::MarketDataRequest{
+      .md_req_id = "test"sv,
+      .subscription_request_type = roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
+      .market_depth = 5,  // note! 0=full book, 1=top of book, >1=best N
+      .md_update_type = roq::fix::MDUpdateType::INCREMENTAL_REFRESH,
+      .aggregated_book = true,  // note! MbP
+      .no_md_entry_types = md_entry_types,
+      .no_related_sym = related_sym,
+      .no_trading_sessions = {},
+      // note! following fields used to support custom calculations, e.g. vwap
+      .custom_type = {},
+      .custom_value = std::numeric_limits<double>::quiet_NaN(),
+  };
+  send(market_data_request);
 }
 
 }  // namespace fix
