@@ -58,7 +58,7 @@ ABSL_FLAG(  //
 ABSL_FLAG(  //
     uint32_t,
     fix_ping_freq,
-    {30},
+    30,
     "fix ping freq (seconds)");
 
 ABSL_FLAG(  //
