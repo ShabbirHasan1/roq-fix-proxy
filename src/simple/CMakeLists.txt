@@ -19,7 +19,8 @@ target_link_libraries(
           roq-api::roq-api
           tomlplusplus::tomlplusplus
           fmt::fmt
-          absl::flags)
+          absl::flags
+          ${RT_LIBRARIES})
 
 target_compile_definitions("${TARGET_NAME}" PRIVATE ROQ_PACKAGE_NAME="${PROJECT_NAME}")
 
