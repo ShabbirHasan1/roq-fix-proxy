@@ -16,11 +16,12 @@ requirements:
   host:
     - abseil-cpp
     - benchmark
-    - catch2
+    - catch2  # [linux]
     - nlohmann_json
     - roq-client
     - roq-fix-bridge
     - roq-io
+    - roq-oss-catch2  # [osx]
     - roq-oss-libevent
     - roq-oss-tomlplusplus
     - roq-web
