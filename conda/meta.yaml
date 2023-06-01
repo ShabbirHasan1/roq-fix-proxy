@@ -21,6 +21,7 @@ requirements:
     - roq-client
     - roq-fix-bridge
     - roq-io
+    - roq-oss-libevent
     - roq-oss-tomlplusplus
     - roq-web
 
