@@ -28,9 +28,6 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
                           public roq::io::sys::Timer::Handler {
   Controller(Settings const &, Config const &, roq::io::Context &, std::span<std::string_view> const &connections);
 
-  Controller(Controller &&) = default;
-  Controller(Controller const &) = delete;
-
   void run();
 
  protected:
