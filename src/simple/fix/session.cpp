@@ -15,6 +15,8 @@
 #include "roq/fix_bridge/fix/market_data_request.hpp"
 #include "roq/fix_bridge/fix/new_order_single.hpp"
 #include "roq/fix_bridge/fix/order_cancel_request.hpp"
+#include "roq/fix_bridge/fix/security_definition_request.hpp"
+#include "roq/fix_bridge/fix/security_list_request.hpp"
 
 using namespace std::literals;
 
@@ -202,6 +204,16 @@ void Session::parse(roq::Trace<roq::fix::Message> const &event) {
       dispatch(event, business_message_reject);
       break;
     }
+    case SECURITY_LIST: {
+      auto security_list = roq::fix_bridge::fix::SecurityList::create(message, decode_buffer_);
+      dispatch(event, security_list);
+      break;
+    }
+    case SECURITY_DEFINITION: {
+      auto security_definition = roq::fix_bridge::fix::SecurityDefinition::create(message, decode_buffer_);
+      dispatch(event, security_definition);
+      break;
+    }
     case MARKET_DATA_REQUEST_REJECT: {
       auto market_data_request_reject = roq::fix_bridge::fix::MarketDataRequestReject::create(message, decode_buffer_);
       dispatch(event, market_data_request_reject);
@@ -254,6 +266,8 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::ResendRequest> const &
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &event) {
   auto &[trace_info, logon] = event;
   roq::log::debug("logon={}, trace_info={}"sv, logon, trace_info);
+  send_security_list_request();
+  send_security_definition_request();
   send_market_data_request();  // XXX TODO proper download + subscribe
   // send_new_order_single();
   // send_order_cancel_request();
@@ -283,6 +297,16 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::TestRequest> const &ev
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &event) {
   auto &[trace_info, business_message_reject] = event;
   roq::log::debug("business_message_reject={}, trace_info={}"sv, business_message_reject, trace_info);
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::SecurityList> const &event) {
+  auto &[trace_info, security_list] = event;
+  roq::log::debug("security_list={}, trace_info={}"sv, security_list, trace_info);
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::SecurityDefinition> const &event) {
+  auto &[trace_info, security_definition] = event;
+  roq::log::debug("security_definition={}, trace_info={}"sv, security_definition, trace_info);
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::MarketDataRequestReject> const &event) {
@@ -367,6 +391,30 @@ void Session::send_test_request(std::chrono::nanoseconds now) {
 }
 
 // XXX following to demonstrate some ideas
+
+void Session::send_security_list_request() {
+  auto security_list_request = roq::fix_bridge::fix::SecurityListRequest{
+      .security_req_id = "test"sv,
+      .security_list_request_type = roq::fix::SecurityListRequestType::ALL_SECURITIES,
+      .symbol = {},
+      .security_exchange = "deribit"sv,
+      .trading_session_id = {},
+      .subscription_request_type = roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
+  };
+  send(security_list_request);
+}
+
+void Session::send_security_definition_request() {
+  auto security_definition_request = roq::fix_bridge::fix::SecurityDefinitionRequest{
+      .security_req_id = "test"sv,
+      .security_request_type = roq::fix::SecurityRequestType::REQUEST_LIST_SECURITIES,
+      .symbol = "BTC-PERPETUAL"sv,
+      .security_exchange = "deribit"sv,
+      .trading_session_id = {},
+      .subscription_request_type = roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
+  };
+  send(security_definition_request);
+}
 
 void Session::send_market_data_request() {
   auto md_entry_types = std::array<roq::fix_bridge::fix::MDReq, 2>{{

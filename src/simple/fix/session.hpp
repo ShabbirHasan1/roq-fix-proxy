@@ -32,6 +32,8 @@
 #include "roq/fix_bridge/fix/order_cancel_reject.hpp"
 #include "roq/fix_bridge/fix/reject.hpp"
 #include "roq/fix_bridge/fix/resend_request.hpp"
+#include "roq/fix_bridge/fix/security_definition.hpp"
+#include "roq/fix_bridge/fix/security_list.hpp"
 #include "roq/fix_bridge/fix/test_request.hpp"
 
 #include "simple/settings.hpp"
@@ -83,6 +85,9 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
 
   void operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &);
 
+  void operator()(roq::Trace<roq::fix_bridge::fix::SecurityList> const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::SecurityDefinition> const &);
+
   void operator()(roq::Trace<roq::fix_bridge::fix::MarketDataRequestReject> const &);
   void operator()(roq::Trace<roq::fix_bridge::fix::MarketDataSnapshotFullRefresh> const &);
   void operator()(roq::Trace<roq::fix_bridge::fix::MarketDataIncrementalRefresh> const &);
@@ -99,6 +104,9 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   void send_logout(std::string_view const &text);
   void send_heartbeat(std::string_view const &test_req_id);
   void send_test_request(std::chrono::nanoseconds now);
+
+  void send_security_list_request();
+  void send_security_definition_request();
 
   void send_market_data_request();
 
