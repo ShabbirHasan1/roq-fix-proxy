@@ -457,14 +457,14 @@ void Session::send_new_order_single() {
       .security_exchange = "deribit"sv,
       .side = roq::fix::Side::BUY,
       .transact_time = {},
-      .order_qty = 1.0,
+      .order_qty = {1.0, roq::Decimals::_0},
       .ord_type = roq::fix::OrdType::LIMIT,
-      .price = 123.4,
-      .stop_px = std::numeric_limits<double>::quiet_NaN(),
+      .price = {123.4, roq::Decimals::_1},
+      .stop_px = {},
       .time_in_force = roq::fix::TimeInForce::GTC,
       .text = {},
       .position_effect = roq::fix::PositionEffect{},
-      .max_show = std::numeric_limits<double>::quiet_NaN(),
+      .max_show = {},
   };
   send(new_order_single);
 }
