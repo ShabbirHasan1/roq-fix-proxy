@@ -454,7 +454,7 @@ void Session::send_new_order_single() {
       .cl_ord_id = "xxx"sv,
       .no_party_ids = {},
       .account = {},
-      .handl_inst = roq::fix::HandlInst{},
+      .handl_inst = roq::fix::HandlInst::UNDEFINED,
       .exec_inst = {},
       .no_trading_sessions = {},
       .symbol = "BTC-PERPETUAL"sv,
@@ -467,7 +467,7 @@ void Session::send_new_order_single() {
       .stop_px = {},
       .time_in_force = roq::fix::TimeInForce::GTC,
       .text = {},
-      .position_effect = roq::fix::PositionEffect{},
+      .position_effect = roq::fix::PositionEffect::UNDEFINED,
       .max_show = {},
   };
   send(new_order_single);
