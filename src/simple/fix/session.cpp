@@ -440,7 +440,7 @@ void Session::send_market_data_request() {
       .no_trading_sessions = {},
       // note! following fields used to support custom calculations, e.g. vwap
       .custom_type = {},
-      .custom_value = std::numeric_limits<double>::quiet_NaN(),
+      .custom_value = {},
   };
   send(market_data_request);
 }
@@ -478,7 +478,7 @@ void Session::send_order_cancel_request() {
       .security_exchange = "deribit"sv,
       .side = roq::fix::Side::BUY,
       .transact_time = {},
-      .order_qty = std::numeric_limits<double>::quiet_NaN(),
+      .order_qty = {},
       .text = {},
   };
   send(order_cancel_request);
