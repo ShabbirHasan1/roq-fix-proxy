@@ -267,12 +267,16 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &event) {
   auto &[trace_info, logon] = event;
   roq::log::debug("logon={}, trace_info={}"sv, logon, trace_info);
   // note! following should always work...
-  send_security_list_request();
-  send_security_definition_request();
-  send_market_data_request();  // XXX TODO proper subscribe based on downloaded symbols...
+  if (false) {
+    send_security_list_request();
+    send_security_definition_request();
+    send_market_data_request();  // XXX TODO proper subscribe based on downloaded symbols...
+  }
   // note! following will only work when gateway is ready
-  send_new_order_single();
-  send_order_cancel_request();
+  if (true) {
+    send_new_order_single();
+    send_order_cancel_request();
+  }
   (*this)(roq::ConnectionStatus::READY);
 }
 

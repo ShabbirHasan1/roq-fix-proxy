@@ -5,4 +5,5 @@
   --fix_target_comp_id "roq-fix-bridge" \
   --fix_sender_comp_id "roq-fix-client-test" \
   --fix_username "tbom1" \
-  tcp://localhost:3456
+  tcp://localhost:3456 \
+  $@
