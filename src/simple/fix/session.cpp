@@ -348,7 +348,7 @@ void Session::send(T const &event) {
   auto sending_time = roq::clock::get_realtime();
   auto header = roq::fix::Header{
       .version = FIX_VERSION,
-      .msg_type = T::msg_type,
+      .msg_type = T::MSG_TYPE,
       .sender_comp_id = sender_comp_id_,
       .target_comp_id = target_comp_id_,
       .msg_seq_num = ++outbound_.msg_seq_num,  // note!

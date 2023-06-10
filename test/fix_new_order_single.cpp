@@ -39,7 +39,7 @@ TEST_CASE("fix_new_order_single", "[fix_new_order_single]") {
   };
   auto header = Header{
       .version = roq::fix::Version::FIX_44,
-      .msg_type = new_order_single.msg_type,
+      .msg_type = decltype(new_order_single)::MSG_TYPE,
       .sender_comp_id = "sender"sv,
       .target_comp_id = "target"sv,
       .msg_seq_num = 1,
