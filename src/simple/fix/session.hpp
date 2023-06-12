@@ -53,10 +53,12 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   void operator()(roq::Event<roq::Stop> const &);
   void operator()(roq::Event<roq::Timer> const &);
 
+ private:
+  enum class State;
+
  protected:
   bool ready() const;
 
-  enum class State;
   void operator()(State);
 
   // io::net::ConnectionManager::Handler
