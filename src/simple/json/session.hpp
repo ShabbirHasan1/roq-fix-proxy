@@ -13,6 +13,8 @@
 
 #include "simple/shared.hpp"
 
+#include "simple/json/response.hpp"
+
 namespace simple {
 namespace json {
 
@@ -30,11 +32,11 @@ struct Session final : public roq::web::rest::Server::Handler {
 
   // utilities
 
-  void get_exchanges(roq::web::rest::Server::Request const &);
-  void get_symbols(roq::web::rest::Server::Request const &);
+  void get_exchanges(Response &, roq::web::rest::Server::Request const &);
+  void get_symbols(Response &, roq::web::rest::Server::Request const &);
 
-  void post_order(roq::web::rest::Server::Request const &);
-  void delete_order(roq::web::rest::Server::Request const &);
+  void post_order(Response &, roq::web::rest::Server::Request const &);
+  void delete_order(Response &, roq::web::rest::Server::Request const &);
 
   // std::string_view process(roq::web::rest::Server::Request const &);
 

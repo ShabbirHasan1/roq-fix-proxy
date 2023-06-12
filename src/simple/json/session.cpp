@@ -40,25 +40,26 @@ void Session::operator()(roq::web::rest::Server::Request const &request) {
           path[0] == shared_.settings.json.url_prefix)
         path = path.subspan(1);  // drop prefix
       if (!std::empty(path)) {
+        Response response{*server_, request};
         switch (request.method) {
           using enum roq::web::http::Method;
           case GET:
             if (request.path[0] == "exchanges"sv)
-              get_exchanges(request);
+              get_exchanges(response, request);
             else if (request.path[0] == "symbols"sv)
-              get_symbols(request);
+              get_symbols(response, request);
             break;
           case HEAD:
             break;
           case POST:
             if (request.path[0] == "order"sv)
-              post_order(request);
+              post_order(response, request);
             break;
           case PUT:
             break;
           case DELETE:
             if (request.path[0] == "order"sv)
-              delete_order(request);
+              delete_order(response, request);
             break;
           case CONNECT:
             break;
@@ -112,16 +113,16 @@ void Session::operator()(roq::web::rest::Server::Binary const &) {
 
 // utilities
 
-void Session::get_exchanges(roq::web::rest::Server::Request const &) {
+void Session::get_exchanges(Response &, roq::web::rest::Server::Request const &) {
 }
 
-void Session::get_symbols(roq::web::rest::Server::Request const &) {
+void Session::get_symbols(Response &, roq::web::rest::Server::Request const &) {
 }
 
-void Session::post_order(roq::web::rest::Server::Request const &) {
+void Session::post_order(Response &, roq::web::rest::Server::Request const &) {
 }
 
-void Session::delete_order(roq::web::rest::Server::Request const &) {
+void Session::delete_order(Response &, roq::web::rest::Server::Request const &) {
 }
 
 /*
