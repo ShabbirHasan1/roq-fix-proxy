@@ -8,6 +8,12 @@ using namespace std::literals;
 
 namespace simple {
 
+// === CONSTANTS ===
+
+namespace {
+auto const GET_SYMBOLS = "symbols"sv;
+}
+
 // === HELPERS ===
 
 namespace {
@@ -25,7 +31,8 @@ auto create_regex_symbols(auto &config) {
 
 // === IMPLEMENTATION ===
 
-Shared::Shared(Config const &config) : regex_symbols_{create_regex_symbols<decltype(regex_symbols_)>(config)} {
+Shared::Shared(Settings const &settings, Config const &config)
+    : settings{settings}, regex_symbols_{create_regex_symbols<decltype(regex_symbols_)>(config)} {
 }
 
 bool Shared::include(std::string_view const &symbol) const {

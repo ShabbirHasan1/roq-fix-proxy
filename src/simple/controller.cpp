@@ -33,7 +33,7 @@ auto create_fix_sessions(auto &settings, auto &context, auto &shared, auto &conn
 }
 
 auto create_json_listener(auto &handler, auto &settings, auto &context) {
-  auto network_address = roq::io::NetworkAddress{settings.listen_port};
+  auto network_address = roq::io::NetworkAddress{settings.json.listen_port};
   roq::log::debug("{}"sv, network_address);
   return context.create_tcp_listener(handler, network_address);
 }
@@ -48,7 +48,7 @@ Controller::Controller(
     std::span<std::string_view> const &connections)
     : context_{context}, terminate_{context.create_signal(*this, roq::io::sys::Signal::Type::TERMINATE)},
       interrupt_{context.create_signal(*this, roq::io::sys::Signal::Type::INTERRUPT)},
-      timer_{context.create_timer(*this, TIMER_FREQUENCY)}, shared_{config},
+      timer_{context.create_timer(*this, TIMER_FREQUENCY)}, shared_{settings, config},
       fix_sessions_{create_fix_sessions(settings, context, shared_, connections)},
       json_listener_{create_json_listener(*this, settings, context_)} {
 }

@@ -13,12 +13,6 @@ ABSL_FLAG(  //
     "config file (path)");
 
 ABSL_FLAG(  //
-    uint16_t,
-    listen_port,
-    {},
-    "listen port");
-
-ABSL_FLAG(  //
     std::string,
     fix_target_comp_id,
     {},
@@ -67,16 +61,29 @@ ABSL_FLAG(  //
     false,
     "fix debug?");
 
+ABSL_FLAG(  //
+    uint32_t,
+    fix_market_depth,
+    5,
+    "fix market depth (0=full book, 1=top of book, N=best N)");
+
+ABSL_FLAG(  //
+    uint16_t,
+    json_listen_port,
+    {},
+    "json listen port");
+
+ABSL_FLAG(  //
+    std::string,
+    json_url_prefix,
+    {},
+    "json url prefix");
+
 namespace simple {
 namespace flags {
 
 std::string_view Flags::config_file() {
   static std::string const result = absl::GetFlag(FLAGS_config_file);
-  return result;
-}
-
-uint16_t Flags::listen_port() {
-  static uint16_t const result = absl::GetFlag(FLAGS_listen_port);
   return result;
 }
 
@@ -117,6 +124,21 @@ std::chrono::seconds Flags::fix_ping_freq() {
 
 bool Flags::fix_debug() {
   static bool const result = absl::GetFlag(FLAGS_fix_debug);
+  return result;
+}
+
+uint32_t Flags::fix_market_depth() {
+  static uint32_t const result = absl::GetFlag(FLAGS_fix_market_depth);
+  return result;
+}
+
+uint16_t Flags::json_listen_port() {
+  static uint16_t const result = absl::GetFlag(FLAGS_json_listen_port);
+  return result;
+}
+
+std::string_view Flags::json_url_prefix() {
+  static std::string const result = absl::GetFlag(FLAGS_json_url_prefix);
   return result;
 }
 

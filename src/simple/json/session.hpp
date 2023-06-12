@@ -30,7 +30,13 @@ struct Session final : public roq::web::rest::Server::Handler {
 
   // utilities
 
-  std::string_view process_request(std::string_view const &message);
+  void get_exchanges(roq::web::rest::Server::Request const &);
+  void get_symbols(roq::web::rest::Server::Request const &);
+
+  void post_order(roq::web::rest::Server::Request const &);
+  void delete_order(roq::web::rest::Server::Request const &);
+
+  // std::string_view process(roq::web::rest::Server::Request const &);
 
   bool validate_symbol(std::string_view const &symbol);
 

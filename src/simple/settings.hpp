@@ -11,7 +11,6 @@ struct Settings final {
   static Settings create();
 
   std::string_view config_file;
-  uint16_t listen_port = {};
 
   struct {
     std::chrono::nanoseconds connection_timeout = {};
@@ -27,7 +26,13 @@ struct Settings final {
     uint32_t encode_buffer_size = {};
     std::chrono::seconds ping_freq = {};
     bool debug = {};
+    uint32_t market_depth = {};
   } fix;
+
+  struct {
+    uint16_t listen_port = {};
+    std::string_view url_prefix;
+  } json;
 };
 
 }  // namespace simple

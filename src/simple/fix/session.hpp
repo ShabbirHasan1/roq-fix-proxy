@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <absl/container/flat_hash_map.h>
 #include <absl/container/flat_hash_set.h>
 
 #include <memory>
@@ -111,7 +112,7 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   void send_heartbeat(std::string_view const &test_req_id);
   void send_test_request(std::chrono::nanoseconds now);
 
-  void send_security_list_request(std::string_view const &exchange);
+  void send_security_list_request();
   void send_security_definition_request(std::string_view const &exchange, std::string_view const &symbol);
 
   void send_market_data_request(std::string_view const &exchange, std::string_view const &symbol);
@@ -132,6 +133,7 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   std::string_view const target_comp_id_;
   std::chrono::nanoseconds const ping_freq_;
   bool const debug_;
+  uint32_t const market_depth_;
   // connection
   std::unique_ptr<roq::io::net::ConnectionFactory> const connection_factory_;
   std::unique_ptr<roq::io::net::ConnectionManager> const connection_manager_;
@@ -149,12 +151,10 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
     DISCONNECTED,
     LOGON_SENT,
     GET_SECURITY_LIST,
-    GET_SECURITY_DEFINITION,
-    SUBSCRIBE_MARKET_DATA,
     READY,
   } state_ = {};
   std::chrono::nanoseconds next_heartbeat_ = {};
-  absl::flat_hash_set<std::string> symbols_;
+  absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>> exchange_symbols_;
 };
 
 }  // namespace fix

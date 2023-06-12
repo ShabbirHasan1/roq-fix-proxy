@@ -29,14 +29,48 @@ void Session::operator()(roq::web::rest::Server::Disconnected const &) {
 }
 
 void Session::operator()(roq::web::rest::Server::Request const &request) {
-  if (request.headers.connection == roq::web::http::Connection::UPGRADE) {
-    roq::log::info("Upgrading session_id={} to websocket..."sv, session_id_);
-    (*server_).upgrade(request);
-  } else {
-    roq::log::info("request={}"sv, request);
-    try {
+  try {
+    if (request.headers.connection == roq::web::http::Connection::UPGRADE) {
+      roq::log::info("Upgrading session_id={} to websocket..."sv, session_id_);
+      (*server_).upgrade(request);
+    } else {
+      roq::log::info("request={}"sv, request);
+      auto path = request.path;  // note! std::span<std::string_view>
+      if (!std::empty(path) && !std::empty(shared_.settings.json.url_prefix) &&
+          path[0] == shared_.settings.json.url_prefix)
+        path = path.subspan(1);  // drop prefix
+      if (!std::empty(path)) {
+        switch (request.method) {
+          using enum roq::web::http::Method;
+          case GET:
+            if (request.path[0] == "exchanges"sv)
+              get_exchanges(request);
+            else if (request.path[0] == "symbols"sv)
+              get_symbols(request);
+            break;
+          case HEAD:
+            break;
+          case POST:
+            if (request.path[0] == "order"sv)
+              post_order(request);
+            break;
+          case PUT:
+            break;
+          case DELETE:
+            if (request.path[0] == "order"sv)
+              delete_order(request);
+            break;
+          case CONNECT:
+            break;
+          case OPTIONS:
+            break;
+          case TRACE:
+            break;
+        }
+      }
+      /*
       // XXX expect POST
-      auto result = process_request(request.body);
+      auto result = process(request);
       auto response = roq::web::rest::Server::Response{
           .status = roq::web::http::Status::OK,  // XXX should depend on result type
           .connection = request.headers.connection,
@@ -46,21 +80,22 @@ void Session::operator()(roq::web::rest::Server::Request const &request) {
           .body = result,
       };
       (*server_).send(response);
-    } catch (roq::RuntimeError &e) {
-      roq::log::error("Error: {}"sv, e);
-      (*server_).close();
-    } catch (std::exception &e) {
-      roq::log::error("Error: {}"sv, e.what());
-      (*server_).close();
+      */
     }
+  } catch (roq::RuntimeError &e) {
+    roq::log::error("Error: {}"sv, e);
+    (*server_).close();
+  } catch (std::exception &e) {
+    roq::log::error("Error: {}"sv, e.what());
+    (*server_).close();
   }
 }
 
 void Session::operator()(roq::web::rest::Server::Text const &text) {
   roq::log::info(R"(message="{})"sv, text.payload);
   try {
-    auto result = process_request(text.payload);
-    (*server_).send_text(result);
+    // auto result = process_request(text.payload);
+    // (*server_).send_text(result);
   } catch (roq::RuntimeError &e) {
     roq::log::error("Error: {}"sv, e);
     (*server_).close();
@@ -77,7 +112,21 @@ void Session::operator()(roq::web::rest::Server::Binary const &) {
 
 // utilities
 
-std::string_view Session::process_request(std::string_view const &message) {
+void Session::get_exchanges(roq::web::rest::Server::Request const &) {
+}
+
+void Session::get_symbols(roq::web::rest::Server::Request const &) {
+}
+
+void Session::post_order(roq::web::rest::Server::Request const &) {
+}
+
+void Session::delete_order(roq::web::rest::Server::Request const &) {
+}
+
+/*
+std::string_view Session::process(roq::web::rest::Server::Request const &request) {
+  auto message = request.body;
   auto json = nlohmann::json::parse(message);
   auto action = json.value("action"s, ""s);
   auto symbol = json.value("symbol"s, ""s);
@@ -103,6 +152,7 @@ std::string_view Session::process_request(std::string_view const &message) {
     return error("unknown 'action'"sv);
   }
 }
+*/
 
 bool Session::validate_symbol(std::string_view const &symbol) {
   if (std::empty(symbol)) {

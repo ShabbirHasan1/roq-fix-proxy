@@ -57,7 +57,7 @@ auto create_connection_manager(auto &handler, auto &settings, auto &connection_f
 Session::Session(Settings const &settings, roq::io::Context &context, Shared &shared, roq::io::web::URI const &uri)
     : shared_{shared}, username_{settings.fix.username}, password_{settings.fix.password},
       sender_comp_id_{settings.fix.sender_comp_id}, target_comp_id_{settings.fix.target_comp_id},
-      ping_freq_{settings.fix.ping_freq}, debug_{settings.fix.debug},
+      ping_freq_{settings.fix.ping_freq}, debug_{settings.fix.debug}, market_depth_{settings.fix.market_depth},
       connection_factory_{create_connection_factory(settings, context, uri)},
       connection_manager_{create_connection_manager(*this, settings, *connection_factory_)},
       decode_buffer_(settings.fix.decode_buffer_size), encode_buffer_(settings.fix.encode_buffer_size) {
@@ -104,7 +104,7 @@ void Session::operator()(roq::io::net::ConnectionManager::Disconnected const &) 
   outbound_ = {};
   inbound_ = {};
   next_heartbeat_ = {};
-  symbols_.clear();
+  exchange_symbols_.clear();
   (*this)(State::DISCONNECTED);
 }
 
@@ -308,18 +308,21 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject>
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::SecurityList> const &event) {
   auto &[trace_info, security_list] = event;
   roq::log::debug("security_list={}, trace_info={}"sv, security_list, trace_info);
+  assert(state_ == State::GET_SECURITY_LIST);
   for (auto &item : security_list.no_related_sym) {
     if (shared_.include(item.symbol)) {
-      symbols_.emplace(item.symbol);
+      exchange_symbols_[item.security_exchange].emplace(item.symbol);
       send_security_definition_request(item.security_exchange, item.symbol);
       send_market_data_request(item.security_exchange, item.symbol);
     }
   }
+  (*this)(State::READY);
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::SecurityDefinition> const &event) {
   auto &[trace_info, security_definition] = event;
   roq::log::debug("security_definition={}, trace_info={}"sv, security_definition, trace_info);
+  // XXX must forward
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::MarketDataRequestReject> const &event) {
@@ -331,11 +334,13 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::MarketDataSnapshotFull
   auto &[trace_info, market_data_snapshot_full_refresh] = event;
   roq::log::debug(
       "market_data_snapshot_full_refresh={}, trace_info={}"sv, market_data_snapshot_full_refresh, trace_info);
+  // XXX must forward
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::MarketDataIncrementalRefresh> const &event) {
   auto &[trace_info, market_data_incremental_refresh] = event;
   roq::log::debug("market_data_incremental_refresh={}, trace_info={}"sv, market_data_incremental_refresh, trace_info);
+  // XXX must forward
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &event) {
@@ -403,12 +408,12 @@ void Session::send_test_request(std::chrono::nanoseconds now) {
   send(test_request);
 }
 
-void Session::send_security_list_request(std::string_view const &exchange) {
+void Session::send_security_list_request() {
   auto security_list_request = roq::fix_bridge::fix::SecurityListRequest{
       .security_req_id = "test"sv,
       .security_list_request_type = roq::fix::SecurityListRequestType::ALL_SECURITIES,
       .symbol = {},
-      .security_exchange = exchange,
+      .security_exchange = {},
       .trading_session_id = {},
       .subscription_request_type = roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
   };
@@ -441,7 +446,7 @@ void Session::send_market_data_request(std::string_view const &exchange, std::st
   auto market_data_request = roq::fix_bridge::fix::MarketDataRequest{
       .md_req_id = "test"sv,
       .subscription_request_type = roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
-      .market_depth = 5,  // note! 0=full book, 1=top of book, >1=best N
+      .market_depth = market_depth_,
       .md_update_type = roq::fix::MDUpdateType::INCREMENTAL_REFRESH,
       .aggregated_book = true,  // note! false=MbO, true=MbP
       .no_md_entry_types = md_entry_types,
@@ -453,6 +458,8 @@ void Session::send_market_data_request(std::string_view const &exchange, std::st
   };
   send(market_data_request);
 }
+
+// note! following will only work when gateway is ready
 
 void Session::send_new_order_single() {
   auto new_order_single = roq::fix_bridge::fix::NewOrderSingle{
@@ -496,7 +503,7 @@ void Session::send_order_cancel_request() {
 // download
 
 void Session::download_security_list() {
-  send_security_list_request("deribit"sv);
+  send_security_list_request();
   (*this)(State::GET_SECURITY_LIST);
 }
 
