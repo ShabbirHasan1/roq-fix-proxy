@@ -23,6 +23,7 @@ namespace simple {
 int Application::main_helper(std::span<std::string_view> const &args) {
   auto settings = Settings::create();
   auto config = Config::parse_file(settings.config_file);
+  roq::log::info("config={}"sv, config);
   auto context = roq::io::engine::libevent::ContextFactory::create();
   auto connections = args.subspan(1);
   try {

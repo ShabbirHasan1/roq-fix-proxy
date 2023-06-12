@@ -53,7 +53,8 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
  protected:
   bool ready() const;
 
-  void operator()(roq::ConnectionStatus);
+  enum class State;
+  void operator()(State);
 
   // io::net::ConnectionManager::Handler
   void operator()(roq::io::net::ConnectionManager::Connected const &) override;
@@ -105,13 +106,17 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   void send_heartbeat(std::string_view const &test_req_id);
   void send_test_request(std::chrono::nanoseconds now);
 
-  void send_security_list_request();
-  void send_security_definition_request();
+  void send_security_list_request(std::string_view const &exchange);
+  void send_security_definition_request(std::string_view const &exchange, std::string_view const &symbol);
 
-  void send_market_data_request();
+  void send_market_data_request(std::string_view const &exchange, std::string_view const &symbol);
 
   void send_new_order_single();
   void send_order_cancel_request();
+
+  // download
+
+  void download_security_list();
 
  private:
   // config
@@ -134,7 +139,15 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   std::vector<std::byte> decode_buffer_;
   std::vector<std::byte> encode_buffer_;
   // state
-  roq::ConnectionStatus connection_status_ = {};
+  enum class State {
+    DISCONNECTED,
+    LOGON_SENT,
+    GET_SECURITY_LIST,
+    GET_SECURITY_DEFINITION,
+    SUBSCRIBE_MARKET_DATA,
+    READY,
+  } state_ = {};
+  // roq::ConnectionStatus connection_status_ = {};
   std::chrono::nanoseconds next_heartbeat_ = {};
 };
 

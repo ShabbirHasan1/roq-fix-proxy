@@ -146,8 +146,8 @@ echo -e "\033[1;34mInstall dependencies...\033[0m"
 echo -e "\033[1;34mInstall dependencies from $BUILD...\033[0m"
 
 "$CONDA_DIR/bin/mamba" install -y --channel "https://roq-trading.com/conda/$BUILD" \
-  roq-client \
   roq-fix-bridge \
+  roq-oss-re2 \
   roq-tools
 
 echo -e "\033[1;34mInstall conda activation script...\033[0m"

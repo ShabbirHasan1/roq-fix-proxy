@@ -73,7 +73,7 @@ void Session::operator()(roq::Event<roq::Stop> const &) {
 void Session::operator()(roq::Event<roq::Timer> const &event) {
   auto now = event.value.now;
   (*connection_manager_).refresh(now);
-  if (!ready())
+  if (state_ <= State::LOGON_SENT)
     return;
   if (next_heartbeat_ <= now) {
     next_heartbeat_ = now + ping_freq_;
@@ -82,12 +82,12 @@ void Session::operator()(roq::Event<roq::Timer> const &event) {
 }
 
 bool Session::ready() const {
-  return connection_status_ == roq::ConnectionStatus::READY;
+  return state_ == State::READY;
 }
 
-void Session::operator()(roq::ConnectionStatus connection_status) {
-  if (roq::utils::update(connection_status_, connection_status))
-    roq::log::debug("connection_status={}"sv, connection_status);
+void Session::operator()(Session::State state) {
+  if (roq::utils::update(state_, state))
+    roq::log::debug("state={}"sv, magic_enum::enum_name(state));
 }
 
 // io::net::ConnectionManager::Handler
@@ -95,7 +95,7 @@ void Session::operator()(roq::ConnectionStatus connection_status) {
 void Session::operator()(roq::io::net::ConnectionManager::Connected const &) {
   roq::log::debug("Connected"sv);
   send_logon();
-  (*this)(roq::ConnectionStatus::LOGIN_SENT);
+  (*this)(State::LOGON_SENT);
 }
 
 void Session::operator()(roq::io::net::ConnectionManager::Disconnected const &) {
@@ -103,7 +103,7 @@ void Session::operator()(roq::io::net::ConnectionManager::Disconnected const &) 
   outbound_ = {};
   inbound_ = {};
   next_heartbeat_ = {};
-  (*this)(roq::ConnectionStatus::DISCONNECTED);
+  (*this)(State::DISCONNECTED);
 }
 
 void Session::operator()(roq::io::net::ConnectionManager::Read const &) {
@@ -266,6 +266,9 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::ResendRequest> const &
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &event) {
   auto &[trace_info, logon] = event;
   roq::log::debug("logon={}, trace_info={}"sv, logon, trace_info);
+  assert(state_ == State::LOGON_SENT);
+  download_security_list();
+  /*
   // note! following should always work...
   if (false) {
     send_security_list_request();
@@ -277,7 +280,8 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &event) {
     send_new_order_single();
     send_order_cancel_request();
   }
-  (*this)(roq::ConnectionStatus::READY);
+  (*this)(State::READY);
+  */
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &event) {
@@ -396,41 +400,39 @@ void Session::send_test_request(std::chrono::nanoseconds now) {
   send(test_request);
 }
 
-// XXX following to demonstrate some ideas
-
-void Session::send_security_list_request() {
+void Session::send_security_list_request(std::string_view const &exchange) {
   auto security_list_request = roq::fix_bridge::fix::SecurityListRequest{
       .security_req_id = "test"sv,
       .security_list_request_type = roq::fix::SecurityListRequestType::ALL_SECURITIES,
       .symbol = {},
-      .security_exchange = "deribit"sv,
+      .security_exchange = exchange,
       .trading_session_id = {},
       .subscription_request_type = roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
   };
   send(security_list_request);
 }
 
-void Session::send_security_definition_request() {
+void Session::send_security_definition_request(std::string_view const &exchange, std::string_view const &symbol) {
   auto security_definition_request = roq::fix_bridge::fix::SecurityDefinitionRequest{
       .security_req_id = "test"sv,
       .security_request_type = roq::fix::SecurityRequestType::REQUEST_LIST_SECURITIES,
-      .symbol = "BTC-PERPETUAL"sv,
-      .security_exchange = "deribit"sv,
+      .symbol = symbol,
+      .security_exchange = exchange,
       .trading_session_id = {},
       .subscription_request_type = roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
   };
   send(security_definition_request);
 }
 
-void Session::send_market_data_request() {
+void Session::send_market_data_request(std::string_view const &exchange, std::string_view const &symbol) {
   auto md_entry_types = std::array<roq::fix_bridge::fix::MDReq, 2>{{
       {.md_entry_type = roq::fix::MDEntryType::BID},
       {.md_entry_type = roq::fix::MDEntryType::OFFER},
   }};
   auto related_sym = std::array<roq::fix_bridge::fix::InstrmtMDReq, 1>{{
       {
-          .symbol = "BTC-PERPETUAL"sv,
-          .security_exchange = "deribit"sv,
+          .symbol = symbol,
+          .security_exchange = exchange,
       },
   }};
   auto market_data_request = roq::fix_bridge::fix::MarketDataRequest{
@@ -486,6 +488,13 @@ void Session::send_order_cancel_request() {
       .text = {},
   };
   send(order_cancel_request);
+}
+
+// download
+
+void Session::download_security_list() {
+  send_security_list_request("deribit"sv);
+  (*this)(State::GET_SECURITY_LIST);
 }
 
 }  // namespace fix

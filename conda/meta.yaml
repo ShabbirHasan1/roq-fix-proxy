@@ -23,6 +23,7 @@ requirements:
     - roq-io
     - roq-oss-catch2  # [osx]
     - roq-oss-libevent
+    - roq-oss-re2
     - roq-oss-tomlplusplus
     - roq-web
 

@@ -42,12 +42,15 @@ auto create_json_listener(auto &handler, auto &settings, auto &context) {
 // === IMPLEMENTATION ===
 
 Controller::Controller(
-    Settings const &settings, Config const &, roq::io::Context &context, std::span<std::string_view> const &connections)
+    Settings const &settings,
+    Config const &config,
+    roq::io::Context &context,
+    std::span<std::string_view> const &connections)
     : context_{context}, terminate_{context.create_signal(*this, roq::io::sys::Signal::Type::TERMINATE)},
       interrupt_{context.create_signal(*this, roq::io::sys::Signal::Type::INTERRUPT)},
       timer_{context.create_timer(*this, TIMER_FREQUENCY)},
       fix_sessions_{create_fix_sessions(settings, context, connections)},
-      json_listener_{create_json_listener(*this, settings, context_)} {
+      json_listener_{create_json_listener(*this, settings, context_)}, shared_{config} {
 }
 
 void Controller::run() {
