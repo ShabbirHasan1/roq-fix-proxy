@@ -25,7 +25,14 @@ auto create_regex_symbols(auto &config) {
 
 // === IMPLEMENTATION ===
 
-Shared::Shared(Config const &config) : regex_symbols{create_regex_symbols<decltype(regex_symbols)>(config)} {
+Shared::Shared(Config const &config) : regex_symbols_{create_regex_symbols<decltype(regex_symbols_)>(config)} {
+}
+
+bool Shared::include(std::string_view const &symbol) const {
+  for (auto &regex : regex_symbols_)
+    if (regex.match(symbol))
+      return true;
+  return false;
 }
 
 }  // namespace simple

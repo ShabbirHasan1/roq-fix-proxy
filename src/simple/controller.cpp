@@ -21,12 +21,12 @@ auto const TIMER_FREQUENCY = 100ms;
 // === HELPERS ===
 
 namespace {
-auto create_fix_sessions(auto &settings, auto &context, auto &connections) {
+auto create_fix_sessions(auto &settings, auto &context, auto &shared, auto &connections) {
   std::vector<std::unique_ptr<fix::Session>> result;
   for (auto &item : connections) {
     auto uri = roq::io::web::URI{item};
     roq::log::debug("{}"sv, uri);
-    auto session = std::make_unique<fix::Session>(settings, context, uri);
+    auto session = std::make_unique<fix::Session>(settings, context, shared, uri);
     result.emplace_back(std::move(session));
   }
   return result;
@@ -48,9 +48,9 @@ Controller::Controller(
     std::span<std::string_view> const &connections)
     : context_{context}, terminate_{context.create_signal(*this, roq::io::sys::Signal::Type::TERMINATE)},
       interrupt_{context.create_signal(*this, roq::io::sys::Signal::Type::INTERRUPT)},
-      timer_{context.create_timer(*this, TIMER_FREQUENCY)},
-      fix_sessions_{create_fix_sessions(settings, context, connections)},
-      json_listener_{create_json_listener(*this, settings, context_)}, shared_{config} {
+      timer_{context.create_timer(*this, TIMER_FREQUENCY)}, shared_{config},
+      fix_sessions_{create_fix_sessions(settings, context, shared_, connections)},
+      json_listener_{create_json_listener(*this, settings, context_)} {
 }
 
 void Controller::run() {

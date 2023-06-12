@@ -54,9 +54,10 @@ auto create_connection_manager(auto &handler, auto &settings, auto &connection_f
 
 // === IMPLEMENTATION ===
 
-Session::Session(Settings const &settings, roq::io::Context &context, roq::io::web::URI const &uri)
-    : username_{settings.fix.username}, password_{settings.fix.password}, sender_comp_id_{settings.fix.sender_comp_id},
-      target_comp_id_{settings.fix.target_comp_id}, ping_freq_{settings.fix.ping_freq}, debug_{settings.fix.debug},
+Session::Session(Settings const &settings, roq::io::Context &context, Shared &shared, roq::io::web::URI const &uri)
+    : shared_{shared}, username_{settings.fix.username}, password_{settings.fix.password},
+      sender_comp_id_{settings.fix.sender_comp_id}, target_comp_id_{settings.fix.target_comp_id},
+      ping_freq_{settings.fix.ping_freq}, debug_{settings.fix.debug},
       connection_factory_{create_connection_factory(settings, context, uri)},
       connection_manager_{create_connection_manager(*this, settings, *connection_factory_)},
       decode_buffer_(settings.fix.decode_buffer_size), encode_buffer_(settings.fix.encode_buffer_size) {
@@ -103,6 +104,7 @@ void Session::operator()(roq::io::net::ConnectionManager::Disconnected const &) 
   outbound_ = {};
   inbound_ = {};
   next_heartbeat_ = {};
+  symbols_.clear();
   (*this)(State::DISCONNECTED);
 }
 
@@ -269,12 +271,6 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &event) {
   assert(state_ == State::LOGON_SENT);
   download_security_list();
   /*
-  // note! following should always work...
-  if (false) {
-    send_security_list_request();
-    send_security_definition_request();
-    send_market_data_request();  // XXX TODO proper subscribe based on downloaded symbols...
-  }
   // note! following will only work when gateway is ready
   if (true) {
     send_new_order_single();
@@ -312,6 +308,13 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject>
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::SecurityList> const &event) {
   auto &[trace_info, security_list] = event;
   roq::log::debug("security_list={}, trace_info={}"sv, security_list, trace_info);
+  for (auto &item : security_list.no_related_sym) {
+    if (shared_.include(item.symbol)) {
+      symbols_.emplace(item.symbol);
+      send_security_definition_request(item.security_exchange, item.symbol);
+      send_market_data_request(item.security_exchange, item.symbol);
+    }
+  }
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::SecurityDefinition> const &event) {

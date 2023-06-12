@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <absl/container/flat_hash_set.h>
+
 #include <memory>
 #include <vector>
 
@@ -37,6 +39,7 @@
 #include "roq/fix_bridge/fix/test_request.hpp"
 
 #include "simple/settings.hpp"
+#include "simple/shared.hpp"
 
 namespace simple {
 namespace fix {
@@ -44,7 +47,7 @@ namespace fix {
 // note! supports both rest and websocket
 
 struct Session final : public roq::io::net::ConnectionManager::Handler {
-  Session(Settings const &, roq::io::Context &, roq::io::web::URI const &);
+  Session(Settings const &, roq::io::Context &, Shared &, roq::io::web::URI const &);
 
   void operator()(roq::Event<roq::Start> const &);
   void operator()(roq::Event<roq::Stop> const &);
@@ -119,6 +122,7 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   void download_security_list();
 
  private:
+  Shared &shared_;
   // config
   std::string_view const username_;
   std::string_view const password_;
@@ -147,8 +151,8 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
     SUBSCRIBE_MARKET_DATA,
     READY,
   } state_ = {};
-  // roq::ConnectionStatus connection_status_ = {};
   std::chrono::nanoseconds next_heartbeat_ = {};
+  absl::flat_hash_set<std::string> symbols_;
 };
 
 }  // namespace fix

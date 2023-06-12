@@ -16,9 +16,13 @@ namespace simple {
 struct Shared final {
   explicit Shared(Config const &);
 
-  std::vector<third_party::re2::RegularExpression> const regex_symbols;
   absl::flat_hash_set<uint64_t> sessions_to_remove;
   absl::flat_hash_set<std::string> symbols;
+
+  bool include(std::string_view const &symbol) const;
+
+ private:
+  std::vector<third_party::re2::RegularExpression> const regex_symbols_;
 };
 
 }  // namespace simple
