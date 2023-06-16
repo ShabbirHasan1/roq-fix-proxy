@@ -22,6 +22,22 @@ namespace {
 auto const JSONRPC_VERSION = "2.0"sv;
 }
 
+// === HELPERS ===
+
+namespace {
+template <typename T>
+T map(std::string_view const &);
+
+template <>
+roq::fix::Side map(std::string_view const &value) {
+  if (value == "BUY"sv)
+    return roq::fix::Side::BUY;
+  if (value == "SELL"sv)
+    return roq::fix::Side::SELL;
+  throw roq::RuntimeError{R"(Unexpected: side="{}")"sv, value};
+}
+}  // namespace
+
 // === IMPLEMENTATION ===
 
 Session::Session(Handler &handler, uint64_t session_id, roq::io::net::tcp::Connection::Factory &factory, Shared &shared)
@@ -176,13 +192,62 @@ void Session::process(std::string_view const &message) {
 }
 
 void Session::new_order_single(auto const &params, auto const &id) {
+  auto cl_ord_id = params.at("cl_ord_id"sv).template get<std::string_view>();
+  auto exchange = params.at("exchange"sv).template get<std::string_view>();
   auto symbol = params.at("symbol"sv).template get<std::string_view>();
-  send_result(symbol, id);
+  auto side = params.at("side"sv).template get<std::string_view>();
+  auto quantity = params.at("quantity"sv).template get<double>();
+  auto price = params.at("price"sv).template get<double>();
+  // map
+  auto side_2 = map<roq::fix::Side>(side);
+  auto new_order_single = roq::fix_bridge::fix::NewOrderSingle{
+      .cl_ord_id = cl_ord_id,
+      .no_party_ids = {},
+      .account = {},
+      .handl_inst = {},
+      .exec_inst = {},
+      .no_trading_sessions = {},
+      .symbol = symbol,
+      .security_exchange = exchange,
+      .side = side_2,
+      .transact_time = {},
+      .order_qty = {quantity, {}},
+      .ord_type = roq::fix::OrdType::LIMIT,
+      .price = {price, {}},
+      .stop_px = {},
+      .time_in_force = roq::fix::TimeInForce::GTC,
+      .text = {},
+      .position_effect = {},
+      .max_show = {},
+  };
+  roq::log::debug("new_order_single={}"sv, new_order_single);
+  roq::TraceInfo trace_info;
+  roq::Trace event{trace_info, new_order_single};
+  handler_(event);
+  send_result("ok"sv, id);
 }
 
 void Session::order_cancel_request(auto const &params, auto const &id) {
+  auto orig_cl_ord_id = params.at("orig_cl_ord_id"sv).template get<std::string_view>();
+  auto cl_ord_id = params.at("cl_ord_id"sv).template get<std::string_view>();
+  auto exchange = params.at("exchange"sv).template get<std::string_view>();
   auto symbol = params.at("symbol"sv).template get<std::string_view>();
-  send_result(symbol, id);
+  auto order_cancel_request = roq::fix_bridge::fix::OrderCancelRequest{
+      .orig_cl_ord_id = orig_cl_ord_id,
+      .order_id = {},
+      .cl_ord_id = cl_ord_id,
+      .symbol = symbol,
+      .security_exchange = exchange,
+      .side = {},
+      .transact_time = {},
+      .order_qty = {},
+      .text = {},
+  };
+  roq::log::debug("order_cancel_request={}"sv, order_cancel_request);
+  roq::TraceInfo trace_info;
+  roq::Trace event{trace_info, order_cancel_request};
+  handler_(event);
+  send_result("ok"sv, id);
 }
 
 void Session::send_result(std::string_view const &message, auto const &id) {
@@ -198,7 +263,7 @@ void Session::send_result(std::string_view const &message, auto const &id) {
           R"(}})"sv,
           JSONRPC_VERSION,
           message,
-          id);
+          id.template get<std::string_view>());
       break;
     case number_integer:
     case number_unsigned:
@@ -210,7 +275,7 @@ void Session::send_result(std::string_view const &message, auto const &id) {
           R"(}})"sv,
           JSONRPC_VERSION,
           message,
-          id);
+          id.template get<int64_t>());
       break;
     default:
       roq::log::warn("Unexpected: type={}"sv, magic_enum::enum_name(type));
@@ -232,7 +297,7 @@ void Session::send_error(std::string_view const &message, auto const &id) {
           R"(}})"sv,
           JSONRPC_VERSION,
           message,
-          id);
+          id.template get<std::string_view>());
       break;
     case number_integer:
     case number_unsigned:
@@ -246,7 +311,7 @@ void Session::send_error(std::string_view const &message, auto const &id) {
           R"(}})"sv,
           JSONRPC_VERSION,
           message,
-          id);
+          id.template get<int64_t>());
       break;
     default:
       roq::log::warn("Unexpected: type={}"sv, magic_enum::enum_name(type));
