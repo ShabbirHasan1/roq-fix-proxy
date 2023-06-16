@@ -286,14 +286,6 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &event) {
   roq::log::debug("logon={}, trace_info={}"sv, logon, trace_info);
   assert(state_ == State::LOGON_SENT);
   download_security_list();
-  /*
-  // note! following will only work when gateway is ready
-  if (true) {
-    send_new_order_single();
-    send_order_cancel_request();
-  }
-  (*this)(State::READY);
-  */
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &event) {
@@ -473,51 +465,6 @@ void Session::send_market_data_request(std::string_view const &exchange, std::st
       .custom_value = {},
   };
   send(market_data_request);
-}
-
-// note! following will only work when gateway is ready
-
-void Session::send_new_order_single(roq::CreateOrder const &) {
-  auto new_order_single = roq::fix_bridge::fix::NewOrderSingle{
-      .cl_ord_id = "xxx"sv,
-      .no_party_ids = {},
-      .account = {},
-      .handl_inst = {},
-      .exec_inst = {},
-      .no_trading_sessions = {},
-      .symbol = "BTC-PERPETUAL"sv,
-      .security_exchange = "deribit"sv,
-      .side = roq::fix::Side::BUY,
-      .transact_time = {},
-      .order_qty = {1.0, roq::Decimals::_0},
-      .ord_type = roq::fix::OrdType::LIMIT,
-      .price = {123.4, roq::Decimals::_1},
-      .stop_px = {},
-      .time_in_force = roq::fix::TimeInForce::GTC,
-      .text = {},
-      .position_effect = {},
-      .max_show = {},
-  };
-  send(new_order_single);
-}
-
-void Session::send_order_cancel_replace_request(roq::ModifyOrder const &) {
-  throw roq::NotImplemented{"not implemented"sv};
-}
-
-void Session::send_order_cancel_request(roq::CancelOrder const &) {
-  auto order_cancel_request = roq::fix_bridge::fix::OrderCancelRequest{
-      .orig_cl_ord_id = "xxx"sv,
-      .order_id = {},
-      .cl_ord_id = "yyy"sv,
-      .symbol = "BTC-PERPETUAL"sv,
-      .security_exchange = "deribit"sv,
-      .side = roq::fix::Side::BUY,
-      .transact_time = {},
-      .order_qty = {},
-      .text = {},
-  };
-  send(order_cancel_request);
 }
 
 // download

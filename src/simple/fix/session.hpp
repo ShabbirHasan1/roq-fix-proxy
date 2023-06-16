@@ -126,10 +126,6 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
 
   void send_market_data_request(std::string_view const &exchange, std::string_view const &symbol);
 
-  void send_new_order_single(roq::CreateOrder const &);
-  void send_order_cancel_replace_request(roq::ModifyOrder const &);
-  void send_order_cancel_request(roq::CancelOrder const &);
-
   // download
 
   void download_security_list();
