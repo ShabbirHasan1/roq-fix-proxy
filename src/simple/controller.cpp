@@ -91,14 +91,17 @@ void Controller::operator()(roq::io::net::tcp::Connection::Factory &factory) {
 // fix::Session::Handler
 
 void Controller::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &) {
+  // XXX TODO find client session_id
   roq::log::info("DEBUG not implemented"sv);
 }
 
 void Controller::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &) {
+  // XXX TODO find client session_id
   roq::log::info("DEBUG not implemented"sv);
 }
 
 void Controller::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &) {
+  // XXX TODO find client session_id
   roq::log::info("DEBUG not implemented"sv);
 }
 
@@ -134,6 +137,8 @@ void Controller::dispatch(Args &&...args) {
   auto message_info = roq::MessageInfo{};
   roq::Event event{message_info, std::forward<Args>(args)...};
   (*fix_session_)(event);
+  for (auto &[_, item] : json_sessions_)
+    (*item)(event);
 }
 
 }  // namespace simple

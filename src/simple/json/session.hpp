@@ -13,7 +13,10 @@
 
 #include "roq/web/rest/server.hpp"
 
+#include "roq/fix_bridge/fix/business_message_reject.hpp"
+#include "roq/fix_bridge/fix/execution_report.hpp"
 #include "roq/fix_bridge/fix/new_order_single.hpp"
+#include "roq/fix_bridge/fix/order_cancel_reject.hpp"
 #include "roq/fix_bridge/fix/order_cancel_replace_request.hpp"
 #include "roq/fix_bridge/fix/order_cancel_request.hpp"
 
@@ -34,6 +37,14 @@ struct Session final : public roq::web::rest::Server::Handler {
   };
 
   Session(Handler &, uint64_t session_id, roq::io::net::tcp::Connection::Factory &, Shared &);
+
+  void operator()(roq::Event<roq::Start> const &);
+  void operator()(roq::Event<roq::Stop> const &);
+  void operator()(roq::Event<roq::Timer> const &);
+
+  void operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &);
 
  protected:
   // web::rest::Server::Handler

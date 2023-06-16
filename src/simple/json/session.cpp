@@ -23,6 +23,24 @@ Session::Session(Handler &handler, uint64_t session_id, roq::io::net::tcp::Conne
       shared_{shared} {
 }
 
+void Session::operator()(roq::Event<roq::Start> const &) {
+}
+
+void Session::operator()(roq::Event<roq::Stop> const &) {
+}
+
+void Session::operator()(roq::Event<roq::Timer> const &) {
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &) {
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &) {
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &) {
+}
+
 // web::rest::Server::Handler
 
 void Session::operator()(roq::web::rest::Server::Disconnected const &) {
