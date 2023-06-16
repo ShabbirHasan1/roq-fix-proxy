@@ -47,6 +47,7 @@ namespace fix {
 
 struct Session final : public roq::io::net::ConnectionManager::Handler {
   struct Handler {
+    virtual void operator()(roq::Trace<roq::fix_bridge::fix::SecurityDefinition> const &) = 0;
     virtual void operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &) = 0;
     virtual void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &) = 0;
     virtual void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &) = 0;

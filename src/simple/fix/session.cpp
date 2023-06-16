@@ -338,7 +338,7 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::SecurityList> const &e
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::SecurityDefinition> const &event) {
   auto &[trace_info, security_definition] = event;
   roq::log::debug("security_definition={}, trace_info={}"sv, security_definition, trace_info);
-  // XXX must forward
+  handler_(event);
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::MarketDataRequestReject> const &event) {

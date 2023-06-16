@@ -42,7 +42,7 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
   void operator()(roq::io::net::tcp::Connection::Factory &) override;
 
   // fix::Session::Handler
-
+  void operator()(roq::Trace<roq::fix_bridge::fix::SecurityDefinition> const &) override;
   void operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &) override;
   void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &) override;
   void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &) override;

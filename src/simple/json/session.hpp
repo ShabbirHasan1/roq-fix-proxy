@@ -57,15 +57,20 @@ struct Session final : public roq::web::rest::Server::Handler {
 
   void route(Response &, roq::web::rest::Server::Request const &, std::span<std::string_view> const &path);
 
-  void get_exchanges(Response &, roq::web::rest::Server::Request const &);
   void get_symbols(Response &, roq::web::rest::Server::Request const &);
-
-  void post_order(Response &, roq::web::rest::Server::Request const &);
-  void delete_order(Response &, roq::web::rest::Server::Request const &);
 
   // ws
 
-  void process(std::string_view const &payload);
+  void process(std::string_view const &message);
+
+  void new_order_single(auto const &params, auto const &id);
+  void order_cancel_request(auto const &params, auto const &id);
+
+  void send_result(std::string_view const &message, auto const &id);
+  void send_error(std::string_view const &message, auto const &id);
+
+  template <typename... Args>
+  void send_text(fmt::format_string<Args...> const &, Args &&...);
 
  private:
   Handler &handler_;

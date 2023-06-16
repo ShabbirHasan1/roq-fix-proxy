@@ -90,6 +90,11 @@ void Controller::operator()(roq::io::net::tcp::Connection::Factory &factory) {
 
 // fix::Session::Handler
 
+void Controller::operator()(roq::Trace<roq::fix_bridge::fix::SecurityDefinition> const &event) {
+  auto &[trace_info, security_definition] = event;
+  shared_.symbols.emplace(security_definition.symbol);  // XXX TODO cache reference data
+}
+
 void Controller::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &) {
   // XXX TODO find client session_id
   roq::log::info("DEBUG not implemented"sv);
