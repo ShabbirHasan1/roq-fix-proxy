@@ -29,9 +29,9 @@ void Session::operator()(roq::web::rest::Server::Disconnected const &) {
 }
 
 // note!
-//   roq::web::rest::Server guarantees that we will always send exactly one response
-//   an automatic "not-found" (404) response is generated if this handler doesn't send anything
-//   an exception is thrown if this handler tries to send more than one response
+//   roq::web::rest::Server guarantees that there will always be exactly one response
+//   - an automatic "not-found" (404) response is generated if this handler doesn't send anything
+//   - an exception is thrown if this handler tries to send more than one response
 void Session::operator()(roq::web::rest::Server::Request const &request) {
   auto success = false;
   try {
