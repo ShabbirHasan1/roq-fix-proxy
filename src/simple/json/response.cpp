@@ -15,11 +15,13 @@ auto const CACHE_CONTROL_NO_STORE = "no-store"sv;
 
 // === IMPLEMENTATION ===
 
-Response::Response(roq::web::rest::Server &server, roq::web::rest::Server::Request const &request)
-    : server_{server}, request_{request} {
+Response::Response(
+    roq::web::rest::Server &server, roq::web::rest::Server::Request const &request, std::string &encode_buffer)
+    : server_{server}, request_{request}, encode_buffer_{encode_buffer} {
 }
 
-void Response::operator()(roq::web::http::Status status) {
+void Response::send(
+    roq::web::http::Status status, roq::web::http::ContentType content_type, std::string_view const &body) {
   auto connection = [&]() {
     if (status != roq::web::http::Status::OK)  // XXX maybe only close based on category ???
       return roq::web::http::Connection::CLOSE;
@@ -28,19 +30,6 @@ void Response::operator()(roq::web::http::Status status) {
   auto response = roq::web::rest::Server::Response{
       .status = status,
       .connection = connection,
-      .sec_websocket_accept = {},
-      .cache_control = {},
-      .content_type = {},
-      .body = {},
-  };
-  server_.send(response);
-};
-
-void Response::operator()(
-    roq::web::http::Status, roq::web::http::ContentType content_type, std::string_view const &body) {
-  auto response = roq::web::rest::Server::Response{
-      .status = roq::web::http::Status::OK,
-      .connection = request_.headers.connection,
       .sec_websocket_accept = {},
       .cache_control = CACHE_CONTROL_NO_STORE,
       .content_type = content_type,

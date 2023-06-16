@@ -25,6 +25,8 @@ struct Shared final {
 
   Settings const &settings;
 
+  std::string encode_buffer;
+
  private:
   std::vector<third_party::re2::RegularExpression> const regex_symbols_;
 };
