@@ -170,6 +170,7 @@ void Session::process(std::string_view const &message) {
   } catch (std::exception &e) {
     roq::log::error("Error: {}"sv, e.what());
   }
+  roq::log::debug("success={}"sv, success);
   if (!success)
     (*server_).close();
 }
@@ -256,6 +257,7 @@ template <typename... Args>
 void Session::send_text(fmt::format_string<Args...> const &fmt, Args &&...args) {
   shared_.encode_buffer.clear();
   fmt::format_to(std::back_inserter(shared_.encode_buffer), fmt, std::forward<Args>(args)...);
+  roq::log::debug(R"(message="{}")"sv, shared_.encode_buffer);
   (*server_).send_text(shared_.encode_buffer);
 }
 
