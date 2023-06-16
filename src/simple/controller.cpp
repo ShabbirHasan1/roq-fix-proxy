@@ -21,15 +21,13 @@ auto const TIMER_FREQUENCY = 100ms;
 // === HELPERS ===
 
 namespace {
-auto create_fix_sessions(auto &settings, auto &context, auto &shared, auto &connections) {
-  std::vector<std::unique_ptr<fix::Session>> result;
-  for (auto &item : connections) {
-    auto uri = roq::io::web::URI{item};
-    roq::log::debug("{}"sv, uri);
-    auto session = std::make_unique<fix::Session>(settings, context, shared, uri);
-    result.emplace_back(std::move(session));
-  }
-  return result;
+auto create_fix_session(auto &handler, auto &settings, auto &context, auto &shared, auto &connections) {
+  if (std::size(connections) != 1)
+    roq::log::fatal("Unexpected: only supporting 1 FIX connection (for now)"sv);
+  auto &connection = connections[0];
+  auto uri = roq::io::web::URI{connection};
+  roq::log::debug("{}"sv, uri);
+  return std::make_unique<fix::Session>(handler, settings, context, shared, uri);
 }
 
 auto create_json_listener(auto &handler, auto &settings, auto &context) {
@@ -49,7 +47,7 @@ Controller::Controller(
     : context_{context}, terminate_{context.create_signal(*this, roq::io::sys::Signal::Type::TERMINATE)},
       interrupt_{context.create_signal(*this, roq::io::sys::Signal::Type::INTERRUPT)},
       timer_{context.create_timer(*this, TIMER_FREQUENCY)}, shared_{settings, config},
-      fix_sessions_{create_fix_sessions(settings, context, shared_, connections)},
+      fix_session_{create_fix_session(*this, settings, context, shared_, connections)},
       json_listener_{create_json_listener(*this, settings, context_)} {
 }
 
@@ -86,8 +84,36 @@ void Controller::operator()(roq::io::sys::Timer::Event const &event) {
 void Controller::operator()(roq::io::net::tcp::Connection::Factory &factory) {
   auto session_id = ++next_session_id_;
   roq::log::info("Adding session_id={}..."sv, session_id);
-  auto session = std::make_unique<json::Session>(session_id, factory, shared_);
+  auto session = std::make_unique<json::Session>(*this, session_id, factory, shared_);
   json_sessions_.try_emplace(session_id, std::move(session));
+}
+
+// fix::Session::Handler
+
+void Controller::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &) {
+  roq::log::info("DEBUG not implemented"sv);
+}
+
+void Controller::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &) {
+  roq::log::info("DEBUG not implemented"sv);
+}
+
+void Controller::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &) {
+  roq::log::info("DEBUG not implemented"sv);
+}
+
+// json::Handler
+
+void Controller::operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &event) {
+  (*fix_session_)(event);
+}
+
+void Controller::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &event) {
+  (*fix_session_)(event);
+}
+
+void Controller::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &event) {
+  (*fix_session_)(event);
 }
 
 // utilities
@@ -107,8 +133,7 @@ template <typename... Args>
 void Controller::dispatch(Args &&...args) {
   auto message_info = roq::MessageInfo{};
   roq::Event event{message_info, std::forward<Args>(args)...};
-  for (auto &item : fix_sessions_)
-    (*item)(event);
+  (*fix_session_)(event);
 }
 
 }  // namespace simple

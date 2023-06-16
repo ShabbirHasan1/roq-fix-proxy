@@ -8,12 +8,7 @@
 #include <memory>
 #include <vector>
 
-#include "roq/connection_status.hpp"
-#include "roq/event.hpp"
-#include "roq/start.hpp"
-#include "roq/stop.hpp"
-#include "roq/timer.hpp"
-#include "roq/trace.hpp"
+#include "roq/api.hpp"
 
 #include "roq/io/context.hpp"
 
@@ -32,7 +27,10 @@
 #include "roq/fix_bridge/fix/market_data_incremental_refresh.hpp"
 #include "roq/fix_bridge/fix/market_data_request_reject.hpp"
 #include "roq/fix_bridge/fix/market_data_snapshot_full_refresh.hpp"
+#include "roq/fix_bridge/fix/new_order_single.hpp"
 #include "roq/fix_bridge/fix/order_cancel_reject.hpp"
+#include "roq/fix_bridge/fix/order_cancel_replace_request.hpp"
+#include "roq/fix_bridge/fix/order_cancel_request.hpp"
 #include "roq/fix_bridge/fix/reject.hpp"
 #include "roq/fix_bridge/fix/resend_request.hpp"
 #include "roq/fix_bridge/fix/security_definition.hpp"
@@ -48,18 +46,28 @@ namespace fix {
 // note! supports both rest and websocket
 
 struct Session final : public roq::io::net::ConnectionManager::Handler {
-  Session(Settings const &, roq::io::Context &, Shared &, roq::io::web::URI const &);
+  struct Handler {
+    virtual void operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &) = 0;
+    virtual void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &) = 0;
+    virtual void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &) = 0;
+  };
+
+  Session(Handler &, Settings const &, roq::io::Context &, Shared &, roq::io::web::URI const &);
 
   void operator()(roq::Event<roq::Start> const &);
   void operator()(roq::Event<roq::Stop> const &);
   void operator()(roq::Event<roq::Timer> const &);
 
+  bool ready() const;
+
+  void operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &);
+
  private:
   enum class State;
 
  protected:
-  bool ready() const;
-
   void operator()(State);
 
   // io::net::ConnectionManager::Handler
@@ -117,14 +125,16 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
 
   void send_market_data_request(std::string_view const &exchange, std::string_view const &symbol);
 
-  void send_new_order_single();
-  void send_order_cancel_request();
+  void send_new_order_single(roq::CreateOrder const &);
+  void send_order_cancel_replace_request(roq::ModifyOrder const &);
+  void send_order_cancel_request(roq::CancelOrder const &);
 
   // download
 
   void download_security_list();
 
  private:
+  Handler &handler_;
   Shared &shared_;
   // config
   std::string_view const username_;

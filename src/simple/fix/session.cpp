@@ -54,8 +54,9 @@ auto create_connection_manager(auto &handler, auto &settings, auto &connection_f
 
 // === IMPLEMENTATION ===
 
-Session::Session(Settings const &settings, roq::io::Context &context, Shared &shared, roq::io::web::URI const &uri)
-    : shared_{shared}, username_{settings.fix.username}, password_{settings.fix.password},
+Session::Session(
+    Handler &handler, Settings const &settings, roq::io::Context &context, Shared &shared, roq::io::web::URI const &uri)
+    : handler_{handler}, shared_{shared}, username_{settings.fix.username}, password_{settings.fix.password},
       sender_comp_id_{settings.fix.sender_comp_id}, target_comp_id_{settings.fix.target_comp_id},
       ping_freq_{settings.fix.ping_freq}, debug_{settings.fix.debug}, market_depth_{settings.fix.market_depth},
       connection_factory_{create_connection_factory(settings, context, uri)},
@@ -84,6 +85,21 @@ void Session::operator()(roq::Event<roq::Timer> const &event) {
 
 bool Session::ready() const {
   return state_ == State::READY;
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &event) {
+  auto &[trace_info, new_order_single] = event;
+  send(new_order_single);
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &event) {
+  auto &[trace_info, order_cancel_replace_request] = event;
+  send(order_cancel_replace_request);
+}
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &event) {
+  auto &[trace_info, order_cancel_request] = event;
+  send(order_cancel_request);
 }
 
 void Session::operator()(Session::State state) {
@@ -461,7 +477,7 @@ void Session::send_market_data_request(std::string_view const &exchange, std::st
 
 // note! following will only work when gateway is ready
 
-void Session::send_new_order_single() {
+void Session::send_new_order_single(roq::CreateOrder const &) {
   auto new_order_single = roq::fix_bridge::fix::NewOrderSingle{
       .cl_ord_id = "xxx"sv,
       .no_party_ids = {},
@@ -485,7 +501,11 @@ void Session::send_new_order_single() {
   send(new_order_single);
 }
 
-void Session::send_order_cancel_request() {
+void Session::send_order_cancel_replace_request(roq::ModifyOrder const &) {
+  throw roq::NotImplemented{"not implemented"sv};
+}
+
+void Session::send_order_cancel_request(roq::CancelOrder const &) {
   auto order_cancel_request = roq::fix_bridge::fix::OrderCancelRequest{
       .orig_cl_ord_id = "xxx"sv,
       .order_id = {},

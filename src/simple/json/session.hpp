@@ -7,9 +7,15 @@
 #include <memory>
 #include <string>
 
+#include "roq/api.hpp"
+
 #include "roq/io/net/tcp/connection.hpp"
 
 #include "roq/web/rest/server.hpp"
+
+#include "roq/fix_bridge/fix/new_order_single.hpp"
+#include "roq/fix_bridge/fix/order_cancel_replace_request.hpp"
+#include "roq/fix_bridge/fix/order_cancel_request.hpp"
 
 #include "simple/shared.hpp"
 
@@ -21,7 +27,13 @@ namespace json {
 // note! supports both rest and websocket
 
 struct Session final : public roq::web::rest::Server::Handler {
-  Session(uint64_t session_id, roq::io::net::tcp::Connection::Factory &, Shared &);
+  struct Handler {
+    virtual void operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &) = 0;
+    virtual void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &) = 0;
+    virtual void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &) = 0;
+  };
+
+  Session(Handler &, uint64_t session_id, roq::io::net::tcp::Connection::Factory &, Shared &);
 
  protected:
   // web::rest::Server::Handler
@@ -45,6 +57,7 @@ struct Session final : public roq::web::rest::Server::Handler {
   void process(std::string_view const &payload);
 
  private:
+  Handler &handler_;
   uint64_t const session_id_;
   std::unique_ptr<roq::web::rest::Server> server_;
   Shared &shared_;

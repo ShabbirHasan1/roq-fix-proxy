@@ -18,8 +18,9 @@ namespace json {
 
 // === IMPLEMENTATION ===
 
-Session::Session(uint64_t session_id, roq::io::net::tcp::Connection::Factory &factory, Shared &shared)
-    : session_id_{session_id}, server_{roq::web::rest::ServerFactory::create(*this, factory)}, shared_{shared} {
+Session::Session(Handler &handler, uint64_t session_id, roq::io::net::tcp::Connection::Factory &factory, Shared &shared)
+    : handler_{handler}, session_id_{session_id}, server_{roq::web::rest::ServerFactory::create(*this, factory)},
+      shared_{shared} {
 }
 
 // web::rest::Server::Handler

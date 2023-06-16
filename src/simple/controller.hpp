@@ -6,7 +6,6 @@
 
 #include <chrono>
 #include <memory>
-#include <vector>
 
 #include "roq/io/context.hpp"
 
@@ -25,7 +24,9 @@ namespace simple {
 
 struct Controller final : public roq::io::net::tcp::Listener::Handler,
                           public roq::io::sys::Signal::Handler,
-                          public roq::io::sys::Timer::Handler {
+                          public roq::io::sys::Timer::Handler,
+                          public fix::Session::Handler,
+                          public json::Session::Handler {
   Controller(Settings const &, Config const &, roq::io::Context &, std::span<std::string_view> const &connections);
 
   void run();
@@ -39,6 +40,17 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
 
   // io::net::tcp::Listener::Handler
   void operator()(roq::io::net::tcp::Connection::Factory &) override;
+
+  // fix::Session::Handler
+
+  void operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &) override;
+  void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &) override;
+  void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &) override;
+
+  // json::Session::Handler
+  void operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &) override;
+  void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &) override;
+  void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &) override;
 
   // utilities
 
@@ -55,7 +67,7 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
   //
   Shared shared_;
   // fix
-  std::vector<std::unique_ptr<fix::Session>> fix_sessions_;
+  std::unique_ptr<fix::Session> fix_session_;
   // json
   std::unique_ptr<roq::io::net::tcp::Listener> const json_listener_;
   absl::flat_hash_map<uint64_t, std::unique_ptr<json::Session>> json_sessions_;
