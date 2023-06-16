@@ -30,13 +30,19 @@ struct Session final : public roq::web::rest::Server::Handler {
   void operator()(roq::web::rest::Server::Text const &) override;
   void operator()(roq::web::rest::Server::Binary const &) override;
 
-  // routes
+  // rest
+
+  void route(Response &, roq::web::rest::Server::Request const &, std::span<std::string_view> const &path);
 
   void get_exchanges(Response &, roq::web::rest::Server::Request const &);
   void get_symbols(Response &, roq::web::rest::Server::Request const &);
 
   void post_order(Response &, roq::web::rest::Server::Request const &);
   void delete_order(Response &, roq::web::rest::Server::Request const &);
+
+  // ws
+
+  void process(std::string_view const &payload);
 
  private:
   uint64_t const session_id_;
