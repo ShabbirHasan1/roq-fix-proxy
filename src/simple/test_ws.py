@@ -36,7 +36,7 @@ def create_request(method, params, id):
 
 
 async def hello():
-    async with websockets.connect("ws://localhost:2345", compression=None) as ws:
+    async with websockets.connect("ws://localhost:2345") as ws:
         try:
             await ws.send(create_request("new_order_single", new_order_single, 1001))
             msg = await ws.recv()

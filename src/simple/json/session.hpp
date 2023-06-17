@@ -63,6 +63,8 @@ struct Session final : public roq::web::rest::Server::Handler {
 
   void process(std::string_view const &message);
 
+  void process_jsonrpc(std::string_view const &method, auto const &params, auto const &id);
+
   void new_order_single(auto const &params, auto const &id);
   void order_cancel_request(auto const &params, auto const &id);
 

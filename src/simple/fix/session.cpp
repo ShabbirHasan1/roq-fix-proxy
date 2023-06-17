@@ -4,6 +4,8 @@
 
 #include "roq/logging.hpp"
 
+#include "roq/oms/exceptions.hpp"
+
 #include "roq/utils/chrono.hpp"
 #include "roq/utils/update.hpp"
 
@@ -88,16 +90,22 @@ bool Session::ready() const {
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &event) {
+  if (!ready())
+    throw roq::oms::NotReady{"not ready"sv};
   auto &[trace_info, new_order_single] = event;
   send(new_order_single);
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &event) {
+  if (!ready())
+    throw roq::oms::NotReady{"not ready"sv};
   auto &[trace_info, order_cancel_replace_request] = event;
   send(order_cancel_replace_request);
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &event) {
+  if (!ready())
+    throw roq::oms::NotReady{"not ready"sv};
   auto &[trace_info, order_cancel_request] = event;
   send(order_cancel_request);
 }

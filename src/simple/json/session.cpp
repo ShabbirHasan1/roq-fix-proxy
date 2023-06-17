@@ -6,12 +6,18 @@
 
 #include <utility>
 
-#include "roq/exceptions.hpp"
 #include "roq/logging.hpp"
+
+#include "roq/exceptions.hpp"
+
+#include "roq/oms/exceptions.hpp"
 
 #include "roq/web/rest/server_factory.hpp"
 
 using namespace std::literals;
+
+// TODO
+// - close handshake doesn't work as per protocol (connection closed too early)
 
 namespace simple {
 namespace json {
@@ -20,7 +26,10 @@ namespace json {
 
 namespace {
 auto const JSONRPC_VERSION = "2.0"sv;
-}
+
+auto const UNKNOWN_METHOD = "UNKNOWN_METHOD"sv;
+auto const NOT_READY = "NOT_READY"sv;
+}  // namespace
 
 // === HELPERS ===
 
@@ -173,13 +182,7 @@ void Session::process(std::string_view const &message) {
     auto method = json.at("method"sv).template get<std::string_view>();
     auto params = json.at("params"sv);
     auto id = json.at("id"sv);
-    if (method == "new_order_single"sv) {
-      new_order_single(params, id);
-    } else if (method == "order_cancel_request"sv) {
-      order_cancel_request(params, id);
-    } else {
-      send_error("unknown method", id);
-    }
+    process_jsonrpc(method, params, id);
     success = true;
   } catch (roq::RuntimeError &e) {
     roq::log::error("Error: {}"sv, e);
@@ -189,6 +192,20 @@ void Session::process(std::string_view const &message) {
   roq::log::debug("success={}"sv, success);
   if (!success)
     (*server_).close();
+}
+
+void Session::process_jsonrpc(std::string_view const &method, auto const &params, auto const &id) {
+  try {
+    if (method == "new_order_single"sv) {
+      new_order_single(params, id);
+    } else if (method == "order_cancel_request"sv) {
+      order_cancel_request(params, id);
+    } else {
+      send_error(UNKNOWN_METHOD, id);
+    }
+  } catch (roq::oms::NotReady const &) {
+    send_error(NOT_READY, id);
+  }
 }
 
 void Session::new_order_single(auto const &params, auto const &id) {
