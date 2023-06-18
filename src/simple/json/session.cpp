@@ -399,51 +399,30 @@ void Session::dispatch(roq::TraceInfo const &trace_info, auto const &value) {
 }
 
 void Session::send_result(std::string_view const &message, auto const &id) {
-  auto type = id.type();
-  switch (type) {
-    using enum nlohmann::json::value_t;
-    case string:
-      send_text(
-          R"({{)"
-          R"("jsonrpc":"{}",)"
-          R"("result":"{}",)"
-          R"("id":"{}")"
-          R"(}})"sv,
-          JSONRPC_VERSION,
-          message,
-          id.template get<std::string_view>());
-      break;
-    case number_integer:
-    case number_unsigned:
-      send_text(
-          R"({{)"
-          R"("jsonrpc":"{}",)"
-          R"("result":"{}",)"
-          R"("id":{})"
-          R"(}})"sv,
-          JSONRPC_VERSION,
-          message,
-          id.template get<int64_t>());
-      break;
-    default:
-      roq::log::warn("Unexpected: type={}"sv, magic_enum::enum_name(type));
-  }
+  send_jsonrpc("result"sv, message, id);
 }
 
 void Session::send_error(std::string_view const &message, auto const &id) {
-  auto type = id.type();
-  switch (type) {
+  send_jsonrpc("error"sv, message, id);
+}
+
+void Session::send_jsonrpc(std::string_view const &type, std::string_view const &message, auto const &id) {
+  // note!
+  //   response must echo the id field from the request (same type)
+  auto type_2 = id.type();
+  switch (type_2) {
     using enum nlohmann::json::value_t;
     case string:
       send_text(
           R"({{)"
           R"("jsonrpc":"{}",)"
-          R"("error":"{{")"
+          R"("{}":"{{")"
           R"("message":"{}")"
           R"("}},)"
           R"("id":"{}")"
           R"(}})"sv,
           JSONRPC_VERSION,
+          type,
           message,
           id.template get<std::string_view>());
       break;
@@ -452,17 +431,18 @@ void Session::send_error(std::string_view const &message, auto const &id) {
       send_text(
           R"({{)"
           R"("jsonrpc":"{}",)"
-          R"("error":"{{")"
+          R"("{}":"{{")"
           R"("message":"{}")"
           R"("}},)"
           R"("id":{})"
           R"(}})"sv,
           JSONRPC_VERSION,
+          type,
           message,
           id.template get<int64_t>());
       break;
     default:
-      roq::log::warn("Unexpected: type={}"sv, magic_enum::enum_name(type));
+      roq::log::warn("Unexpected: type={}"sv, magic_enum::enum_name(type_2));
   }
 }
 

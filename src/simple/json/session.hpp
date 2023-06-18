@@ -91,6 +91,8 @@ struct Session final : public roq::web::rest::Server::Handler {
   void send_result(std::string_view const &message, auto const &id);
   void send_error(std::string_view const &message, auto const &id);
 
+  void send_jsonrpc(std::string_view const &type, std::string_view const &message, auto const &id);
+
   template <typename... Args>
   void send_text(fmt::format_string<Args...> const &, Args &&...);
 
