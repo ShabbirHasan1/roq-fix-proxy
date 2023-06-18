@@ -15,10 +15,15 @@
 
 #include "roq/fix_bridge/fix/business_message_reject.hpp"
 #include "roq/fix_bridge/fix/execution_report.hpp"
+#include "roq/fix_bridge/fix/logon.hpp"
+#include "roq/fix_bridge/fix/logout.hpp"
 #include "roq/fix_bridge/fix/new_order_single.hpp"
 #include "roq/fix_bridge/fix/order_cancel_reject.hpp"
 #include "roq/fix_bridge/fix/order_cancel_replace_request.hpp"
 #include "roq/fix_bridge/fix/order_cancel_request.hpp"
+#include "roq/fix_bridge/fix/order_mass_cancel_request.hpp"
+#include "roq/fix_bridge/fix/order_mass_status_request.hpp"
+#include "roq/fix_bridge/fix/order_status_request.hpp"
 
 #include "simple/shared.hpp"
 
@@ -31,16 +36,17 @@ namespace json {
 
 struct Session final : public roq::web::rest::Server::Handler {
   struct Handler {
+    virtual void operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &) = 0;
+    virtual void operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &) = 0;
+    virtual void operator()(roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &) = 0;
     virtual void operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &) = 0;
     virtual void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &) = 0;
     virtual void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &) = 0;
+    virtual void operator()(roq::Trace<roq::fix_bridge::fix::OrderMassStatusRequest> const &) = 0;
+    virtual void operator()(roq::Trace<roq::fix_bridge::fix::OrderMassCancelRequest> const &) = 0;
   };
 
   Session(Handler &, uint64_t session_id, roq::io::net::tcp::Connection::Factory &, Shared &);
-
-  void operator()(roq::Event<roq::Start> const &);
-  void operator()(roq::Event<roq::Stop> const &);
-  void operator()(roq::Event<roq::Timer> const &);
 
   void operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &);
   void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &);
@@ -65,8 +71,22 @@ struct Session final : public roq::web::rest::Server::Handler {
 
   void process_jsonrpc(std::string_view const &method, auto const &params, auto const &id);
 
-  void new_order_single(auto const &params, auto const &id);
-  void order_cancel_request(auto const &params, auto const &id);
+  // - session
+  void logon(roq::TraceInfo const &, auto const &params, auto const &id);
+  void logout(roq::TraceInfo const &, auto const &params, auto const &id);
+
+  // - business
+  // -- single order
+  void order_status_request(roq::TraceInfo const &, auto const &params, auto const &id);
+  void new_order_single(roq::TraceInfo const &, auto const &params, auto const &id);
+  void order_cancel_request(roq::TraceInfo const &, auto const &params, auto const &id);
+  // -- many orders
+  void order_mass_status_request(roq::TraceInfo const &, auto const &params, auto const &id);
+  void order_mass_cancel_request(roq::TraceInfo const &, auto const &params, auto const &id);
+
+  // helpers
+
+  void dispatch(roq::TraceInfo const &, auto const &value);
 
   void send_result(std::string_view const &message, auto const &id);
   void send_error(std::string_view const &message, auto const &id);

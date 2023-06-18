@@ -17,6 +17,8 @@ new_order_single = dict(
     exchange="deribit",
     symbol="BTC-PERPETUAL",
     side="BUY",
+    ord_type="LIMIT",
+    time_in_force='GTC',
     quantity=1.0,
     price=123.45,
 )
@@ -31,7 +33,12 @@ order_cancel_request = dict(
 
 
 def create_request(method, params, id):
-    request = dict(jsonrpc="2.0", method=method, params=params, id=id)
+    request = dict(
+        jsonrpc="2.0",
+        method=method,
+        params=params,
+        id=id,
+    )
     return json.dumps(request)
 
 

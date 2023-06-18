@@ -48,9 +48,14 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
   void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &) override;
 
   // json::Session::Handler
+  void operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &) override;
+  void operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &) override;
+  void operator()(roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &) override;
   void operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &) override;
   void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &) override;
   void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &) override;
+  void operator()(roq::Trace<roq::fix_bridge::fix::OrderMassStatusRequest> const &) override;
+  void operator()(roq::Trace<roq::fix_bridge::fix::OrderMassCancelRequest> const &) override;
 
   // utilities
 

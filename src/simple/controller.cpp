@@ -112,6 +112,18 @@ void Controller::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> co
 
 // json::Handler
 
+void Controller::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &event) {
+  (*fix_session_)(event);
+}
+
+void Controller::operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &event) {
+  (*fix_session_)(event);
+}
+
+void Controller::operator()(roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &event) {
+  (*fix_session_)(event);
+}
+
 void Controller::operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &event) {
   (*fix_session_)(event);
 }
@@ -121,6 +133,14 @@ void Controller::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceR
 }
 
 void Controller::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &event) {
+  (*fix_session_)(event);
+}
+
+void Controller::operator()(roq::Trace<roq::fix_bridge::fix::OrderMassStatusRequest> const &event) {
+  (*fix_session_)(event);
+}
+
+void Controller::operator()(roq::Trace<roq::fix_bridge::fix::OrderMassCancelRequest> const &event) {
   (*fix_session_)(event);
 }
 
@@ -142,8 +162,6 @@ void Controller::dispatch(Args &&...args) {
   auto message_info = roq::MessageInfo{};
   roq::Event event{message_info, std::forward<Args>(args)...};
   (*fix_session_)(event);
-  for (auto &[_, item] : json_sessions_)
-    (*item)(event);
 }
 
 }  // namespace simple
