@@ -122,43 +122,6 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const
     return;
   auto &[trace_info, execution_report] = event;
   // XXX TODO we could benefit from having json encode/decode messages from FIX Bridge
-  /*
-  std::string_view order_id;
-  std::string_view cl_ord_id;
-  std::string_view orig_cl_ord_id;
-  std::string_view ord_status_req_id;
-  std::string_view mass_status_req_id;
-  uint32_t tot_num_reports = {};
-  bool last_rpt_requested = false;
-  std::string_view exec_id;
-  roq::fix::ExecType exec_type = {};
-  roq::fix::OrdStatus ord_status = {};
-  bool working_indicator = false;
-  roq::fix::OrdRejReason ord_rej_reason = {};
-  std::string_view account;
-  roq::fix::AccountType account_type = {};
-  std::string_view symbol;
-  std::string_view security_exchange;
-  roq::fix::Side side = {};
-  roq::fix::OrdType ord_type = {};
-  roq::utils::Number order_qty;
-  roq::utils::Number price;
-  roq::utils::Number stop_px;
-  std::string_view currency;
-  roq::fix::TimeInForce time_in_force = {};
-  std::string_view exec_inst;
-  roq::utils::Number last_qty;
-  roq::utils::Number last_px;
-  std::string_view trading_session_id;
-  roq::utils::Number leaves_qty;
-  roq::utils::Number cum_qty;
-  roq::utils::Number avg_px;
-  std::chrono::milliseconds transact_time = {};
-  roq::fix::PositionEffect position_effect = {};
-  roq::utils::Number max_show;
-  std::string_view text;
-  roq::fix::LastLiquidityInd last_liquidity_ind = {};
-  */
   send_text(
       R"({{)"
       R"("jsonrpc":"{}",)"
@@ -175,6 +138,30 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const
       R"("exec_type":"{}",)"
       R"("ord_status":"{}",)"
       R"("working_indicator":{},)"
+      R"("ord_rej_reason":"{}",)"
+      R"("account":"{}",)"
+      R"("account_type":"{}",)"
+      R"("symbol":"{}",)"
+      R"("security_exchange":"{}",)"
+      R"("side":"{}",)"
+      R"("ord_type":"{}",)"
+      R"("order_qty":{},)"
+      R"("price":{},)"
+      R"("stop_px":{},)"
+      R"("currency":"{}",)"
+      R"("time_in_force":"{}",)"
+      R"("exec_inst":"{}",)"
+      R"("last_qty":{},)"
+      R"("last_px":{},)"
+      R"("trading_session_id":"{}",)"
+      R"("leaves_qty":{},)"
+      R"("cum_qty":{},)"
+      R"("avg_px":{},)"
+      R"("transact_time":"{}",)"
+      R"("position_effect":"{}",)"
+      R"("max_show":{},)"
+      R"("text":"{}",)"
+      R"("last_liquidity_ind":"{}")"
       R"(}})"
       R"(}})"sv,
       JSONRPC_VERSION,
@@ -188,7 +175,31 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const
       execution_report.exec_id,
       execution_report.exec_type,
       execution_report.ord_status,
-      execution_report.working_indicator);
+      execution_report.working_indicator,
+      execution_report.ord_rej_reason,
+      execution_report.account,
+      execution_report.account_type,
+      execution_report.symbol,
+      execution_report.security_exchange,
+      execution_report.side,
+      execution_report.ord_type,
+      execution_report.order_qty,
+      execution_report.price,
+      execution_report.stop_px,
+      execution_report.currency,
+      execution_report.time_in_force,
+      execution_report.exec_inst,
+      execution_report.last_qty,
+      execution_report.last_px,
+      execution_report.trading_session_id,
+      execution_report.leaves_qty,
+      execution_report.cum_qty,
+      execution_report.avg_px,
+      execution_report.transact_time,
+      execution_report.position_effect,
+      execution_report.max_show,
+      execution_report.text,
+      execution_report.last_liquidity_ind);
 }
 
 bool Session::ready() const {
