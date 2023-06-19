@@ -64,8 +64,7 @@ async def order_mass_status_request(ws):
         mass_status_req_id="test_000",
     )
     await ws.send(create_request("order_mass_status_request", params, 1001))
-    message = await ws.recv()
-    check_response(message)
+    # note! let the message dispatcher deal with the response
 
 
 async def new_order_single(ws):
@@ -80,16 +79,26 @@ async def new_order_single(ws):
         price=123.45,
     )
     await ws.send(create_request("new_order_single", params, 1002))
-    message = await ws.recv()
-    check_response(message)
+    # note! let the message dispatcher deal with the response
 
 
-async def process_result(ws, method, result, id_):
+async def order_cancel_request(ws):
+    params = dict(
+        orig_cl_ord_id="test_001",
+        cl_ord_id="test_002",
+        exchange=EXCHANGE,
+        symbol=SYMBOL,
+    )
+    await ws.send(create_request("order_cancel_request", params, 1003))
+    # note! let the message dispatcher deal with the response
+
+
+async def process_result(ws, result, id_):
     # TODO maybe find handler from id?
     pass
 
 
-async def process_error(ws, method, error, id_):
+async def process_error(ws, error, id_):
     # TODO maybe find handler from id?
     raise RuntimeError(f"Unexpected: {error}")
 
@@ -121,7 +130,9 @@ async def execution_report(ws, params):
             READY = True
             await new_order_single(ws)
     else:
-        pass
+        print('HERE')
+        # XXX need some latch here
+        await order_cancel_request(ws)
     print(params)
 
 
@@ -138,18 +149,18 @@ async def dispatch(ws):
     while True:
         message = await ws.recv()
         response_or_notification = json.loads(message)
-        method = response_or_notification["method"]
         id_ = response_or_notification.get("id")
         if id_ is None:
+            method = response_or_notification["method"]
             params = response_or_notification.get("params", {})
             await process_notification(ws, method, params)
         else:
             result = response_or_notification.get("result")
             if result is None:
                 error = response_or_notification["error"]
-                await process_error(ws, method, error, id_)
+                await process_error(ws, error, id_)
             else:
-                await process_result(ws, method, result, id_)
+                await process_result(ws, result, id_)
 
 
 async def main():
