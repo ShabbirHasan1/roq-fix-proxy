@@ -117,8 +117,78 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> con
   // XXX TODO send notification
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &) {
-  // XXX TODO send notification
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &event) {
+  if (zombie())
+    return;
+  auto &[trace_info, execution_report] = event;
+  // XXX TODO we could benefit from having json encode/decode messages from FIX Bridge
+  /*
+  std::string_view order_id;
+  std::string_view cl_ord_id;
+  std::string_view orig_cl_ord_id;
+  std::string_view ord_status_req_id;
+  std::string_view mass_status_req_id;
+  uint32_t tot_num_reports = {};
+  bool last_rpt_requested = false;
+  std::string_view exec_id;
+  roq::fix::ExecType exec_type = {};
+  roq::fix::OrdStatus ord_status = {};
+  bool working_indicator = false;
+  roq::fix::OrdRejReason ord_rej_reason = {};
+  std::string_view account;
+  roq::fix::AccountType account_type = {};
+  std::string_view symbol;
+  std::string_view security_exchange;
+  roq::fix::Side side = {};
+  roq::fix::OrdType ord_type = {};
+  roq::utils::Number order_qty;
+  roq::utils::Number price;
+  roq::utils::Number stop_px;
+  std::string_view currency;
+  roq::fix::TimeInForce time_in_force = {};
+  std::string_view exec_inst;
+  roq::utils::Number last_qty;
+  roq::utils::Number last_px;
+  std::string_view trading_session_id;
+  roq::utils::Number leaves_qty;
+  roq::utils::Number cum_qty;
+  roq::utils::Number avg_px;
+  std::chrono::milliseconds transact_time = {};
+  roq::fix::PositionEffect position_effect = {};
+  roq::utils::Number max_show;
+  std::string_view text;
+  roq::fix::LastLiquidityInd last_liquidity_ind = {};
+  */
+  send_text(
+      R"({{)"
+      R"("jsonrpc":"{}",)"
+      R"("method":"execution_report",)"
+      R"("params":{{)"
+      R"("order_id":"{}",)"
+      R"("cl_ord_id":"{}",)"
+      R"("orig_cl_ord_id":"{}",)"
+      R"("ord_status_req_id":"{}",)"
+      R"("mass_status_req_id":"{}",)"
+      R"("tot_num_reports":{},)"
+      R"("last_rpt_requested":{},)"
+      R"("exec_id":"{}",)"
+      R"("exec_type":"{}",)"
+      R"("ord_status":"{}",)"
+      R"("working_indicator":{},)"
+      R"(}})"
+      R"(}})"sv,
+      JSONRPC_VERSION,
+      execution_report.order_id,
+      execution_report.cl_ord_id,
+      execution_report.orig_cl_ord_id,
+      execution_report.ord_status_req_id,
+      execution_report.mass_status_req_id,
+      execution_report.tot_num_reports,
+      execution_report.last_rpt_requested,
+      execution_report.exec_id,
+      execution_report.exec_type,
+      execution_report.ord_status,
+      execution_report.working_indicator);
 }
 
 bool Session::ready() const {
@@ -423,6 +493,7 @@ void Session::order_mass_cancel_request(roq::TraceInfo const &trace_info, auto c
 }
 
 void Session::dispatch(roq::TraceInfo const &trace_info, auto const &value) {
+  assert(!std::empty(username_));
   roq::Trace event{trace_info, value};
   handler_(event, username_);
 }

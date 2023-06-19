@@ -62,6 +62,7 @@ async def hello():
             await ws.send(create_request("logon", logon, 1000))
             msg = await ws.recv()
             # TODO check status
+            # ... now we could receive interleaved notifications
             await ws.send(
                 create_request(
                     "order_mass_status_request", order_mass_status_request, 1001
