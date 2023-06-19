@@ -21,14 +21,17 @@ auto const TIMER_FREQUENCY = 100ms;
 // === HELPERS ===
 
 namespace {
-auto create_fix_session(auto &handler, auto &settings, auto &context, auto &shared, auto &connections) {
+auto create_fix_sessions(auto &handler, auto &settings, auto &context, auto &shared, auto &connections) {
   if (std::size(connections) != 1)
     roq::log::fatal("Unexpected: only supporting 1 FIX connection (for now)"sv);
+  absl::flat_hash_map<std::string, std::unique_ptr<fix::Session>> result;
   auto &connection = connections[0];
   auto uri = roq::io::web::URI{connection};
   roq::log::debug("{}"sv, uri);
-  return std::make_unique<fix::Session>(
+  auto session = std::make_unique<fix::Session>(
       handler, settings, context, shared, uri, settings.fix.username, settings.fix.password);
+  result.emplace(settings.fix.username, std::move(session));
+  return result;
 }
 
 auto create_json_listener(auto &handler, auto &settings, auto &context) {
@@ -48,7 +51,7 @@ Controller::Controller(
     : context_{context}, terminate_{context.create_signal(*this, roq::io::sys::Signal::Type::TERMINATE)},
       interrupt_{context.create_signal(*this, roq::io::sys::Signal::Type::INTERRUPT)},
       timer_{context.create_timer(*this, TIMER_FREQUENCY)}, shared_{settings, config},
-      fix_session_{create_fix_session(*this, settings, context, shared_, connections)},
+      fix_sessions_{create_fix_sessions(*this, settings, context, shared_, connections)},
       json_listener_{create_json_listener(*this, settings, context_)} {
 }
 
@@ -156,13 +159,16 @@ template <typename... Args>
 void Controller::dispatch(Args &&...args) {
   auto message_info = roq::MessageInfo{};
   roq::Event event{message_info, std::forward<Args>(args)...};
-  (*fix_session_)(event);
+  for (auto &[_, item] : fix_sessions_)
+    (*item)(event);
 }
 
 template <typename T>
-void Controller::dispatch_to_fix(roq::Trace<T> const &event, [[maybe_unused]] std::string_view const &username) {
-  // XXX TODO make lookup
-  (*fix_session_)(event);
+void Controller::dispatch_to_fix(roq::Trace<T> const &event, std::string_view const &username) {
+  auto iter = fix_sessions_.find(username);
+  if (iter == std::end(fix_sessions_)) [[unlikely]]
+    roq::log::fatal(R"(Unexpected: username="{}")"sv, username);  // note! should not be possible
+  (*(*iter).second)(event);
 }
 
 template <typename T>

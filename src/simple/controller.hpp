@@ -83,7 +83,7 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
   //
   Shared shared_;
   // fix
-  std::unique_ptr<fix::Session> fix_session_;
+  absl::flat_hash_map<std::string, std::unique_ptr<fix::Session>> fix_sessions_;
   // json
   std::unique_ptr<roq::io::net::tcp::Listener> const json_listener_;
   absl::flat_hash_map<uint64_t, std::unique_ptr<json::Session>> json_sessions_;
