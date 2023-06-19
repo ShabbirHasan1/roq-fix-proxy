@@ -11,39 +11,25 @@ logging.basicConfig(
     level=logging.DEBUG,
 )
 
-exchange = "deribit"
-symbol = "BTC-PERPETUAL"
+USERNAME = "trader"
+PASSWORD = "secret"
 
-logon = dict(
-    username="trader",
-    password="secret",
-)
+EXCHANGE = "deribit"
+SYMBOL = "BTC-PERPETUAL"
 
-order_mass_status_request = dict(
-    mass_status_req_id="test_000",
-)
+# globals
+READY = False
 
-new_order_single = dict(
-    cl_ord_id="test_001",
-    exchange=exchange,
-    symbol=symbol,
-    side="BUY",
-    ord_type="LIMIT",
-    time_in_force="GTC",
-    quantity=1.0,
-    price=123.45,
-)
-
-order_cancel_request = dict(
-    orig_cl_ord_id="test_001",
-    cl_ord_id="test_002",
-    exchange=exchange,
-    symbol=symbol,
-)
-
-order_mass_cancel_request = dict()
-
-logout = dict()
+# order_cancel_request = dict(
+#     orig_cl_ord_id="test_001",
+#     cl_ord_id="test_002",
+#     exchange=exchange,
+#     symbol=symbol,
+# )
+#
+# order_mass_cancel_request = dict()
+#
+# logout = dict()
 
 
 def create_request(method, params, id):
@@ -56,39 +42,123 @@ def create_request(method, params, id):
     return json.dumps(request)
 
 
-async def hello():
+def check_response(message):
+    response = json.loads(message)
+    error = response.get("error")
+    if error:
+        raise RuntimeError(f"Unexpected: {error}")
+
+
+async def logon(ws):
+    params = dict(
+        username=USERNAME,
+        password=PASSWORD,
+    )
+    await ws.send(create_request("logon", params, 1000))
+    message = await ws.recv()
+    check_response(message)
+
+
+async def order_mass_status_request(ws):
+    params = dict(
+        mass_status_req_id="test_000",
+    )
+    await ws.send(create_request("order_mass_status_request", params, 1001))
+    message = await ws.recv()
+    check_response(message)
+
+
+async def new_order_single(ws):
+    params = dict(
+        cl_ord_id="test_001",
+        exchange=EXCHANGE,
+        symbol=SYMBOL,
+        side="BUY",
+        ord_type="LIMIT",
+        time_in_force="GTC",
+        quantity=1.0,
+        price=123.45,
+    )
+    await ws.send(create_request("new_order_single", params, 1002))
+    message = await ws.recv()
+    check_response(message)
+
+
+async def process_result(ws, method, result, id_):
+    # TODO maybe find handler from id?
+    pass
+
+
+async def process_error(ws, method, error, id_):
+    # TODO maybe find handler from id?
+    raise RuntimeError(f"Unexpected: {error}")
+
+
+async def business_message_reject(ws, params):
+    msg_type = params["ref_msg_type"]
+    ref_id = params["business_reject_ref_id"]  # could be used to look up a handler
+    if msg_type == "AF":  # order mass status request
+        # XXX !!! HACK !!!
+        global READY
+        if not READY:
+            READY = True
+            await new_order_single(ws)
+    else:
+        raise RuntimeError(
+            f"Unexpected: {params['business_reject_reason']} / {params['text']}"
+        )
+
+
+async def execution_report(ws, params):
+    ord_status_req_id = params.get("ord_status_req_id")
+    mass_status_req_id = params.get("mass_status_req_id")
+    last_rpt_requested = params.get("last_rpt_requested")
+    if ord_status_req_id and len(ord_status_req_id) > 0:
+        pass
+    elif mass_status_req_id and len(mass_status_req_id) > 0 and last_rpt_requested:
+        global READY
+        if not READY:
+            READY = True
+            await new_order_single(ws)
+    else:
+        pass
+    print(params)
+
+
+async def process_notification(ws, method, params):
+    if method == "business_message_reject":
+        await business_message_reject(ws, params)
+    elif method == "execution_report":
+        await execution_report(ws, params)
+    else:
+        raise RuntimeError(f"Unexpected: method='{method}'")
+
+
+async def dispatch(ws):
+    while True:
+        message = await ws.recv()
+        response_or_notification = json.loads(message)
+        method = response_or_notification["method"]
+        id_ = response_or_notification.get("id")
+        if id_ is None:
+            params = response_or_notification.get("params", {})
+            await process_notification(ws, method, params)
+        else:
+            result = response_or_notification.get("result")
+            if result is None:
+                error = response_or_notification["error"]
+                await process_error(ws, method, error, id_)
+            else:
+                await process_result(ws, method, result, id_)
+
+
+async def main():
     async with websockets.connect("ws://localhost:2345") as ws:
         try:
-            await ws.send(create_request("logon", logon, 1000))
-            msg = await ws.recv()
-            # TODO check status
+            await logon(ws)
             # ... now we could receive interleaved notifications
-            await ws.send(
-                create_request(
-                    "order_mass_status_request", order_mass_status_request, 1001
-                )
-            )
-            msg = await ws.recv()
-            # TODO check status
-            # TODO several execution reports
-            await ws.send(create_request("new_order_single", new_order_single, 1002))
-            msg = await ws.recv()
-            # TODO check status
-            await ws.send(
-                create_request("order_cancel_request", order_cancel_request, 1003)
-            )
-            msg = await ws.recv()
-            # TODO check status
-            await ws.send(
-                create_request(
-                    "order_mass_cancel_request", order_mass_cancel_request, 1004
-                )
-            )
-            msg = await ws.recv()
-            # TODO check status
-            await ws.send(create_request("logout", logout, 1005))
-            msg = await ws.recv()
-            # TODO check status
+            await order_mass_status_request(ws)
+            await dispatch(ws)
         except websockets.ConnectionClosedOK:
             print("closed ok")
         except websockets.ConnectionClosedError:
@@ -98,14 +168,5 @@ async def hello():
         print("done")
 
 
-async def handler(websocket):
-    while True:
-        try:
-            message = await websocket.recv()
-        except websockets.ConnectionClosedOK:
-            break
-        print(message)
-
-
 if __name__ == "__main__":
-    asyncio.run(hello())
+    asyncio.run(main())

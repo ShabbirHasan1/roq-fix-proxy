@@ -176,7 +176,7 @@ void Controller::dispatch_to_json(roq::Trace<T> const &event, std::string_view c
     }
   });
   if (!success)
-    roq::log::warn("Undeliverable"sv);
+    roq::log::warn<0>(R"(Undeliverable: username="{}")"sv);
 }
 
 }  // namespace simple

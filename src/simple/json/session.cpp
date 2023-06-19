@@ -10,6 +10,9 @@
 
 #include "roq/exceptions.hpp"
 
+#include "roq/json/datetime.hpp"
+#include "roq/json/number.hpp"
+
 #include "roq/oms/exceptions.hpp"
 
 #include "roq/utils/traits.hpp"
@@ -109,8 +112,30 @@ Session::Session(Handler &handler, uint64_t session_id, roq::io::net::tcp::Conne
       shared_{shared} {
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &) {
-  // XXX TODO send notification
+// XXX TODO we could benefit from having json encode/decode messages from FIX Bridge
+
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &event) {
+  if (zombie())
+    return;
+  auto &[trace_info, business_message_reject] = event;
+  send_text(
+      R"({{)"
+      R"("jsonrpc":"{}",)"
+      R"("method":"business_message_reject",)"
+      R"("params":{{)"
+      R"("ref_seq_num":{},)"
+      R"("ref_msg_type":"{}",)"
+      R"("business_reject_ref_id":"{}",)"
+      R"("business_reject_reason":"{}",)"
+      R"("text":"{}")"
+      R"(}})"
+      R"(}})"sv,
+      JSONRPC_VERSION,
+      business_message_reject.ref_seq_num,
+      roq::fix::Codec<roq::fix::MsgType>::encode(business_message_reject.ref_msg_type),
+      business_message_reject.business_reject_ref_id,
+      business_message_reject.business_reject_reason,
+      business_message_reject.text);
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &) {
@@ -121,7 +146,6 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const
   if (zombie())
     return;
   auto &[trace_info, execution_report] = event;
-  // XXX TODO we could benefit from having json encode/decode messages from FIX Bridge
   send_text(
       R"({{)"
       R"("jsonrpc":"{}",)"
@@ -157,7 +181,7 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const
       R"("leaves_qty":{},)"
       R"("cum_qty":{},)"
       R"("avg_px":{},)"
-      R"("transact_time":"{}",)"
+      R"("transact_time":{},)"
       R"("position_effect":"{}",)"
       R"("max_show":{},)"
       R"("text":"{}",)"
@@ -183,21 +207,21 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const
       execution_report.security_exchange,
       execution_report.side,
       execution_report.ord_type,
-      execution_report.order_qty,
-      execution_report.price,
-      execution_report.stop_px,
+      roq::json::Number{execution_report.order_qty.value},
+      roq::json::Number{execution_report.price.value},
+      roq::json::Number{execution_report.stop_px.value},
       execution_report.currency,
       execution_report.time_in_force,
       execution_report.exec_inst,
-      execution_report.last_qty,
-      execution_report.last_px,
+      roq::json::Number{execution_report.last_qty.value},
+      roq::json::Number{execution_report.last_px.value},
       execution_report.trading_session_id,
       execution_report.leaves_qty,
-      execution_report.cum_qty,
-      execution_report.avg_px,
-      execution_report.transact_time,
+      roq::json::Number{execution_report.cum_qty.value},
+      roq::json::Number{execution_report.avg_px.value},
+      roq::json::DateTime{execution_report.transact_time},
       execution_report.position_effect,
-      execution_report.max_show,
+      roq::json::Number{execution_report.max_show.value},
       execution_report.text,
       execution_report.last_liquidity_ind);
 }
@@ -528,9 +552,7 @@ void Session::send_jsonrpc(std::string_view const &type, std::string_view const 
       send_text(
           R"({{)"
           R"("jsonrpc":"{}",)"
-          R"("{}":"{{")"
-          R"("message":"{}")"
-          R"("}},)"
+          R"("{}":"{}",)"
           R"("id":"{}")"
           R"(}})"sv,
           JSONRPC_VERSION,
@@ -543,9 +565,7 @@ void Session::send_jsonrpc(std::string_view const &type, std::string_view const 
       send_text(
           R"({{)"
           R"("jsonrpc":"{}",)"
-          R"("{}":"{{")"
-          R"("message":"{}")"
-          R"("}},)"
+          R"("{}":"{}",)"
           R"("id":{})"
           R"(}})"sv,
           JSONRPC_VERSION,
