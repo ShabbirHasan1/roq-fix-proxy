@@ -27,7 +27,8 @@ auto create_fix_session(auto &handler, auto &settings, auto &context, auto &shar
   auto &connection = connections[0];
   auto uri = roq::io::web::URI{connection};
   roq::log::debug("{}"sv, uri);
-  return std::make_unique<fix::Session>(handler, settings, context, shared, uri);
+  return std::make_unique<fix::Session>(
+      handler, settings, context, shared, uri, settings.fix.username, settings.fix.password);
 }
 
 auto create_json_listener(auto &handler, auto &settings, auto &context) {
@@ -95,53 +96,51 @@ void Controller::operator()(roq::Trace<roq::fix_bridge::fix::SecurityDefinition>
   shared_.symbols.emplace(security_definition.symbol);  // XXX TODO cache reference data
 }
 
-void Controller::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &) {
-  // XXX TODO find client session_id
-  roq::log::info("DEBUG not implemented"sv);
+void Controller::operator()(
+    roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &event, std::string_view const &username) {
+  dispatch_to_json(event, username);
 }
 
-void Controller::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &) {
-  // XXX TODO find client session_id
-  roq::log::info("DEBUG not implemented"sv);
+void Controller::operator()(
+    roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &event, std::string_view const &username) {
+  dispatch_to_json(event, username);
 }
 
-void Controller::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &) {
-  // XXX TODO find client session_id
-  roq::log::info("DEBUG not implemented"sv);
+void Controller::operator()(
+    roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &event, std::string_view const &username) {
+  dispatch_to_json(event, username);
 }
 
-// json::Handler
+// json::Session::Handler
 
-void Controller::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &event) {
-  (*fix_session_)(event);
+void Controller::operator()(
+    roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &event, std::string_view const &username) {
+  dispatch_to_fix(event, username);
 }
 
-void Controller::operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &event) {
-  (*fix_session_)(event);
+void Controller::operator()(
+    roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &event, std::string_view const &username) {
+  dispatch_to_fix(event, username);
 }
 
-void Controller::operator()(roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &event) {
-  (*fix_session_)(event);
+void Controller::operator()(
+    roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &event, std::string_view const &username) {
+  dispatch_to_fix(event, username);
 }
 
-void Controller::operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &event) {
-  (*fix_session_)(event);
+void Controller::operator()(
+    roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &event, std::string_view const &username) {
+  dispatch_to_fix(event, username);
 }
 
-void Controller::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &event) {
-  (*fix_session_)(event);
+void Controller::operator()(
+    roq::Trace<roq::fix_bridge::fix::OrderMassStatusRequest> const &event, std::string_view const &username) {
+  dispatch_to_fix(event, username);
 }
 
-void Controller::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &event) {
-  (*fix_session_)(event);
-}
-
-void Controller::operator()(roq::Trace<roq::fix_bridge::fix::OrderMassStatusRequest> const &event) {
-  (*fix_session_)(event);
-}
-
-void Controller::operator()(roq::Trace<roq::fix_bridge::fix::OrderMassCancelRequest> const &event) {
-  (*fix_session_)(event);
+void Controller::operator()(
+    roq::Trace<roq::fix_bridge::fix::OrderMassCancelRequest> const &event, std::string_view const &username) {
+  dispatch_to_fix(event, username);
 }
 
 // utilities
@@ -150,11 +149,7 @@ void Controller::remove_zombies(std::chrono::nanoseconds now) {
   if (now < next_garbage_collection_)
     return;
   next_garbage_collection_ = now + 1s;
-  for (auto session_id : shared_.sessions_to_remove) {
-    roq::log::info("Removing session_id={}..."sv, session_id);
-    json_sessions_.erase(session_id);
-  }
-  shared_.sessions_to_remove.clear();
+  shared_.session_cleanup([&](auto session_id) { json_sessions_.erase(session_id); });
 }
 
 template <typename... Args>
@@ -162,6 +157,26 @@ void Controller::dispatch(Args &&...args) {
   auto message_info = roq::MessageInfo{};
   roq::Event event{message_info, std::forward<Args>(args)...};
   (*fix_session_)(event);
+}
+
+template <typename T>
+void Controller::dispatch_to_fix(roq::Trace<T> const &event, [[maybe_unused]] std::string_view const &username) {
+  // XXX TODO make lookup
+  (*fix_session_)(event);
+}
+
+template <typename T>
+void Controller::dispatch_to_json(roq::Trace<T> const &event, std::string_view const &username) {
+  auto success = false;
+  shared_.session_find(username, [&](auto session_id) {
+    auto iter = json_sessions_.find(session_id);
+    if (iter != std::end(json_sessions_)) {
+      (*(*iter).second)(event);
+      success = true;
+    }
+  });
+  if (!success)
+    roq::log::warn("Undeliverable"sv);
 }
 
 }  // namespace simple

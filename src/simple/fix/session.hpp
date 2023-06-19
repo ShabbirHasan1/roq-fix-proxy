@@ -51,12 +51,22 @@ namespace fix {
 struct Session final : public roq::io::net::ConnectionManager::Handler {
   struct Handler {
     virtual void operator()(roq::Trace<roq::fix_bridge::fix::SecurityDefinition> const &) = 0;
-    virtual void operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &) = 0;
-    virtual void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &) = 0;
-    virtual void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &) = 0;
+    virtual void operator()(
+        roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &, std::string_view const &username) = 0;
+    virtual void operator()(
+        roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &, std::string_view const &username) = 0;
+    virtual void operator()(
+        roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &, std::string_view const &username) = 0;
   };
 
-  Session(Handler &, Settings const &, roq::io::Context &, Shared &, roq::io::web::URI const &);
+  Session(
+      Handler &,
+      Settings const &,
+      roq::io::Context &,
+      Shared &,
+      roq::io::web::URI const &,
+      std::string_view const &username,
+      std::string_view const &password);
 
   void operator()(roq::Event<roq::Start> const &);
   void operator()(roq::Event<roq::Stop> const &);
@@ -64,8 +74,6 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
 
   bool ready() const;
 
-  void operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &);
-  void operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &);
   void operator()(roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &);
   void operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &);
   void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &);
@@ -117,12 +125,16 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   void operator()(roq::Trace<roq::fix_bridge::fix::MarketDataIncrementalRefresh> const &, roq::fix::Header const &);
 
   void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &, roq::fix::Header const &);
+
   void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &, roq::fix::Header const &);
 
   // outbound
 
   template <typename T>
-  void send(T const &);
+  void send(T const &value);
+
+  template <typename T>
+  void send_helper(T const &value);
 
   void send_logon();
   void send_logout(std::string_view const &text);

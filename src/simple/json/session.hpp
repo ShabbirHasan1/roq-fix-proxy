@@ -15,8 +15,6 @@
 
 #include "roq/fix_bridge/fix/business_message_reject.hpp"
 #include "roq/fix_bridge/fix/execution_report.hpp"
-#include "roq/fix_bridge/fix/logon.hpp"
-#include "roq/fix_bridge/fix/logout.hpp"
 #include "roq/fix_bridge/fix/new_order_single.hpp"
 #include "roq/fix_bridge/fix/order_cancel_reject.hpp"
 #include "roq/fix_bridge/fix/order_cancel_replace_request.hpp"
@@ -36,14 +34,18 @@ namespace json {
 
 struct Session final : public roq::web::rest::Server::Handler {
   struct Handler {
-    virtual void operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &) = 0;
-    virtual void operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &) = 0;
-    virtual void operator()(roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &) = 0;
-    virtual void operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &) = 0;
-    virtual void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &) = 0;
-    virtual void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &) = 0;
-    virtual void operator()(roq::Trace<roq::fix_bridge::fix::OrderMassStatusRequest> const &) = 0;
-    virtual void operator()(roq::Trace<roq::fix_bridge::fix::OrderMassCancelRequest> const &) = 0;
+    virtual void operator()(
+        roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(
+        roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &, std::string_view const &username) = 0;
+    virtual void operator()(
+        roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(
+        roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(
+        roq::Trace<roq::fix_bridge::fix::OrderMassStatusRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(
+        roq::Trace<roq::fix_bridge::fix::OrderMassCancelRequest> const &, std::string_view const &username) = 0;
   };
 
   Session(Handler &, uint64_t session_id, roq::io::net::tcp::Connection::Factory &, Shared &);
@@ -53,6 +55,11 @@ struct Session final : public roq::web::rest::Server::Handler {
   void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &);
 
  protected:
+  bool ready() const;
+  bool zombie() const;
+
+  void close();
+
   // web::rest::Server::Handler
   void operator()(roq::web::rest::Server::Disconnected const &) override;
   void operator()(roq::web::rest::Server::Request const &) override;
@@ -74,7 +81,6 @@ struct Session final : public roq::web::rest::Server::Handler {
   // - session
   void logon(roq::TraceInfo const &, auto const &params, auto const &id);
   void logout(roq::TraceInfo const &, auto const &params, auto const &id);
-
   // - business
   // -- single order
   void order_status_request(roq::TraceInfo const &, auto const &params, auto const &id);
@@ -101,6 +107,8 @@ struct Session final : public roq::web::rest::Server::Handler {
   uint64_t const session_id_;
   std::unique_ptr<roq::web::rest::Server> server_;
   Shared &shared_;
+  enum class State { WAITING_LOGON, READY, ZOMBIE } state_ = {};
+  std::string username_;
 };
 
 }  // namespace json

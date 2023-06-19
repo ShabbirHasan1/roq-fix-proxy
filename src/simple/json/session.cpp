@@ -18,6 +18,8 @@
 
 #include "roq/fix/utils.hpp"
 
+#include "simple/error.hpp"
+
 using namespace std::literals;
 
 // TODO
@@ -32,8 +34,8 @@ namespace {
 auto const JSONRPC_VERSION = "2.0"sv;
 
 auto const UNKNOWN_METHOD = "UNKNOWN_METHOD"sv;
-auto const NOT_READY = "NOT_READY"sv;
-auto const SUCCESS = "SUCCESS"sv;
+
+auto const SUCCESS = "success"sv;
 }  // namespace
 
 // === HELPERS ===
@@ -119,10 +121,23 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const
   // XXX TODO send notification
 }
 
+bool Session::ready() const {
+  return state_ == State::READY;
+}
+
+bool Session::zombie() const {
+  return state_ == State::ZOMBIE;
+}
+
+void Session::close() {
+  state_ = State::ZOMBIE;
+  (*server_).close();
+}
+
 // web::rest::Server::Handler
 
 void Session::operator()(roq::web::rest::Server::Disconnected const &) {
-  shared_.sessions_to_remove.emplace(session_id_);
+  shared_.session_remove(session_id_);
 }
 
 // note!
@@ -130,6 +145,8 @@ void Session::operator()(roq::web::rest::Server::Disconnected const &) {
 //   - an automatic "not-found" (404) response is generated if this handler doesn't send anything
 //   - an exception is thrown if this handler tries to send more than one response
 void Session::operator()(roq::web::rest::Server::Request const &request) {
+  if (zombie())
+    return;
   auto success = false;
   try {
     if (request.headers.connection == roq::web::http::Connection::UPGRADE) {
@@ -153,10 +170,12 @@ void Session::operator()(roq::web::rest::Server::Request const &request) {
     roq::log::error("Error: {}"sv, e.what());
   }
   if (!success)
-    (*server_).close();
+    close();
 }
 
 void Session::operator()(roq::web::rest::Server::Text const &text) {
+  if (zombie())
+    return;
   roq::log::info(R"(message="{})"sv, text.payload);
   auto success = false;
   try {
@@ -168,12 +187,12 @@ void Session::operator()(roq::web::rest::Server::Text const &text) {
     roq::log::error("Error: {}"sv, e.what());
   }
   if (!success)
-    (*server_).close();
+    close();
 }
 
 void Session::operator()(roq::web::rest::Server::Binary const &) {
   roq::log::warn("Unexpected"sv);
-  (*server_).close();
+  close();
 }
 
 // rest
@@ -222,6 +241,7 @@ void Session::get_symbols(Response &response, roq::web::rest::Server::Request co
 // note!
 //   using https://www.jsonrpc.org/specification
 void Session::process(std::string_view const &message) {
+  assert(!zombie());
   auto success = false;
   try {
     auto json = nlohmann::json::parse(message);  // note! not fast... you should consider some other json parser here
@@ -240,56 +260,65 @@ void Session::process(std::string_view const &message) {
   }
   roq::log::debug("success={}"sv, success);
   if (!success)
-    (*server_).close();
+    close();
 }
 
 void Session::process_jsonrpc(std::string_view const &method, auto const &params, auto const &id) {
   try {
     roq::TraceInfo trace_info;
-    if (method == "logon"sv)
-      logon(trace_info, params, id);
-    else if (method == "logout"sv)
-      logout(trace_info, params, id);
-    else if (method == "order_status_request"sv)
-      order_status_request(trace_info, params, id);
-    else if (method == "new_order_single"sv)
-      new_order_single(trace_info, params, id);
-    else if (method == "order_cancel_request"sv)
-      order_cancel_request(trace_info, params, id);
-    else if (method == "order_mass_status_request"sv)
-      order_mass_status_request(trace_info, params, id);
-    else if (method == "order_mass_cancel_request"sv)
-      order_mass_cancel_request(trace_info, params, id);
-    else
-      send_error(UNKNOWN_METHOD, id);
+    if (method == "logon"sv) {
+      if (!ready())
+        logon(trace_info, params, id);
+      else
+        send_error(Error::ALREADY_LOGGED_ON, id);
+    } else {
+      if (ready()) {
+        if (method == "logout"sv)
+          logout(trace_info, params, id);
+        else if (method == "order_status_request"sv)
+          order_status_request(trace_info, params, id);
+        else if (method == "new_order_single"sv)
+          new_order_single(trace_info, params, id);
+        else if (method == "order_cancel_request"sv)
+          order_cancel_request(trace_info, params, id);
+        else if (method == "order_mass_status_request"sv)
+          order_mass_status_request(trace_info, params, id);
+        else if (method == "order_mass_cancel_request"sv)
+          order_mass_cancel_request(trace_info, params, id);
+        else
+          send_error(UNKNOWN_METHOD, id);
+      } else {
+        send_error(Error::NOT_LOGGED_ON, id);
+      }
+    }
   } catch (roq::oms::NotReady const &) {
-    send_error(NOT_READY, id);
+    send_error(Error::NOT_READY, id);
   }
 }
 
-void Session::logon(roq::TraceInfo const &trace_info, auto const &params, auto const &id) {
+void Session::logon(roq::TraceInfo const &, auto const &params, auto const &id) {
+  assert(state_ == State::WAITING_LOGON);
   auto username = get<std::string_view>(params, "username"sv);
-  auto logon = roq::fix_bridge::fix::Logon{
-      .encrypt_method = {},
-      .heart_bt_int = {},
-      .reset_seq_num_flag = true,  // note!
-      .next_expected_msg_seq_num = {},
-      .username = username,
-      .password = {},
+  auto password = get<std::string_view>(params, "password"sv);
+  auto success = [&]() {
+    state_ = State::READY;
+    username_ = username;
+    send_result(SUCCESS, id);
   };
-  roq::log::debug("logon={}"sv, logon);
-  dispatch(trace_info, logon);
-  send_result(SUCCESS, id);
+  auto failure = [&](auto &reason) { send_error(reason, id); };
+  shared_.session_logon(session_id_, username, password, success, failure);
 }
 
-void Session::logout(roq::TraceInfo const &trace_info, auto const &params, auto const &id) {
-  auto text = get<std::string_view>(params, "text"sv);
-  auto logout = roq::fix_bridge::fix::Logout{
-      .text = text,
+void Session::logout(roq::TraceInfo const &, [[maybe_unused]] auto const &params, auto const &id) {
+  assert(ready());
+  auto success = [&]() {
+    if (ready())
+      state_ = State::WAITING_LOGON;
+    username_.clear();
+    send_result(SUCCESS, id);
   };
-  roq::log::debug("logout={}"sv, logout);
-  dispatch(trace_info, logout);
-  send_result(SUCCESS, id);
+  auto failure = [&](auto &reason) { send_error(reason, id); };
+  shared_.session_logout(session_id_, success, failure);
 }
 
 void Session::order_status_request(roq::TraceInfo const &trace_info, auto const &params, auto const &id) {
@@ -395,7 +424,7 @@ void Session::order_mass_cancel_request(roq::TraceInfo const &trace_info, auto c
 
 void Session::dispatch(roq::TraceInfo const &trace_info, auto const &value) {
   roq::Trace event{trace_info, value};
-  handler_(event);
+  handler_(event, username_);
 }
 
 void Session::send_result(std::string_view const &message, auto const &id) {
@@ -407,6 +436,7 @@ void Session::send_error(std::string_view const &message, auto const &id) {
 }
 
 void Session::send_jsonrpc(std::string_view const &type, std::string_view const &message, auto const &id) {
+  assert(!zombie());
   // note!
   //   response must echo the id field from the request (same type)
   auto type_2 = id.type();

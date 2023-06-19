@@ -7,6 +7,7 @@
 #include "roq/oms/exceptions.hpp"
 
 #include "roq/utils/chrono.hpp"
+#include "roq/utils/traits.hpp"
 #include "roq/utils/update.hpp"
 
 #include "roq/debug/fix/message.hpp"
@@ -57,8 +58,14 @@ auto create_connection_manager(auto &handler, auto &settings, auto &connection_f
 // === IMPLEMENTATION ===
 
 Session::Session(
-    Handler &handler, Settings const &settings, roq::io::Context &context, Shared &shared, roq::io::web::URI const &uri)
-    : handler_{handler}, shared_{shared}, username_{settings.fix.username}, password_{settings.fix.password},
+    Handler &handler,
+    Settings const &settings,
+    roq::io::Context &context,
+    Shared &shared,
+    roq::io::web::URI const &uri,
+    std::string_view const &username,
+    std::string_view const &password)
+    : handler_{handler}, shared_{shared}, username_{username}, password_{password},
       sender_comp_id_{settings.fix.sender_comp_id}, target_comp_id_{settings.fix.target_comp_id},
       ping_freq_{settings.fix.ping_freq}, debug_{settings.fix.debug}, market_depth_{settings.fix.market_depth},
       connection_factory_{create_connection_factory(settings, context, uri)},
@@ -89,48 +96,28 @@ bool Session::ready() const {
   return state_ == State::READY;
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &) {
-  // XXX TODO should we drive this from json ???
-}
-
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &) {
-  // XXX TODO should we drive this from json ???
-}
-
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &) {
-  // XXX TODO should we drive this from json ???
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &event) {
+  send(event);
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &event) {
-  if (!ready())
-    throw roq::oms::NotReady{"not ready"sv};
-  auto &[trace_info, new_order_single] = event;
-  send(new_order_single);
+  send(event);
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &event) {
-  if (!ready())
-    throw roq::oms::NotReady{"not ready"sv};
-  auto &[trace_info, order_cancel_replace_request] = event;
-  send(order_cancel_replace_request);
+  send(event);
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &event) {
-  if (!ready())
-    throw roq::oms::NotReady{"not ready"sv};
-  auto &[trace_info, order_cancel_request] = event;
-  send(order_cancel_request);
+  send(event);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderMassStatusRequest> const &) {
-  // XXX TODO should we drive this from json ???
+void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderMassStatusRequest> const &event) {
+  send(event);
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderMassCancelRequest> const &event) {
-  if (!ready())
-    throw roq::oms::NotReady{"not ready"sv};
-  auto &[trace_info, order_mass_cancel_request] = event;
-  send(order_mass_cancel_request);
+  send(event);
 }
 
 void Session::operator()(Session::State state) {
@@ -343,6 +330,7 @@ void Session::operator()(
     roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &event, roq::fix::Header const &) {
   auto &[trace_info, business_message_reject] = event;
   roq::log::debug("business_message_reject={}, trace_info={}"sv, business_message_reject, trace_info);
+  handler_(event, username_);
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::SecurityList> const &event, roq::fix::Header const &) {
@@ -389,17 +377,32 @@ void Session::operator()(
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &event, roq::fix::Header const &) {
   auto &[trace_info, order_cancel_reject] = event;
   roq::log::debug("order_cancel_reject={}, trace_info={}"sv, order_cancel_reject, trace_info);
+  handler_(event, username_);
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &event, roq::fix::Header const &) {
   auto &[trace_info, execution_report] = event;
   roq::log::debug("execution_report={}, trace_info={}"sv, execution_report, trace_info);
+  handler_(event, username_);
 }
 
 // outbound
 
 template <typename T>
-void Session::send(T const &event) {
+void Session::send(T const &value) {
+  if constexpr (roq::utils::is_specialization<T, roq::Trace>::value) {
+    // external
+    if (!ready())
+      throw roq::oms::NotReady{"not ready"sv};
+    send_helper(value.value);
+  } else {
+    // internal
+    send_helper(value);
+  }
+}
+
+template <typename T>
+void Session::send_helper(T const &value) {
   auto sending_time = roq::clock::get_realtime();
   auto header = roq::fix::Header{
       .version = FIX_VERSION,
@@ -409,7 +412,7 @@ void Session::send(T const &event) {
       .msg_seq_num = ++outbound_.msg_seq_num,  // note!
       .sending_time = sending_time,
   };
-  auto message = event.encode(header, encode_buffer_);
+  auto message = value.encode(header, encode_buffer_);
   if (debug_) [[unlikely]]
     roq::log::info("{}"sv, roq::debug::fix::Message{message});
   (*connection_manager_).send(message);

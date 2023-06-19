@@ -4,8 +4,15 @@ add_subdirectory(flags)
 add_subdirectory(fix)
 add_subdirectory(json)
 
-add_executable("${TARGET_NAME}" application.cpp config.cpp controller.cpp settings.cpp shared.cpp
-                                main.cpp)
+add_executable(
+  "${TARGET_NAME}"
+  application.cpp
+  config.cpp
+  controller.cpp
+  error.cpp
+  settings.cpp
+  shared.cpp
+  main.cpp)
 
 target_link_libraries(
   "${TARGET_NAME}"
