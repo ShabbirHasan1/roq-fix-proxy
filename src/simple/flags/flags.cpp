@@ -79,6 +79,12 @@ ABSL_FLAG(  //
     {},
     "json url prefix");
 
+ABSL_FLAG(  //
+    bool,
+    disable_market_data,
+    false,
+    "disable market data?");
+
 namespace simple {
 namespace flags {
 
@@ -139,6 +145,11 @@ uint16_t Flags::json_listen_port() {
 
 std::string_view Flags::json_url_prefix() {
   static std::string const result = absl::GetFlag(FLAGS_json_url_prefix);
+  return result;
+}
+
+bool Flags::disable_market_data() {
+  static bool const result = absl::GetFlag(FLAGS_disable_market_data);
   return result;
 }
 

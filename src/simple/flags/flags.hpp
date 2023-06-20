@@ -23,6 +23,8 @@ struct Flags final {
   // json
   static uint16_t json_listen_port();
   static std::string_view json_url_prefix();
+  // test
+  static bool disable_market_data();
 };
 
 }  // namespace flags

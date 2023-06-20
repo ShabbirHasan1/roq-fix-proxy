@@ -39,6 +39,9 @@ Settings Settings::create() {
           .listen_port = flags::Flags::json_listen_port(),
           .url_prefix = flags::Flags::json_url_prefix(),
       },
+      .test{
+          .disable_market_data = flags::Flags::disable_market_data(),
+      },
   };
 }
 

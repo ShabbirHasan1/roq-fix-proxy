@@ -18,7 +18,8 @@ EXCHANGE = "deribit"
 SYMBOL = "BTC-PERPETUAL"
 
 # globals
-READY = False
+READY_1 = False
+READY_2 = False
 
 # order_cancel_request = dict(
 #     orig_cl_ord_id="test_001",
@@ -108,9 +109,9 @@ async def business_message_reject(ws, params):
     ref_id = params["business_reject_ref_id"]  # could be used to look up a handler
     if msg_type == "AF":  # order mass status request
         # XXX !!! HACK !!!
-        global READY
-        if not READY:
-            READY = True
+        global READY_1
+        if not READY_1:
+            READY_1 = True
             await new_order_single(ws)
     else:
         raise RuntimeError(
@@ -125,15 +126,21 @@ async def execution_report(ws, params):
     if ord_status_req_id and len(ord_status_req_id) > 0:
         pass
     elif mass_status_req_id and len(mass_status_req_id) > 0 and last_rpt_requested:
-        global READY
-        if not READY:
-            READY = True
+        global READY_1
+        if not READY_1:
+            READY_1 = True
             await new_order_single(ws)
     else:
-        print('HERE')
-        # XXX need some latch here
-        await order_cancel_request(ws)
-    print(params)
+        ord_status = params["ord_status"]
+        if ord_status == "REJECTED":
+            ord_rej_reason=params.get('ord_rej_reason')
+            print(params)
+            raise RuntimeError(f"Rejected: reason={ord_rej_reason}")
+        if ord_status == "WORKING":
+            global READY_2
+            if not READY_2:
+                READY_2 = True
+                await order_cancel_request(ws)
 
 
 async def process_notification(ws, method, params):

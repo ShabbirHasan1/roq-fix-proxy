@@ -33,6 +33,10 @@ struct Settings final {
     uint16_t listen_port = {};
     std::string_view url_prefix;
   } json;
+
+  struct {
+    bool disable_market_data = {};
+  } test;
 };
 
 }  // namespace simple

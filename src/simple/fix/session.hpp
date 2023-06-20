@@ -182,6 +182,8 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   } state_ = {};
   std::chrono::nanoseconds next_heartbeat_ = {};
   absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>> exchange_symbols_;
+  // TEST
+  bool const disable_market_data_;
 };
 
 }  // namespace fix

@@ -70,7 +70,8 @@ Session::Session(
       ping_freq_{settings.fix.ping_freq}, debug_{settings.fix.debug}, market_depth_{settings.fix.market_depth},
       connection_factory_{create_connection_factory(settings, context, uri)},
       connection_manager_{create_connection_manager(*this, settings, *connection_factory_)},
-      decode_buffer_(settings.fix.decode_buffer_size), encode_buffer_(settings.fix.encode_buffer_size) {
+      decode_buffer_(settings.fix.decode_buffer_size), encode_buffer_(settings.fix.encode_buffer_size),
+      disable_market_data_{settings.test.disable_market_data} {
 }
 
 void Session::operator()(roq::Event<roq::Start> const &) {
@@ -341,7 +342,8 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::SecurityList> const &e
     if (shared_.include(item.symbol)) {
       exchange_symbols_[item.security_exchange].emplace(item.symbol);
       send_security_definition_request(item.security_exchange, item.symbol);
-      send_market_data_request(item.security_exchange, item.symbol);
+      if (!disable_market_data_)
+        send_market_data_request(item.security_exchange, item.symbol);
     }
   }
   (*this)(State::READY);
