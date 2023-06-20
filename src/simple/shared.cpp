@@ -10,12 +10,6 @@ using namespace std::literals;
 
 namespace simple {
 
-// === CONSTANTS ===
-
-namespace {
-auto const GET_SYMBOLS = "symbols"sv;
-}  // namespace
-
 // === HELPERS ===
 
 namespace {
