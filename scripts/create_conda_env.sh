@@ -147,21 +147,22 @@ echo -e "\033[1;34mInstall dependencies...\033[0m"
 
 echo -e "\033[1;34mInstall dependencies from $BUILD...\033[0m"
 
+case "$KERNEL" in
+  Linux*)
+    "$CONDA_DIR/bin/mamba" install -y 'catch2>=3.3'
+    ;;
+  Darwin*)
+    "$CONDA_DIR/bin/mamba" install -y --channel "https://roq-trading.com/conda/$BUILD" \
+      roq-oss-catch2
+    ;;
+esac
+
 "$CONDA_DIR/bin/mamba" install -y --channel "https://roq-trading.com/conda/$BUILD" \
   roq-fix-bridge \
   roq-io \
   roq-web \
   roq-oss-re2 \
   roq-tools
-
-case "$KERNEL" in
-  Linux*)
-    "$CONDA_DIR/bin/mamba" install -y 'catch2>=3.3'
-    ;;
-  Darwin*)
-    "$CONDA_DIR/bin/mamba" install -y --channel "https://roq-trading.com/conda/$BUILD" roq-oss-catch2
-    ;;
-esac
 
 echo -e "\033[1;34mInstall conda activation script...\033[0m"
 
