@@ -139,8 +139,11 @@ echo -e "\033[1;34mInstall toolchain...\033[0m"
 echo -e "\033[1;34mInstall dependencies...\033[0m"
 
 "$CONDA_DIR/bin/mamba" install -y \
+  abseil-cpp \
   benchmark \
   'catch2>=3.3' \
+  nlohmann_json \
+  tomlplusplus
   jinja2
 
 echo -e "\033[1;34mInstall dependencies from $BUILD...\033[0m"
@@ -149,9 +152,7 @@ echo -e "\033[1;34mInstall dependencies from $BUILD...\033[0m"
   roq-fix-bridge \
   roq-io \
   roq-web \
-  roq-oss-libevent \
   roq-oss-re2 \
-  roq-oss-tomlplusplus \
   roq-tools
 
 echo -e "\033[1;34mInstall conda activation script...\033[0m"
