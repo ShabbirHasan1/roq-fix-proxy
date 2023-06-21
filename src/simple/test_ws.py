@@ -21,18 +21,6 @@ SYMBOL = "BTC-PERPETUAL"
 READY_1 = False
 READY_2 = False
 
-# order_cancel_request = dict(
-#     orig_cl_ord_id="test_001",
-#     cl_ord_id="test_002",
-#     exchange=exchange,
-#     symbol=symbol,
-# )
-#
-# order_mass_cancel_request = dict()
-#
-# logout = dict()
-
-
 def create_request(method, params, id):
     request = dict(
         jsonrpc="2.0",
@@ -124,9 +112,9 @@ async def execution_report(ws, params):
     ord_status_req_id = params.get("ord_status_req_id", "")
     mass_status_req_id = params.get("mass_status_req_id", "")
     last_rpt_requested = params.get("last_rpt_requested", "")
-    if len(ord_status_req_id) > 0:
+    if ord_status_req_id and len(ord_status_req_id) > 0:
         pass
-    elif len(mass_status_req_id) > 0 and last_rpt_requested:
+    elif mass_status_req_id and len(mass_status_req_id) > 0 and last_rpt_requested:
         # await order_cancel_request(ws)
         print("==> GOT LAST EXECUTION REPORT")
         global READY_1

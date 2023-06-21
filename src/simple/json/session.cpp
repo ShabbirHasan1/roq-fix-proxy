@@ -23,6 +23,9 @@
 
 #include "simple/error.hpp"
 
+#include "simple/json/business_message_reject.hpp"
+#include "simple/json/execution_report.hpp"
+
 using namespace std::literals;
 
 // TODO
@@ -112,8 +115,6 @@ Session::Session(Handler &handler, uint64_t session_id, roq::io::net::tcp::Conne
       shared_{shared} {
 }
 
-// XXX TODO we could benefit from having json encode/decode messages from FIX Bridge
-
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &event) {
   if (zombie())
     return;
@@ -122,20 +123,10 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject>
       R"({{)"
       R"("jsonrpc":"{}",)"
       R"("method":"business_message_reject",)"
-      R"("params":{{)"
-      R"("ref_seq_num":{},)"
-      R"("ref_msg_type":"{}",)"
-      R"("business_reject_ref_id":"{}",)"
-      R"("business_reject_reason":"{}",)"
-      R"("text":"{}")"
-      R"(}})"
+      R"("params":{})"
       R"(}})"sv,
       JSONRPC_VERSION,
-      business_message_reject.ref_seq_num,
-      roq::fix::Codec<roq::fix::MsgType>::encode(business_message_reject.ref_msg_type),
-      business_message_reject.business_reject_ref_id,
-      business_message_reject.business_reject_reason,
-      business_message_reject.text);
+      json::BusinessMessageReject{business_message_reject});
 }
 
 void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &) {
@@ -150,80 +141,10 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const
       R"({{)"
       R"("jsonrpc":"{}",)"
       R"("method":"execution_report",)"
-      R"("params":{{)"
-      R"("order_id":"{}",)"
-      R"("cl_ord_id":"{}",)"
-      R"("orig_cl_ord_id":"{}",)"
-      R"("ord_status_req_id":"{}",)"
-      R"("mass_status_req_id":"{}",)"
-      R"("tot_num_reports":{},)"
-      R"("last_rpt_requested":{},)"
-      R"("exec_id":"{}",)"
-      R"("exec_type":"{}",)"
-      R"("ord_status":"{}",)"
-      R"("working_indicator":{},)"
-      R"("ord_rej_reason":"{}",)"
-      R"("account":"{}",)"
-      R"("account_type":"{}",)"
-      R"("symbol":"{}",)"
-      R"("security_exchange":"{}",)"
-      R"("side":"{}",)"
-      R"("ord_type":"{}",)"
-      R"("order_qty":{},)"
-      R"("price":{},)"
-      R"("stop_px":{},)"
-      R"("currency":"{}",)"
-      R"("time_in_force":"{}",)"
-      R"("exec_inst":"{}",)"
-      R"("last_qty":{},)"
-      R"("last_px":{},)"
-      R"("trading_session_id":"{}",)"
-      R"("leaves_qty":{},)"
-      R"("cum_qty":{},)"
-      R"("avg_px":{},)"
-      R"("transact_time":{},)"
-      R"("position_effect":"{}",)"
-      R"("max_show":{},)"
-      R"("text":"{}",)"
-      R"("last_liquidity_ind":"{}")"
-      R"(}})"
+      R"("params":{})"
       R"(}})"sv,
       JSONRPC_VERSION,
-      execution_report.order_id,
-      execution_report.cl_ord_id,
-      execution_report.orig_cl_ord_id,
-      execution_report.ord_status_req_id,
-      execution_report.mass_status_req_id,
-      execution_report.tot_num_reports,
-      execution_report.last_rpt_requested,
-      execution_report.exec_id,
-      execution_report.exec_type,
-      execution_report.ord_status,
-      execution_report.working_indicator,
-      execution_report.ord_rej_reason,
-      execution_report.account,
-      execution_report.account_type,
-      execution_report.symbol,
-      execution_report.security_exchange,
-      execution_report.side,
-      execution_report.ord_type,
-      roq::json::Number{execution_report.order_qty},
-      roq::json::Number{execution_report.price},
-      roq::json::Number{execution_report.stop_px},
-      execution_report.currency,
-      execution_report.time_in_force,
-      execution_report.exec_inst,
-      roq::json::Number{execution_report.last_qty},
-      roq::json::Number{execution_report.last_px},
-      execution_report.trading_session_id,
-      execution_report.leaves_qty,
-      roq::json::Number{execution_report.cum_qty},
-      roq::json::Number{execution_report.avg_px},
-      roq::json::DateTime{execution_report.transact_time},
-      execution_report.position_effect,
-      roq::json::Number{execution_report.max_show},
-      execution_report.text,
-      execution_report.last_liquidity_ind);
+      json::ExecutionReport{execution_report});
 }
 
 bool Session::ready() const {
