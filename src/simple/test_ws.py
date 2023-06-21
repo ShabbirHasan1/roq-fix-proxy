@@ -120,26 +120,32 @@ async def business_message_reject(ws, params):
 
 
 async def execution_report(ws, params):
-    ord_status_req_id = params.get("ord_status_req_id")
-    mass_status_req_id = params.get("mass_status_req_id")
-    last_rpt_requested = params.get("last_rpt_requested")
-    if ord_status_req_id and len(ord_status_req_id) > 0:
+    print(f"execution_report={params}")
+    ord_status_req_id = params.get("ord_status_req_id", "")
+    mass_status_req_id = params.get("mass_status_req_id", "")
+    last_rpt_requested = params.get("last_rpt_requested", "")
+    if len(ord_status_req_id) > 0:
         pass
-    elif mass_status_req_id and len(mass_status_req_id) > 0 and last_rpt_requested:
+    elif len(mass_status_req_id) > 0 and last_rpt_requested:
+        # await order_cancel_request(ws)
+        print("==> GOT LAST EXECUTION REPORT")
         global READY_1
         if not READY_1:
             READY_1 = True
+            print("==> PLACE NEW ORDER")
             await new_order_single(ws)
     else:
         ord_status = params["ord_status"]
         if ord_status == "REJECTED":
-            ord_rej_reason=params.get('ord_rej_reason')
+            ord_rej_reason = params.get("ord_rej_reason")
             print(params)
             raise RuntimeError(f"Rejected: reason={ord_rej_reason}")
         if ord_status == "WORKING":
+            print("==> ORDER IS WORKING")
             global READY_2
             if not READY_2:
                 READY_2 = True
+                print("==> CANCEL ORDER")
                 await order_cancel_request(ws)
 
 

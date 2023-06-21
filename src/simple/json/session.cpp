@@ -242,6 +242,7 @@ void Session::close() {
 // web::rest::Server::Handler
 
 void Session::operator()(roq::web::rest::Server::Disconnected const &) {
+  state_ = State::ZOMBIE;
   shared_.session_remove(session_id_);
 }
 
