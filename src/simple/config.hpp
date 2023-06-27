@@ -15,7 +15,10 @@ struct Config final {
   static Config parse_file(std::string_view const &);
   static Config parse_text(std::string_view const &);
 
-  absl::flat_hash_set<std::string> symbols;
+  absl::flat_hash_set<std::string> const symbols;
+
+ private:
+  explicit Config(auto &node);
 };
 
 }  // namespace simple
