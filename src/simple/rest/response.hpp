@@ -8,7 +8,7 @@
 #include "roq/web/rest/server.hpp"
 
 namespace simple {
-namespace json {
+namespace rest {
 
 // helper
 
@@ -35,5 +35,5 @@ struct Response final {
   std::string &encode_buffer_;
 };
 
-}  // namespace json
+}  // namespace rest
 }  // namespace simple

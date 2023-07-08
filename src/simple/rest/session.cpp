@@ -1,6 +1,6 @@
 /* Copyright (c) 2017-2023, Hans Erik Thrane */
 
-#include "simple/json/session.hpp"
+#include "simple/rest/session.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -23,8 +23,8 @@
 
 #include "simple/error.hpp"
 
-#include "simple/json/business_message_reject.hpp"
-#include "simple/json/execution_report.hpp"
+#include "simple/rest/business_message_reject.hpp"
+#include "simple/rest/execution_report.hpp"
 
 using namespace std::literals;
 
@@ -32,7 +32,7 @@ using namespace std::literals;
 // - close handshake doesn't work as per protocol (connection closed too early)
 
 namespace simple {
-namespace json {
+namespace rest {
 
 // === CONSTANTS ===
 
@@ -182,8 +182,8 @@ void Session::operator()(roq::web::rest::Server::Request const &request) {
     } else {
       roq::log::info("DEBUG request={}"sv, request);
       auto path = request.path;  // note! url path has already been split
-      if (!std::empty(path) && !std::empty(shared_.settings.json.url_prefix) &&
-          path[0] == shared_.settings.json.url_prefix)
+      if (!std::empty(path) && !std::empty(shared_.settings.rest.url_prefix) &&
+          path[0] == shared_.settings.rest.url_prefix)
         path = path.subspan(1);  // drop prefix
       if (!std::empty(path)) {
         Response response{*server_, request, shared_.encode_buffer};
@@ -508,5 +508,5 @@ void Session::send_text(fmt::format_string<Args...> const &fmt, Args &&...args) 
   (*server_).send_text(shared_.encode_buffer);
 }
 
-}  // namespace json
+}  // namespace rest
 }  // namespace simple

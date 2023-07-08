@@ -35,7 +35,7 @@ auto create_fix_sessions(auto &handler, auto &settings, auto &context, auto &sha
 }
 
 auto create_json_listener(auto &handler, auto &settings, auto &context) {
-  auto network_address = roq::io::NetworkAddress{settings.json.listen_port};
+  auto network_address = roq::io::NetworkAddress{settings.rest.listen_port};
   roq::log::debug("{}"sv, network_address);
   return context.create_tcp_listener(handler, network_address);
 }
@@ -88,8 +88,8 @@ void Controller::operator()(roq::io::sys::Timer::Event const &event) {
 void Controller::operator()(roq::io::net::tcp::Connection::Factory &factory) {
   auto session_id = ++next_session_id_;
   roq::log::info("Adding session_id={}..."sv, session_id);
-  auto session = std::make_unique<json::Session>(*this, session_id, factory, shared_);
-  json_sessions_.try_emplace(session_id, std::move(session));
+  auto session = std::make_unique<rest::Session>(*this, session_id, factory, shared_);
+  rest_sessions_.try_emplace(session_id, std::move(session));
 }
 
 // fix::Session::Handler
@@ -114,7 +114,7 @@ void Controller::operator()(
   dispatch_to_json(event, username);
 }
 
-// json::Session::Handler
+// rest::Session::Handler
 
 void Controller::operator()(
     roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &event, std::string_view const &username) {
@@ -152,7 +152,7 @@ void Controller::remove_zombies(std::chrono::nanoseconds now) {
   if (now < next_garbage_collection_)
     return;
   next_garbage_collection_ = now + 1s;
-  shared_.session_cleanup([&](auto session_id) { json_sessions_.erase(session_id); });
+  shared_.session_cleanup([&](auto session_id) { rest_sessions_.erase(session_id); });
 }
 
 template <typename... Args>
@@ -175,8 +175,8 @@ template <typename T>
 void Controller::dispatch_to_json(roq::Trace<T> const &event, std::string_view const &username) {
   auto success = false;
   shared_.session_find(username, [&](auto session_id) {
-    auto iter = json_sessions_.find(session_id);
-    if (iter != std::end(json_sessions_)) {
+    auto iter = rest_sessions_.find(session_id);
+    if (iter != std::end(rest_sessions_)) {
       (*(*iter).second)(event);
       success = true;
     }

@@ -5,6 +5,10 @@
 #include <chrono>
 #include <string_view>
 
+#include "simple/flags/fix.hpp"
+#include "simple/flags/flags.hpp"
+#include "simple/flags/rest.hpp"
+
 namespace simple {
 
 struct Settings final {
@@ -17,22 +21,8 @@ struct Settings final {
     bool tls_validate_certificate = {};
   } net;
 
-  struct {
-    std::string_view username;
-    std::string_view password;
-    std::string_view sender_comp_id;
-    std::string_view target_comp_id;
-    uint32_t decode_buffer_size = {};
-    uint32_t encode_buffer_size = {};
-    std::chrono::seconds ping_freq = {};
-    bool debug = {};
-    uint32_t market_depth = {};
-  } fix;
-
-  struct {
-    uint16_t listen_port = {};
-    std::string_view url_prefix;
-  } json;
+  flags::FIX__flags fix;
+  flags::REST__flags rest;
 
   struct {
     bool disable_market_data = {};

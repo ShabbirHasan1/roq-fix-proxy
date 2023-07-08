@@ -1,11 +1,11 @@
 /* Copyright (c) 2017-2023, Hans Erik Thrane */
 
-#include "simple/json/response.hpp"
+#include "simple/rest/response.hpp"
 
 using namespace std::literals;
 
 namespace simple {
-namespace json {
+namespace rest {
 
 // === CONSTANTS ===
 
@@ -38,5 +38,5 @@ void Response::send(
   server_.send(response);
 }
 
-}  // namespace json
+}  // namespace rest
 }  // namespace simple

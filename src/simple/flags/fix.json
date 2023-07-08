@@ -1,0 +1,57 @@
+{
+  "name": "FIX",
+  "type": "flags",
+  "prefix": "fix_",
+  "values": [
+    {
+      "name": "target_comp_id",
+      "type": "std::string",
+      "description": "fix target comp id"
+    },
+    {
+      "name": "sender_comp_id",
+      "type": "std::string",
+      "description": "fix sender comp id"
+    },
+    {
+      "name": "username",
+      "type": "std::string",
+      "description": "fix username"
+    },
+    {
+      "name": "password",
+      "type": "std::string",
+      "description": "fix password"
+    },
+    {
+      "name": "decode_buffer_size",
+      "type": "uint32_t",
+      "default": 1048576,
+      "description": "fix decode buffer size"
+    },
+    {
+      "name": "encode_buffer_size",
+      "type": "uint32_t",
+      "default": 65536,
+      "description": "fix encode buffer size"
+    },
+    {
+      "name": "ping_freq",
+      "type": "std::chrono::nanoseconds",
+      "default": "30s",
+      "description": "fix ping freq (seconds)"
+    },
+    {
+      "name": "debug",
+      "type": "bool",
+      "default": false,
+      "description": "fix debug"
+    },
+    {
+      "name": "market_depth",
+      "type": "uint32_t",
+      "default": 5,
+      "description": "fix market depth (0=full book, 1=top of book, N=best N)"
+    }
+  ]
+}

@@ -25,10 +25,10 @@
 
 #include "simple/shared.hpp"
 
-#include "simple/json/response.hpp"
+#include "simple/rest/response.hpp"
 
 namespace simple {
-namespace json {
+namespace rest {
 
 // note! supports both rest and websocket
 
@@ -111,5 +111,5 @@ struct Session final : public roq::web::rest::Server::Handler {
   std::string username_;
 };
 
-}  // namespace json
+}  // namespace rest
 }  // namespace simple

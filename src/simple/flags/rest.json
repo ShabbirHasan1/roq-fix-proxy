@@ -1,0 +1,17 @@
+{
+  "name": "REST",
+  "type": "flags",
+  "prefix": "rest_",
+  "values": [
+    {
+      "name": "listen_port",
+      "type": "uint16_t",
+      "description": "json listen port"
+    },
+    {
+      "name": "url_prefix",
+      "type": "std::string",
+      "description": "json url prefix"
+    }
+  ]
+}

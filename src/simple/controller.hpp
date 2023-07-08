@@ -18,7 +18,7 @@
 
 #include "simple/fix/session.hpp"
 
-#include "simple/json/session.hpp"
+#include "simple/rest/session.hpp"
 
 namespace simple {
 
@@ -26,7 +26,7 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
                           public roq::io::sys::Signal::Handler,
                           public roq::io::sys::Timer::Handler,
                           public fix::Session::Handler,
-                          public json::Session::Handler {
+                          public rest::Session::Handler {
   Controller(Settings const &, Config const &, roq::io::Context &, std::span<std::string_view> const &connections);
 
   void run();
@@ -49,7 +49,7 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
       roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &, std::string_view const &username) override;
   void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &, std::string_view const &username) override;
 
-  // json::Session::Handler
+  // rest::Session::Handler
   void operator()(
       roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &, std::string_view const &username) override;
   void operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &, std::string_view const &username) override;
@@ -86,7 +86,7 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
   absl::flat_hash_map<std::string, std::unique_ptr<fix::Session>> fix_sessions_;
   // json
   std::unique_ptr<roq::io::net::tcp::Listener> const json_listener_;
-  absl::flat_hash_map<uint64_t, std::unique_ptr<json::Session>> json_sessions_;
+  absl::flat_hash_map<uint64_t, std::unique_ptr<rest::Session>> rest_sessions_;
   std::chrono::nanoseconds next_garbage_collection_ = {};
   uint64_t next_session_id_ = {};
 };
