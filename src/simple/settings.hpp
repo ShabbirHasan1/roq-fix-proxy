@@ -21,8 +21,8 @@ struct Settings final {
     bool tls_validate_certificate = {};
   } net;
 
-  flags::FIX__flags fix;
-  flags::REST__flags rest;
+  flags::FIX fix;
+  flags::REST rest;
 
   struct {
     bool disable_market_data = {};
