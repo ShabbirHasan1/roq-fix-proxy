@@ -16,15 +16,15 @@ auto TLS_VALIDATE_CERTIFICATE = false;
 // === IMPLEMENTATION ===
 
 Settings Settings::create() {
-  flags::Flags flags;
+  auto flags = flags::Flags::create();
   return {
       .config_file = flags.config_file,
       .net{
           .connection_timeout = CONNECTION_TIMEOUT,
           .tls_validate_certificate = TLS_VALIDATE_CERTIFICATE,
       },
-      .fix = {},
-      .rest = {},
+      .fix = flags::FIX::create(),
+      .rest = flags::REST::create(),
       .test{
           .disable_market_data = flags.disable_market_data,
       },
