@@ -20,7 +20,7 @@ void check_empty(auto &node) {
   auto &table = *node.as_table();
   auto error = false;
   for (auto &[key, value] : table) {
-    roq::log::warn(R"(key="{}")"sv, key);
+    roq::log::warn(R"(key="{}")"sv, static_cast<std::string_view>(key));
     error = true;
   }
   if (error)
