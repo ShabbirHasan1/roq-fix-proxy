@@ -47,7 +47,7 @@ Controller::Controller(
     Settings const &settings,
     Config const &config,
     roq::io::Context &context,
-    std::span<std::string_view> const &connections)
+    std::span<std::string_view const> const &connections)
     : context_{context}, terminate_{context.create_signal(*this, roq::io::sys::Signal::Type::TERMINATE)},
       interrupt_{context.create_signal(*this, roq::io::sys::Signal::Type::INTERRUPT)},
       timer_{context.create_timer(*this, TIMER_FREQUENCY)}, shared_{settings, config},

@@ -21,6 +21,7 @@ requirements:
     - nlohmann_json
     - roq-client
     - roq-fix-bridge
+    - roq-flags
     - roq-io
     - roq-oss-catch2  # [osx]
     - roq-oss-libevent

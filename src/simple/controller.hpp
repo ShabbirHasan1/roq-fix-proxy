@@ -27,7 +27,8 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
                           public roq::io::sys::Timer::Handler,
                           public fix::Session::Handler,
                           public rest::Session::Handler {
-  Controller(Settings const &, Config const &, roq::io::Context &, std::span<std::string_view> const &connections);
+  Controller(
+      Settings const &, Config const &, roq::io::Context &, std::span<std::string_view const> const &connections);
 
   void run();
 

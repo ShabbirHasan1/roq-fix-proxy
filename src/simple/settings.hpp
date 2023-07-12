@@ -5,6 +5,8 @@
 #include <chrono>
 #include <string_view>
 
+#include "roq/args/parser.hpp"
+
 #include "simple/flags/fix.hpp"
 #include "simple/flags/flags.hpp"
 #include "simple/flags/rest.hpp"
@@ -12,7 +14,8 @@
 namespace simple {
 
 struct Settings final {
-  static Settings create();
+  // note! dependency on roq::args::Parser to enforce correct sequencing
+  static Settings create(roq::args::Parser const &);
 
   std::string_view config_file;
 

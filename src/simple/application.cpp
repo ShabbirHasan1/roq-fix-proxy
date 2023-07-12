@@ -20,14 +20,14 @@ namespace simple {
 
 // === IMPLEMENTATION ===
 
-int Application::main_helper(std::span<std::string_view> const &args) {
-  auto settings = Settings::create();
+int Application::main(roq::args::Parser const &args) {
+  auto params = args.params();
+  auto settings = Settings::create(args);
   auto config = Config::parse_file(settings.config_file);
   roq::log::info("config={}"sv, config);
   auto context = roq::io::engine::ContextFactory::create_libevent();
-  auto connections = args.subspan(1);
   try {
-    Controller{settings, config, *context, connections}.run();
+    Controller{settings, config, *context, params}.run();
     return EXIT_SUCCESS;
   } catch (...) {
     try {
@@ -42,15 +42,6 @@ int Application::main_helper(std::span<std::string_view> const &args) {
     }
   }
   return EXIT_FAILURE;
-}
-
-int Application::main(int argc, char **argv) {
-  // wrap arguments (prefer to not work with raw pointers)
-  std::vector<std::string_view> args;
-  args.reserve(argc);
-  for (int i = 0; i < argc; ++i)
-    args.emplace_back(argv[i]);
-  return main_helper(args);
 }
 
 }  // namespace simple
