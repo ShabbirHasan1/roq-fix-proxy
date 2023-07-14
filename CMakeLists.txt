@@ -45,7 +45,7 @@ find_package(roq-web REQUIRED)
 find_package(tomlplusplus REQUIRED)
 
 if(UNIX AND NOT APPLE)
-  set(RT_LIBRARIES "rt")
+  set(RT_LIBRARIES rt)
 else()
   set(RT_LIBRARIES)
 endif()
