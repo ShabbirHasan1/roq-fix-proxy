@@ -29,6 +29,7 @@
     {
       "name": "decode_buffer_size",
       "type": "uint32_t",
+      "validator": "roq::flags::validators::PowerOfTwo<uint32_t>",
       "required": true,
       "default": 1048576,
       "description": "fix decode buffer size"
@@ -36,6 +37,7 @@
     {
       "name": "encode_buffer_size",
       "type": "uint32_t",
+      "validator": "roq::flags::validators::PowerOfTwo<uint32_t>",
       "required": true,
       "default": 65536,
       "description": "fix encode buffer size"
