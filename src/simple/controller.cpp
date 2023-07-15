@@ -35,7 +35,7 @@ auto create_fix_sessions(auto &handler, auto &settings, auto &context, auto &sha
 }
 
 auto create_json_listener(auto &handler, auto &settings, auto &context) {
-  auto network_address = roq::io::NetworkAddress{settings.rest.listen_port};
+  auto network_address = roq::io::NetworkAddress{settings.rest.listen_address};
   roq::log::debug("{}"sv, network_address);
   return context.create_tcp_listener(handler, network_address);
 }

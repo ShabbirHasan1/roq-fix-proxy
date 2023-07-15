@@ -4,9 +4,11 @@
   "prefix": "rest_",
   "values": [
     {
-      "name": "listen_port",
-      "type": "uint16_t",
-      "description": "json listen port"
+      "name": "listen_address",
+      "type": "std::string",
+      "validator": "roq::flags::validators::ListenAddress",
+      "required": true,
+      "description": "json listen address"
     },
     {
       "name": "url_prefix",

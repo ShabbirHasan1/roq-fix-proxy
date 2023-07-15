@@ -6,16 +6,19 @@
     {
       "name": "target_comp_id",
       "type": "std::string",
+      "required": true,
       "description": "fix target comp id"
     },
     {
       "name": "sender_comp_id",
       "type": "std::string",
+      "required": true,
       "description": "fix sender comp id"
     },
     {
       "name": "username",
       "type": "std::string",
+      "required": true,
       "description": "fix username"
     },
     {
@@ -26,18 +29,22 @@
     {
       "name": "decode_buffer_size",
       "type": "uint32_t",
+      "required": true,
       "default": 1048576,
       "description": "fix decode buffer size"
     },
     {
       "name": "encode_buffer_size",
       "type": "uint32_t",
+      "required": true,
       "default": 65536,
       "description": "fix encode buffer size"
     },
     {
       "name": "ping_freq",
       "type": "std::chrono::nanoseconds",
+      "validator": "roq::flags::validators::TimePeriod",
+      "required": true,
       "default": "30s",
       "description": "fix ping freq (seconds)"
     },
@@ -50,6 +57,7 @@
     {
       "name": "market_depth",
       "type": "uint32_t",
+      "required": true,
       "default": 5,
       "description": "fix market depth (0=full book, 1=top of book, N=best N)"
     }
