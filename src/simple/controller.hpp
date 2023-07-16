@@ -78,9 +78,9 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
 
  private:
   roq::io::Context &context_;
-  std::unique_ptr<roq::io::sys::Signal> terminate_;
-  std::unique_ptr<roq::io::sys::Signal> interrupt_;
-  std::unique_ptr<roq::io::sys::Timer> timer_;
+  std::unique_ptr<roq::io::sys::Signal> const terminate_;
+  std::unique_ptr<roq::io::sys::Signal> const interrupt_;
+  std::unique_ptr<roq::io::sys::Timer> const timer_;
   //
   Shared shared_;
   // fix
