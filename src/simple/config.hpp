@@ -8,6 +8,7 @@
 #include <fmt/format.h>
 
 #include <string>
+#include <string_view>
 
 namespace simple {
 
@@ -17,7 +18,7 @@ struct Config final {
 
   absl::flat_hash_set<std::string> const symbols;
 
- private:
+ protected:
   explicit Config(auto &node);
 };
 
