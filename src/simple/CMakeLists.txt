@@ -32,7 +32,6 @@ target_link_libraries(
           roq-api::roq-api
           tomlplusplus::tomlplusplus
           fmt::fmt
-          absl::flags
           re2::re2
           ${RT_LIBRARIES})
 
