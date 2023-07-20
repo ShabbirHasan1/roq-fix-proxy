@@ -355,6 +355,7 @@ void Session::order_status_request(roq::TraceInfo const &trace_info, auto const 
   auto order_status_request = roq::fix_bridge::fix::OrderStatusRequest{
       .order_id = order_id,
       .cl_ord_id = cl_ord_id,
+      .no_party_ids = {},
       .ord_status_req_id = ord_status_req_id,
       .symbol = {},
       .security_exchange = {},
@@ -409,6 +410,7 @@ void Session::order_cancel_request(roq::TraceInfo const &trace_info, auto const 
       .orig_cl_ord_id = orig_cl_ord_id,
       .order_id = {},
       .cl_ord_id = cl_ord_id,
+      .no_party_ids = {},
       .symbol = symbol,
       .security_exchange = exchange,
       .side = {},
@@ -426,6 +428,7 @@ void Session::order_mass_status_request(roq::TraceInfo const &trace_info, auto c
   auto order_mass_status_request = roq::fix_bridge::fix::OrderMassStatusRequest{
       .mass_status_req_id = mass_status_req_id,
       .mass_status_req_type = roq::fix::MassStatusReqType::ORDERS,
+      .no_party_ids = {},
       .trading_session_id = {},
       .symbol = {},
       .security_exchange = {},
@@ -438,6 +441,7 @@ void Session::order_mass_status_request(roq::TraceInfo const &trace_info, auto c
 
 void Session::order_mass_cancel_request(roq::TraceInfo const &trace_info, auto const &params, auto const &id) {
   auto cl_ord_id = get<std::string_view>(params, "cl_ord_id"sv);
+  // note! FIX 4.4 doesn't support parties
   auto order_mass_cancel_request = roq::fix_bridge::fix::OrderMassCancelRequest{
       .cl_ord_id = cl_ord_id,
       .mass_cancel_request_type = roq::fix::MassCancelRequestType::CANCEL_ALL_ORDERS,
