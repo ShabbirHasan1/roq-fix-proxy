@@ -1,5 +1,5 @@
 package:
-  name: fix-bridge-client
+  name: roq-fix-proxy
   version: 1.0
 
 source:
@@ -33,4 +33,4 @@ about:
   license: BSD-3-Clause
   license_family: BSD
   license_file: LICENSE
-  summary: FIX Bridge client (a template project)
+  summary: Roq FIX Proxy
