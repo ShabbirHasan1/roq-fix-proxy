@@ -2,15 +2,23 @@ cmake_minimum_required(VERSION 3.12)
 
 # cmake
 
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmake ${CMAKE_MODULE_PATH})
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmake
+                      ${CMAKE_MODULE_PATH})
+
+# version (using git tag)
+
+include(GetGitRepoVersion)
+
+message("Using GIT_REPO_VERSION=${GIT_REPO_VERSION}")
 
 # project
 
-project(roq-fix-proxy)
+project(roq-fix-proxy VERSION ${GIT_REPO_VERSION})
 
 # conda
 
 if(DEFINED ENV{CONDA_PREFIX} AND NOT DEFINED ENV{CONDA_BUILD})
+  message("Setting CMAKE_INSTALL_PREFIX and CMAKE_FIND_ROOT_PATH")
   set(CMAKE_INSTALL_PREFIX $ENV{CONDA_PREFIX})
   set(CMAKE_FIND_ROOT_PATH $ENV{CONDA_PREFIX})
 endif()
@@ -23,6 +31,12 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 if(NOT DEFINED CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 20)
+endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  message("Setting default visibility to hidden")
+  set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+  set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 endif()
 
 # filesystem
@@ -78,3 +92,8 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/test)
 find_package(benchmark REQUIRED)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/benchmark)
+
+# install
+
+install(FILES ${CMAKE_SOURCE_DIR}/CHANGELOG.md
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/${PROJECT_NAME})

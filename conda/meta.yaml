@@ -1,12 +1,18 @@
 package:
   name: roq-fix-proxy
-  version: 1.0
+  version: {{ GIT_DESCRIBE_TAG }}
 
 source:
   git_url: ..
 
 build:
   skip: true  # [not unix]
+  number: {{ ROQ_BUILD_NUMBER if ROQ_BUILD_NUMBER is defined else GIT_DESCRIBE_NUMBER }}
+  script_env:                                                                                                           
+    - ROQ_BUILD_NUMBER                                                                                                  
+    - ROQ_BUILD_TYPE                                                                                                    
+  run_exports:                                                                                                          
+    - {{ pin_subpackage('roq-fix-bridge', max_pin='x.x.x') }}
 
 requirements:
   build:
