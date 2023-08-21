@@ -18,7 +18,7 @@ namespace json {
 // note! supports both rest and websocket
 
 struct ExecutionReport final {
-  explicit ExecutionReport(roq::fix_bridge::fix::ExecutionReport const &value) : value_{value} {}
+  explicit ExecutionReport(fix_bridge::fix::ExecutionReport const &value) : value_{value} {}
 
   template <typename Context>
   auto format_to(Context &context) const {
@@ -100,7 +100,7 @@ struct ExecutionReport final {
   }
 
  private:
-  roq::fix_bridge::fix::ExecutionReport const &value_;
+  fix_bridge::fix::ExecutionReport const &value_;
 };
 
 }  // namespace json

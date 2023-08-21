@@ -17,19 +17,17 @@ auto const CACHE_CONTROL_NO_STORE = "no-store"sv;
 
 // === IMPLEMENTATION ===
 
-Response::Response(
-    roq::web::rest::Server &server, roq::web::rest::Server::Request const &request, std::string &encode_buffer)
+Response::Response(web::rest::Server &server, web::rest::Server::Request const &request, std::string &encode_buffer)
     : server_{server}, request_{request}, encode_buffer_{encode_buffer} {
 }
 
-void Response::send(
-    roq::web::http::Status status, roq::web::http::ContentType content_type, std::string_view const &body) {
+void Response::send(web::http::Status status, web::http::ContentType content_type, std::string_view const &body) {
   auto connection = [&]() {
-    if (status != roq::web::http::Status::OK)  // XXX maybe only close based on category ???
-      return roq::web::http::Connection::CLOSE;
+    if (status != web::http::Status::OK)  // XXX maybe only close based on category ???
+      return web::http::Connection::CLOSE;
     return request_.headers.connection;
   }();
-  auto response = roq::web::rest::Server::Response{
+  auto response = web::rest::Server::Response{
       .status = status,
       .connection = connection,
       .sec_websocket_accept = {},

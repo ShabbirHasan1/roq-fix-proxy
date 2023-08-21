@@ -16,7 +16,7 @@ namespace json {
 // note! supports both rest and websocket
 
 struct BusinessMessageReject final {
-  explicit BusinessMessageReject(roq::fix_bridge::fix::BusinessMessageReject const &value) : value_{value} {}
+  explicit BusinessMessageReject(fix_bridge::fix::BusinessMessageReject const &value) : value_{value} {}
 
   template <typename Context>
   auto format_to(Context &context) const {
@@ -31,14 +31,14 @@ struct BusinessMessageReject final {
         R"("text":{})"
         R"(}})"sv,
         value_.ref_seq_num,
-        roq::fix::Codec<roq::fix::MsgType>::encode(value_.ref_msg_type),
+        fix::Codec<fix::MsgType>::encode(value_.ref_msg_type),
         roq::json::String{value_.business_reject_ref_id},
         roq::json::String{value_.business_reject_reason},
         roq::json::String{value_.text});
   }
 
  private:
-  roq::fix_bridge::fix::BusinessMessageReject const &value_;
+  fix_bridge::fix::BusinessMessageReject const &value_;
 };
 
 }  // namespace json

@@ -10,11 +10,11 @@
 namespace roq {
 namespace fix_proxy {
 
-struct Application final : public roq::Service {
+struct Application final : public Service {
   using Service::Service;  // inherit constructors
 
  protected:
-  int main(roq::args::Parser const &) override;
+  int main(args::Parser const &) override;
 };
 
 }  // namespace fix_proxy

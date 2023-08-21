@@ -24,42 +24,34 @@
 namespace roq {
 namespace fix_proxy {
 
-struct Controller final : public roq::io::sys::Signal::Handler,
-                          public roq::io::sys::Timer::Handler,
+struct Controller final : public io::sys::Signal::Handler,
+                          public io::sys::Timer::Handler,
                           public server::Session::Handler,
                           public client::Session::Handler {
-  Controller(
-      Settings const &, Config const &, roq::io::Context &, std::span<std::string_view const> const &connections);
+  Controller(Settings const &, Config const &, io::Context &, std::span<std::string_view const> const &connections);
 
   void run();
 
  protected:
   // io::sys::Signal::Handler
-  void operator()(roq::io::sys::Signal::Event const &) override;
+  void operator()(io::sys::Signal::Event const &) override;
 
   // io::sys::Timer::Handler
-  void operator()(roq::io::sys::Timer::Event const &) override;
+  void operator()(io::sys::Timer::Event const &) override;
 
   // server::Session::Handler
-  void operator()(roq::Trace<roq::fix_bridge::fix::SecurityDefinition> const &) override;
-  void operator()(
-      roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &, std::string_view const &username) override;
-  void operator()(
-      roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &, std::string_view const &username) override;
-  void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &, std::string_view const &username) override;
+  void operator()(Trace<fix_bridge::fix::SecurityDefinition> const &) override;
+  void operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &, std::string_view const &username) override;
+  void operator()(Trace<fix_bridge::fix::OrderCancelReject> const &, std::string_view const &username) override;
+  void operator()(Trace<fix_bridge::fix::ExecutionReport> const &, std::string_view const &username) override;
 
   // client::Session::Handler
-  void operator()(
-      roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &, std::string_view const &username) override;
-  void operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &, std::string_view const &username) override;
-  void operator()(
-      roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &, std::string_view const &username) override;
-  void operator()(
-      roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &, std::string_view const &username) override;
-  void operator()(
-      roq::Trace<roq::fix_bridge::fix::OrderMassStatusRequest> const &, std::string_view const &username) override;
-  void operator()(
-      roq::Trace<roq::fix_bridge::fix::OrderMassCancelRequest> const &, std::string_view const &username) override;
+  void operator()(Trace<fix_bridge::fix::OrderStatusRequest> const &, std::string_view const &username) override;
+  void operator()(Trace<fix_bridge::fix::NewOrderSingle> const &, std::string_view const &username) override;
+  void operator()(Trace<fix_bridge::fix::OrderCancelReplaceRequest> const &, std::string_view const &username) override;
+  void operator()(Trace<fix_bridge::fix::OrderCancelRequest> const &, std::string_view const &username) override;
+  void operator()(Trace<fix_bridge::fix::OrderMassStatusRequest> const &, std::string_view const &username) override;
+  void operator()(Trace<fix_bridge::fix::OrderMassCancelRequest> const &, std::string_view const &username) override;
 
   // utilities
 
@@ -67,16 +59,16 @@ struct Controller final : public roq::io::sys::Signal::Handler,
   void dispatch(Args &&...);
 
   template <typename T>
-  void dispatch_to_fix(roq::Trace<T> const &, std::string_view const &username);
+  void dispatch_to_server(Trace<T> const &, std::string_view const &username);
 
   template <typename T>
-  void dispatch_to_json(roq::Trace<T> const &, std::string_view const &username);
+  void dispatch_to_client(Trace<T> const &, std::string_view const &username);
 
  private:
-  roq::io::Context &context_;
-  std::unique_ptr<roq::io::sys::Signal> const terminate_;
-  std::unique_ptr<roq::io::sys::Signal> const interrupt_;
-  std::unique_ptr<roq::io::sys::Timer> const timer_;
+  io::Context &context_;
+  std::unique_ptr<io::sys::Signal> const terminate_;
+  std::unique_ptr<io::sys::Signal> const interrupt_;
+  std::unique_ptr<io::sys::Timer> const timer_;
   Shared shared_;
   absl::flat_hash_map<std::string, std::unique_ptr<server::Session>> server_sessions_;
   client::Manager client_manager_;

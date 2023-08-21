@@ -18,14 +18,11 @@ namespace {}  // namespace
 // === IMPLEMENTATION ===
 
 Session::Session(
-    client::Session::Handler &handler,
-    uint64_t session_id,
-    roq::io::net::tcp::Connection::Factory &factory,
-    Shared &shared)
+    client::Session::Handler &handler, uint64_t session_id, io::net::tcp::Connection::Factory &factory, Shared &shared)
     : handler_{handler}, session_id_{session_id}, connection_{factory.create(*this)}, shared_{shared} {
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &event) {
+void Session::operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &event) {
   if (zombie())
     return;
   /*
@@ -41,11 +38,11 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject>
   */
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &) {
+void Session::operator()(Trace<fix_bridge::fix::OrderCancelReject> const &) {
   // XXX TODO send notification
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &event) {
+void Session::operator()(Trace<fix_bridge::fix::ExecutionReport> const &event) {
   if (zombie())
     return;
   /*

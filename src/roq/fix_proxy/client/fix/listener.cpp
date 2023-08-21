@@ -17,23 +17,23 @@ namespace fix {
 
 namespace {
 auto create_listener(auto &handler, auto &settings, auto &context) {
-  auto network_address = roq::io::NetworkAddress{settings.rest.listen_address};
-  roq::log::debug("{}"sv, network_address);
+  auto network_address = io::NetworkAddress{settings.rest.listen_address};
+  log::debug("{}"sv, network_address);
   return context.create_tcp_listener(handler, network_address);
 }
 }  // namespace
 
 // === IMPLEMENTATION ===
 
-Listener::Listener(Handler &handler, Settings const &settings, roq::io::Context &context)
+Listener::Listener(Handler &handler, Settings const &settings, io::Context &context)
     : handler_{handler}, listener_{create_listener(*this, settings, context)} {
 }
 
 // io::net::tcp::Listener::Handler
 
-void Listener::operator()(roq::io::net::tcp::Connection::Factory &factory) {
+void Listener::operator()(io::net::tcp::Connection::Factory &factory) {
   struct Bridge final : public client::Factory {
-    Bridge(roq::io::net::tcp::Connection::Factory &factory) : factory_{factory} {}
+    Bridge(io::net::tcp::Connection::Factory &factory) : factory_{factory} {}
 
    protected:
     std::unique_ptr<client::Session> create(
@@ -42,7 +42,7 @@ void Listener::operator()(roq::io::net::tcp::Connection::Factory &factory) {
     }
 
    private:
-    roq::io::net::tcp::Connection::Factory &factory_;
+    io::net::tcp::Connection::Factory &factory_;
   } bridge{factory};
   handler_(bridge);
 }

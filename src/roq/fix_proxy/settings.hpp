@@ -15,8 +15,8 @@ namespace roq {
 namespace fix_proxy {
 
 struct Settings final {
-  // note! dependency on roq::args::Parser to enforce correct sequencing
-  static Settings create(roq::args::Parser const &);
+  // note! dependency on args::Parser to enforce correct sequencing
+  static Settings create(args::Parser const &);
 
   std::string_view config_file;
 

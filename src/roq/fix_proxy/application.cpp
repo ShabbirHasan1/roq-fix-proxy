@@ -21,25 +21,25 @@ namespace fix_proxy {
 
 // === IMPLEMENTATION ===
 
-int Application::main(roq::args::Parser const &args) {
+int Application::main(args::Parser const &args) {
   auto params = args.params();
   auto settings = Settings::create(args);
   auto config = Config::parse_file(settings.config_file);
-  roq::log::info("config={}"sv, config);
-  auto context = roq::io::engine::ContextFactory::create_libevent();
+  log::info("config={}"sv, config);
+  auto context = io::engine::ContextFactory::create_libevent();
   try {
     Controller{settings, config, *context, params}.run();
     return EXIT_SUCCESS;
   } catch (...) {
     try {
       throw;
-    } catch (roq::Exception &e) {
-      roq::log::error("Unhandled exception: {}"sv, e);
+    } catch (Exception &e) {
+      log::error("Unhandled exception: {}"sv, e);
     } catch (std::exception &e) {
-      roq::log::error(R"(Unhandled exception: type="{}", what="{}")"sv, typeid(e).name(), e.what());
+      log::error(R"(Unhandled exception: type="{}", what="{}")"sv, typeid(e).name(), e.what());
     } catch (...) {
       auto e = std::current_exception();
-      roq::log::error(R"(Unhandled exception: type="{}")"sv, typeid(e).name());
+      log::error(R"(Unhandled exception: type="{}")"sv, typeid(e).name());
     }
   }
   return EXIT_FAILURE;

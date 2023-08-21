@@ -21,17 +21,17 @@ void check_empty(auto &node) {
   auto &table = *node.as_table();
   auto error = false;
   for (auto &[key, value] : table) {
-    roq::log::warn(R"(key="{}")"sv, static_cast<std::string_view>(key));
+    log::warn(R"(key="{}")"sv, static_cast<std::string_view>(key));
     error = true;
   }
   if (error)
-    roq::log::fatal("Unexpected"sv);
+    log::fatal("Unexpected"sv);
 }
 
 template <typename Callback>
 bool find_and_remove(auto &node, std::string_view const &key, Callback callback) {
   if (!node.is_table()) {
-    roq::log::warn("Unexpected: node is not a table"sv);
+    log::warn("Unexpected: node is not a table"sv);
     return false;
   }
   auto &table = *node.as_table();
@@ -58,12 +58,12 @@ R parse_symbols(auto &node) {
         result.emplace(*node_2.template value<value_type>());
       }
     } else {
-      roq::log::fatal("Unexpected"sv);
+      log::fatal("Unexpected"sv);
     }
   };
   if (find_and_remove(node, "symbols"sv, parse_helper)) {
   } else {
-    roq::log::fatal(R"(Unexpected: did not find the "symbols" table)"sv);
+    log::fatal(R"(Unexpected: did not find the "symbols" table)"sv);
   }
   return result;
 }

@@ -26,12 +26,12 @@ namespace json {
 
 // note! supports both rest and websocket
 
-struct Session final : public client::Session, public roq::web::rest::Server::Handler {
-  Session(client::Session::Handler &, uint64_t session_id, roq::io::net::tcp::Connection::Factory &, Shared &);
+struct Session final : public client::Session, public web::rest::Server::Handler {
+  Session(client::Session::Handler &, uint64_t session_id, io::net::tcp::Connection::Factory &, Shared &);
 
-  void operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &) override;
-  void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &) override;
-  void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &) override;
+  void operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &) override;
+  void operator()(Trace<fix_bridge::fix::OrderCancelReject> const &) override;
+  void operator()(Trace<fix_bridge::fix::ExecutionReport> const &) override;
 
  protected:
   bool ready() const;
@@ -40,16 +40,16 @@ struct Session final : public client::Session, public roq::web::rest::Server::Ha
   void close();
 
   // web::rest::Server::Handler
-  void operator()(roq::web::rest::Server::Disconnected const &) override;
-  void operator()(roq::web::rest::Server::Request const &) override;
-  void operator()(roq::web::rest::Server::Text const &) override;
-  void operator()(roq::web::rest::Server::Binary const &) override;
+  void operator()(web::rest::Server::Disconnected const &) override;
+  void operator()(web::rest::Server::Request const &) override;
+  void operator()(web::rest::Server::Text const &) override;
+  void operator()(web::rest::Server::Binary const &) override;
 
   // rest
 
-  void route(Response &, roq::web::rest::Server::Request const &, std::span<std::string_view> const &path);
+  void route(Response &, web::rest::Server::Request const &, std::span<std::string_view> const &path);
 
-  void get_symbols(Response &, roq::web::rest::Server::Request const &);
+  void get_symbols(Response &, web::rest::Server::Request const &);
 
   // ws
 
@@ -58,20 +58,20 @@ struct Session final : public client::Session, public roq::web::rest::Server::Ha
   void process_jsonrpc(std::string_view const &method, auto const &params, auto const &id);
 
   // - session
-  void logon(roq::TraceInfo const &, auto const &params, auto const &id);
-  void logout(roq::TraceInfo const &, auto const &params, auto const &id);
+  void logon(TraceInfo const &, auto const &params, auto const &id);
+  void logout(TraceInfo const &, auto const &params, auto const &id);
   // - business
   // -- single order
-  void order_status_request(roq::TraceInfo const &, auto const &params, auto const &id);
-  void new_order_single(roq::TraceInfo const &, auto const &params, auto const &id);
-  void order_cancel_request(roq::TraceInfo const &, auto const &params, auto const &id);
+  void order_status_request(TraceInfo const &, auto const &params, auto const &id);
+  void new_order_single(TraceInfo const &, auto const &params, auto const &id);
+  void order_cancel_request(TraceInfo const &, auto const &params, auto const &id);
   // -- many orders
-  void order_mass_status_request(roq::TraceInfo const &, auto const &params, auto const &id);
-  void order_mass_cancel_request(roq::TraceInfo const &, auto const &params, auto const &id);
+  void order_mass_status_request(TraceInfo const &, auto const &params, auto const &id);
+  void order_mass_cancel_request(TraceInfo const &, auto const &params, auto const &id);
 
   // helpers
 
-  void dispatch(roq::TraceInfo const &, auto const &value);
+  void dispatch(TraceInfo const &, auto const &value);
 
   void send_result(std::string_view const &message, auto const &id);
   void send_error(std::string_view const &message, auto const &id);
@@ -84,7 +84,7 @@ struct Session final : public client::Session, public roq::web::rest::Server::Ha
  private:
   client::Session::Handler &handler_;
   uint64_t const session_id_;
-  std::unique_ptr<roq::web::rest::Server> server_;
+  std::unique_ptr<web::rest::Server> server_;
   Shared &shared_;
   enum class State { WAITING_LOGON, READY, ZOMBIE } state_ = {};
   std::string username_;

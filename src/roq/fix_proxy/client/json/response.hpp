@@ -15,12 +15,12 @@ namespace json {
 // helper
 
 struct Response final {
-  Response(roq::web::rest::Server &, roq::web::rest::Server::Request const &, std::string &encode_buffer);
+  Response(web::rest::Server &, web::rest::Server::Request const &, std::string &encode_buffer);
 
   template <typename... Args>
   inline void operator()(
-      roq::web::http::Status status,
-      roq::web::http::ContentType content_type,
+      web::http::Status status,
+      web::http::ContentType content_type,
       fmt::format_string<Args...> const &fmt,
       Args &&...args) {
     encode_buffer_.clear();
@@ -29,11 +29,11 @@ struct Response final {
   }
 
  protected:
-  void send(roq::web::http::Status, roq::web::http::ContentType, std::string_view const &body);
+  void send(web::http::Status, web::http::ContentType, std::string_view const &body);
 
  private:
-  roq::web::rest::Server &server_;
-  roq::web::rest::Server::Request const &request_;
+  web::rest::Server &server_;
+  web::rest::Server::Request const &request_;
   std::string &encode_buffer_;
 };
 

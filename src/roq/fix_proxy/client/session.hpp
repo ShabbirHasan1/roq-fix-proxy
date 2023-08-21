@@ -20,25 +20,22 @@ namespace client {
 
 struct Session {
   struct Handler {
+    virtual void operator()(Trace<fix_bridge::fix::OrderStatusRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<fix_bridge::fix::NewOrderSingle> const &, std::string_view const &username) = 0;
     virtual void operator()(
-        roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &, std::string_view const &username) = 0;
+        Trace<fix_bridge::fix::OrderCancelReplaceRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<fix_bridge::fix::OrderCancelRequest> const &, std::string_view const &username) = 0;
     virtual void operator()(
-        roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &, std::string_view const &username) = 0;
+        Trace<fix_bridge::fix::OrderMassStatusRequest> const &, std::string_view const &username) = 0;
     virtual void operator()(
-        roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(
-        roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(
-        roq::Trace<roq::fix_bridge::fix::OrderMassStatusRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(
-        roq::Trace<roq::fix_bridge::fix::OrderMassCancelRequest> const &, std::string_view const &username) = 0;
+        Trace<fix_bridge::fix::OrderMassCancelRequest> const &, std::string_view const &username) = 0;
   };
 
   virtual ~Session() = default;
 
-  virtual void operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &) = 0;
-  virtual void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &) = 0;
-  virtual void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &) = 0;
+  virtual void operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &) = 0;
+  virtual void operator()(Trace<fix_bridge::fix::OrderCancelReject> const &) = 0;
+  virtual void operator()(Trace<fix_bridge::fix::ExecutionReport> const &) = 0;
 };
 
 }  // namespace client

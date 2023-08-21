@@ -54,28 +54,28 @@ template <typename T>
 T map(std::string_view const &);
 
 template <>
-roq::fix::OrdType map(std::string_view const &value) {
+fix::OrdType map(std::string_view const &value) {
   if (value == "MARKET"sv)
-    return roq::fix::OrdType::MARKET;
+    return fix::OrdType::MARKET;
   if (value == "LIMIT"sv)
-    return roq::fix::OrdType::LIMIT;
-  throw roq::RuntimeError{R"(Unexpected: time_in_force="{}")"sv, value};
+    return fix::OrdType::LIMIT;
+  throw RuntimeError{R"(Unexpected: time_in_force="{}")"sv, value};
 }
 
 template <>
-roq::fix::Side map(std::string_view const &value) {
+fix::Side map(std::string_view const &value) {
   if (value == "BUY"sv)
-    return roq::fix::Side::BUY;
+    return fix::Side::BUY;
   if (value == "SELL"sv)
-    return roq::fix::Side::SELL;
-  throw roq::RuntimeError{R"(Unexpected: side="{}")"sv, value};
+    return fix::Side::SELL;
+  throw RuntimeError{R"(Unexpected: side="{}")"sv, value};
 }
 
 template <>
-roq::fix::TimeInForce map(std::string_view const &value) {
+fix::TimeInForce map(std::string_view const &value) {
   if (value == "GTC"sv)
-    return roq::fix::TimeInForce::GTC;
-  throw roq::RuntimeError{R"(Unexpected: time_in_force="{}")"sv, value};
+    return fix::TimeInForce::GTC;
+  throw RuntimeError{R"(Unexpected: time_in_force="{}")"sv, value};
 }
 
 // get
@@ -86,13 +86,13 @@ T get(nlohmann::json::value_type const &value, std::string_view const &key) {
     return {};
   if constexpr (std::is_same<T, std::string_view>::value) {
     return (*iter).template get<std::string_view>();
-  } else if constexpr (std::is_same<T, roq::utils::Number>::value) {
+  } else if constexpr (std::is_same<T, utils::Number>::value) {
     auto type = (*iter).type();
     switch (type) {
       using enum nlohmann::json::value_t;
       case string: {
         // note! string is used to infer decimals, e.g. 3.14 has 2 decimals
-        return roq::fix::parse_number((*iter).template get<std::string_view>());
+        return fix::parse_number((*iter).template get<std::string_view>());
       }
       case number_integer:
       case number_unsigned:
@@ -100,12 +100,12 @@ T get(nlohmann::json::value_type const &value, std::string_view const &key) {
         // note! undefined decimals, will be rounded by the gateway
         return {(*iter).template get<double>(), {}};
       default:
-        throw roq::RuntimeError{"Invalid type for number"sv};
+        throw RuntimeError{"Invalid type for number"sv};
     }
-  } else if constexpr (roq::utils::is_any<T, roq::fix::OrdType, roq::fix::Side, roq::fix::TimeInForce>::value) {
+  } else if constexpr (utils::is_any<T, fix::OrdType, fix::Side, fix::TimeInForce>::value) {
     return map<T>((*iter).template get<std::string_view>());
   } else {
-    static_assert(roq::utils::always_false<T>, "not implemented for this type");
+    static_assert(utils::always_false<T>, "not implemented for this type");
   }
 }
 }  // namespace
@@ -113,15 +113,12 @@ T get(nlohmann::json::value_type const &value, std::string_view const &key) {
 // === IMPLEMENTATION ===
 
 Session::Session(
-    client::Session::Handler &handler,
-    uint64_t session_id,
-    roq::io::net::tcp::Connection::Factory &factory,
-    Shared &shared)
-    : handler_{handler}, session_id_{session_id}, server_{roq::web::rest::ServerFactory::create(*this, factory)},
+    client::Session::Handler &handler, uint64_t session_id, io::net::tcp::Connection::Factory &factory, Shared &shared)
+    : handler_{handler}, session_id_{session_id}, server_{web::rest::ServerFactory::create(*this, factory)},
       shared_{shared} {
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &event) {
+void Session::operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &event) {
   if (zombie())
     return;
   auto &[trace_info, business_message_reject] = event;
@@ -135,11 +132,11 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject>
       json::BusinessMessageReject{business_message_reject});
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &) {
+void Session::operator()(Trace<fix_bridge::fix::OrderCancelReject> const &) {
   // XXX TODO send notification
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &event) {
+void Session::operator()(Trace<fix_bridge::fix::ExecutionReport> const &event) {
   if (zombie())
     return;
   auto &[trace_info, execution_report] = event;
@@ -168,25 +165,25 @@ void Session::close() {
 
 // web::rest::Server::Handler
 
-void Session::operator()(roq::web::rest::Server::Disconnected const &) {
+void Session::operator()(web::rest::Server::Disconnected const &) {
   state_ = State::ZOMBIE;
   shared_.session_remove(session_id_);
 }
 
 // note!
-//   roq::web::rest::Server guarantees that there will always be exactly one response
+//   web::rest::Server guarantees that there will always be exactly one response
 //   - an automatic "not-found" (404) response is generated if this handler doesn't send anything
 //   - an exception is thrown if this handler tries to send more than one response
-void Session::operator()(roq::web::rest::Server::Request const &request) {
+void Session::operator()(web::rest::Server::Request const &request) {
   if (zombie())
     return;
   auto success = false;
   try {
-    if (request.headers.connection == roq::web::http::Connection::UPGRADE) {
-      roq::log::info("Upgrading session_id={} to websocket..."sv, session_id_);
+    if (request.headers.connection == web::http::Connection::UPGRADE) {
+      log::info("Upgrading session_id={} to websocket..."sv, session_id_);
       (*server_).upgrade(request);
     } else {
-      roq::log::info("DEBUG request={}"sv, request);
+      log::info("DEBUG request={}"sv, request);
       auto path = request.path;  // note! url path has already been split
       if (!std::empty(path) && !std::empty(shared_.settings.rest.url_prefix) &&
           path[0] == shared_.settings.rest.url_prefix)
@@ -197,43 +194,43 @@ void Session::operator()(roq::web::rest::Server::Request const &request) {
       }
     }
     success = true;
-  } catch (roq::RuntimeError &e) {
-    roq::log::error("Error: {}"sv, e);
+  } catch (RuntimeError &e) {
+    log::error("Error: {}"sv, e);
   } catch (std::exception &e) {
-    roq::log::error("Error: {}"sv, e.what());
+    log::error("Error: {}"sv, e.what());
   }
   if (!success)
     close();
 }
 
-void Session::operator()(roq::web::rest::Server::Text const &text) {
+void Session::operator()(web::rest::Server::Text const &text) {
   if (zombie())
     return;
-  roq::log::info(R"(message="{})"sv, text.payload);
+  log::info(R"(message="{})"sv, text.payload);
   auto success = false;
   try {
     process(text.payload);
     success = true;
-  } catch (roq::RuntimeError &e) {
-    roq::log::error("Error: {}"sv, e);
+  } catch (RuntimeError &e) {
+    log::error("Error: {}"sv, e);
   } catch (std::exception &e) {
-    roq::log::error("Error: {}"sv, e.what());
+    log::error("Error: {}"sv, e.what());
   }
   if (!success)
     close();
 }
 
-void Session::operator()(roq::web::rest::Server::Binary const &) {
-  roq::log::warn("Unexpected"sv);
+void Session::operator()(web::rest::Server::Binary const &) {
+  log::warn("Unexpected"sv);
   close();
 }
 
 // rest
 
 void Session::route(
-    Response &response, roq::web::rest::Server::Request const &request, std::span<std::string_view> const &path) {
+    Response &response, web::rest::Server::Request const &request, std::span<std::string_view> const &path) {
   switch (request.method) {
-    using enum roq::web::http::Method;
+    using enum web::http::Method;
     case GET:
       if (std::size(path) == 1) {
         if (path[0] == "symbols"sv)
@@ -257,13 +254,13 @@ void Session::route(
   }
 }
 
-void Session::get_symbols(Response &response, roq::web::rest::Server::Request const &) {
+void Session::get_symbols(Response &response, web::rest::Server::Request const &) {
   if (std::empty(shared_.symbols)) {
-    response(roq::web::http::Status::NOT_FOUND, roq::web::http::ContentType::APPLICATION_JSON, "[]"sv);
+    response(web::http::Status::NOT_FOUND, web::http::ContentType::APPLICATION_JSON, "[]"sv);
   } else {
     response(
-        roq::web::http::Status::OK,
-        roq::web::http::ContentType::APPLICATION_JSON,
+        web::http::Status::OK,
+        web::http::ContentType::APPLICATION_JSON,
         R"(["{}"])"sv,
         fmt::join(shared_.symbols, R"(",")"sv));
   }
@@ -280,25 +277,25 @@ void Session::process(std::string_view const &message) {
     auto json = nlohmann::json::parse(message);  // note! not fast... you should consider some other json parser here
     auto version = json.at("jsonrpc"sv).template get<std::string_view>();
     if (version != JSONRPC_VERSION)
-      throw roq::RuntimeError{R"(Invalid JSONRPC version ("{}"))"sv, version};
+      throw RuntimeError{R"(Invalid JSONRPC version ("{}"))"sv, version};
     auto method = json.at("method"sv).template get<std::string_view>();
     auto params = json.at("params"sv);
     auto id = json.at("id"sv);
     process_jsonrpc(method, params, id);
     success = true;
-  } catch (roq::RuntimeError &e) {
-    roq::log::error("Error: {}"sv, e);
+  } catch (RuntimeError &e) {
+    log::error("Error: {}"sv, e);
   } catch (std::exception &e) {
-    roq::log::error("Error: {}"sv, e.what());
+    log::error("Error: {}"sv, e.what());
   }
-  roq::log::debug("success={}"sv, success);
+  log::debug("success={}"sv, success);
   if (!success)
     close();
 }
 
 void Session::process_jsonrpc(std::string_view const &method, auto const &params, auto const &id) {
   try {
-    roq::TraceInfo trace_info;
+    TraceInfo trace_info;
     if (method == "logon"sv) {
       if (!ready())
         logon(trace_info, params, id);
@@ -324,12 +321,12 @@ void Session::process_jsonrpc(std::string_view const &method, auto const &params
         send_error(Error::NOT_LOGGED_ON, id);
       }
     }
-  } catch (roq::oms::NotReady const &) {
+  } catch (oms::NotReady const &) {
     send_error(Error::NOT_READY, id);
   }
 }
 
-void Session::logon(roq::TraceInfo const &, auto const &params, auto const &id) {
+void Session::logon(TraceInfo const &, auto const &params, auto const &id) {
   assert(state_ == State::WAITING_LOGON);
   auto username = get<std::string_view>(params, "username"sv);
   auto password = get<std::string_view>(params, "password"sv);
@@ -342,7 +339,7 @@ void Session::logon(roq::TraceInfo const &, auto const &params, auto const &id) 
   shared_.session_logon(session_id_, username, password, success, failure);
 }
 
-void Session::logout(roq::TraceInfo const &, [[maybe_unused]] auto const &params, auto const &id) {
+void Session::logout(TraceInfo const &, [[maybe_unused]] auto const &params, auto const &id) {
   assert(ready());
   auto success = [&]() {
     if (ready())
@@ -354,11 +351,11 @@ void Session::logout(roq::TraceInfo const &, [[maybe_unused]] auto const &params
   shared_.session_logout(session_id_, success, failure);
 }
 
-void Session::order_status_request(roq::TraceInfo const &trace_info, auto const &params, auto const &id) {
+void Session::order_status_request(TraceInfo const &trace_info, auto const &params, auto const &id) {
   auto order_id = get<std::string_view>(params, "order_id"sv);
   auto cl_ord_id = get<std::string_view>(params, "cl_ord_id"sv);
   auto ord_status_req_id = get<std::string_view>(params, "ord_status_req_id"sv);
-  auto order_status_request = roq::fix_bridge::fix::OrderStatusRequest{
+  auto order_status_request = fix_bridge::fix::OrderStatusRequest{
       .order_id = order_id,
       .cl_ord_id = cl_ord_id,
       .no_party_ids = {},
@@ -367,22 +364,22 @@ void Session::order_status_request(roq::TraceInfo const &trace_info, auto const 
       .security_exchange = {},
       .side = {},
   };
-  roq::log::debug("order_status_request={}"sv, order_status_request);
+  log::debug("order_status_request={}"sv, order_status_request);
   dispatch(trace_info, order_status_request);
   send_result(SUCCESS, id);
 }
 
-void Session::new_order_single(roq::TraceInfo const &trace_info, auto const &params, auto const &id) {
+void Session::new_order_single(TraceInfo const &trace_info, auto const &params, auto const &id) {
   auto cl_ord_id = get<std::string_view>(params, "cl_ord_id"sv);
   auto exchange = get<std::string_view>(params, "exchange"sv);
   auto symbol = get<std::string_view>(params, "symbol"sv);
-  auto side = get<roq::fix::Side>(params, "side"sv);
-  auto quantity = get<roq::utils::Number>(params, "quantity"sv);
-  auto ord_type = get<roq::fix::OrdType>(params, "ord_type"sv);
-  auto price = get<roq::utils::Number>(params, "price"sv);
-  auto stop_px = get<roq::utils::Number>(params, "stop_px"sv);
-  auto time_in_force = get<roq::fix::TimeInForce>(params, "time_in_force"sv);
-  auto new_order_single = roq::fix_bridge::fix::NewOrderSingle{
+  auto side = get<fix::Side>(params, "side"sv);
+  auto quantity = get<utils::Number>(params, "quantity"sv);
+  auto ord_type = get<fix::OrdType>(params, "ord_type"sv);
+  auto price = get<utils::Number>(params, "price"sv);
+  auto stop_px = get<utils::Number>(params, "stop_px"sv);
+  auto time_in_force = get<fix::TimeInForce>(params, "time_in_force"sv);
+  auto new_order_single = fix_bridge::fix::NewOrderSingle{
       .cl_ord_id = cl_ord_id,
       .no_party_ids = {},
       .account = {},
@@ -402,17 +399,17 @@ void Session::new_order_single(roq::TraceInfo const &trace_info, auto const &par
       .position_effect = {},
       .max_show = {},
   };
-  roq::log::debug("new_order_single={}"sv, new_order_single);
+  log::debug("new_order_single={}"sv, new_order_single);
   dispatch(trace_info, new_order_single);
   send_result(SUCCESS, id);
 }
 
-void Session::order_cancel_request(roq::TraceInfo const &trace_info, auto const &params, auto const &id) {
+void Session::order_cancel_request(TraceInfo const &trace_info, auto const &params, auto const &id) {
   auto orig_cl_ord_id = get<std::string_view>(params, "orig_cl_ord_id"sv);
   auto cl_ord_id = get<std::string_view>(params, "cl_ord_id"sv);
   auto exchange = get<std::string_view>(params, "exchange"sv);
   auto symbol = get<std::string_view>(params, "symbol"sv);
-  auto order_cancel_request = roq::fix_bridge::fix::OrderCancelRequest{
+  auto order_cancel_request = fix_bridge::fix::OrderCancelRequest{
       .orig_cl_ord_id = orig_cl_ord_id,
       .order_id = {},
       .cl_ord_id = cl_ord_id,
@@ -424,44 +421,44 @@ void Session::order_cancel_request(roq::TraceInfo const &trace_info, auto const 
       .order_qty = {},
       .text = {},
   };
-  roq::log::debug("order_cancel_request={}"sv, order_cancel_request);
+  log::debug("order_cancel_request={}"sv, order_cancel_request);
   dispatch(trace_info, order_cancel_request);
   send_result(SUCCESS, id);
 }
 
-void Session::order_mass_status_request(roq::TraceInfo const &trace_info, auto const &params, auto const &id) {
+void Session::order_mass_status_request(TraceInfo const &trace_info, auto const &params, auto const &id) {
   auto mass_status_req_id = get<std::string_view>(params, "mass_status_req_id"sv);
-  auto order_mass_status_request = roq::fix_bridge::fix::OrderMassStatusRequest{
+  auto order_mass_status_request = fix_bridge::fix::OrderMassStatusRequest{
       .mass_status_req_id = mass_status_req_id,
-      .mass_status_req_type = roq::fix::MassStatusReqType::ORDERS,
+      .mass_status_req_type = fix::MassStatusReqType::ORDERS,
       .no_party_ids = {},
       .trading_session_id = {},
       .symbol = {},
       .security_exchange = {},
       .side = {},
   };
-  roq::log::debug("order_mass_status_request={}"sv, order_mass_status_request);
+  log::debug("order_mass_status_request={}"sv, order_mass_status_request);
   dispatch(trace_info, order_mass_status_request);
   send_result(SUCCESS, id);
 }
 
-void Session::order_mass_cancel_request(roq::TraceInfo const &trace_info, auto const &params, auto const &id) {
+void Session::order_mass_cancel_request(TraceInfo const &trace_info, auto const &params, auto const &id) {
   auto cl_ord_id = get<std::string_view>(params, "cl_ord_id"sv);
   // note! FIX 4.4 doesn't support parties
-  auto order_mass_cancel_request = roq::fix_bridge::fix::OrderMassCancelRequest{
+  auto order_mass_cancel_request = fix_bridge::fix::OrderMassCancelRequest{
       .cl_ord_id = cl_ord_id,
-      .mass_cancel_request_type = roq::fix::MassCancelRequestType::CANCEL_ALL_ORDERS,
+      .mass_cancel_request_type = fix::MassCancelRequestType::CANCEL_ALL_ORDERS,
       .trading_session_id = {},
       .transact_time = {},
   };
-  roq::log::debug("order_mass_cancel_request={}"sv, order_mass_cancel_request);
+  log::debug("order_mass_cancel_request={}"sv, order_mass_cancel_request);
   dispatch(trace_info, order_mass_cancel_request);
   send_result(SUCCESS, id);
 }
 
-void Session::dispatch(roq::TraceInfo const &trace_info, auto const &value) {
+void Session::dispatch(TraceInfo const &trace_info, auto const &value) {
   assert(!std::empty(username_));
-  roq::Trace event{trace_info, value};
+  Trace event{trace_info, value};
   handler_(event, username_);
 }
 
@@ -506,7 +503,7 @@ void Session::send_jsonrpc(std::string_view const &type, std::string_view const 
           id.template get<int64_t>());
       break;
     default:
-      roq::log::warn("Unexpected: type={}"sv, magic_enum::enum_name(type_2));
+      log::warn("Unexpected: type={}"sv, magic_enum::enum_name(type_2));
   }
 }
 
@@ -514,7 +511,7 @@ template <typename... Args>
 void Session::send_text(fmt::format_string<Args...> const &fmt, Args &&...args) {
   shared_.encode_buffer.clear();
   fmt::format_to(std::back_inserter(shared_.encode_buffer), fmt, std::forward<Args>(args)...);
-  roq::log::debug(R"(message="{}")"sv, shared_.encode_buffer);
+  log::debug(R"(message="{}")"sv, shared_.encode_buffer);
   (*server_).send_text(shared_.encode_buffer);
 }
 

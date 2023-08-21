@@ -30,7 +30,7 @@ namespace server {
 // === CONSTANTS ===
 
 namespace {
-auto const FIX_VERSION = roq::fix::Version::FIX_44;
+auto const FIX_VERSION = fix::Version::FIX_44;
 auto const LOGOUT_RESPONSE = "LOGOUT"sv;
 }  // namespace
 
@@ -38,21 +38,21 @@ auto const LOGOUT_RESPONSE = "LOGOUT"sv;
 
 namespace {
 auto create_connection_factory(auto &settings, auto &context, auto &uri) {
-  auto config = roq::io::net::ConnectionFactory::Config{
+  auto config = io::net::ConnectionFactory::Config{
       .interface = {},
       .uris = {&uri, 1},
       .validate_certificate = settings.net.tls_validate_certificate,
   };
-  return roq::io::net::ConnectionFactory::create(context, config);
+  return io::net::ConnectionFactory::create(context, config);
 }
 
 auto create_connection_manager(auto &handler, auto &settings, auto &connection_factory) {
-  auto config = roq::io::net::ConnectionManager::Config{
+  auto config = io::net::ConnectionManager::Config{
       .connection_timeout = settings.net.connection_timeout,
       .disconnect_on_idle_timeout = {},
       .always_reconnect = true,
   };
-  return roq::io::net::ConnectionManager::create(handler, connection_factory, config);
+  return io::net::ConnectionManager::create(handler, connection_factory, config);
 }
 }  // namespace
 
@@ -61,9 +61,9 @@ auto create_connection_manager(auto &handler, auto &settings, auto &connection_f
 Session::Session(
     Handler &handler,
     Settings const &settings,
-    roq::io::Context &context,
+    io::Context &context,
     Shared &shared,
-    roq::io::web::URI const &uri,
+    io::web::URI const &uri,
     std::string_view const &username,
     std::string_view const &password)
     : handler_{handler}, shared_{shared}, username_{username}, password_{password},
@@ -75,15 +75,15 @@ Session::Session(
       disable_market_data_{settings.test.disable_market_data} {
 }
 
-void Session::operator()(roq::Event<roq::Start> const &) {
+void Session::operator()(Event<Start> const &) {
   (*connection_manager_).start();
 }
 
-void Session::operator()(roq::Event<roq::Stop> const &) {
+void Session::operator()(Event<Stop> const &) {
   (*connection_manager_).stop();
 }
 
-void Session::operator()(roq::Event<roq::Timer> const &event) {
+void Session::operator()(Event<Timer> const &event) {
   auto now = event.value.now;
   (*connection_manager_).refresh(now);
   if (state_ <= State::LOGON_SENT)
@@ -98,45 +98,45 @@ bool Session::ready() const {
   return state_ == State::READY;
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &event) {
+void Session::operator()(Trace<fix_bridge::fix::OrderStatusRequest> const &event) {
   send(event);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &event) {
+void Session::operator()(Trace<fix_bridge::fix::NewOrderSingle> const &event) {
   send(event);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &event) {
+void Session::operator()(Trace<fix_bridge::fix::OrderCancelReplaceRequest> const &event) {
   send(event);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &event) {
+void Session::operator()(Trace<fix_bridge::fix::OrderCancelRequest> const &event) {
   send(event);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderMassStatusRequest> const &event) {
+void Session::operator()(Trace<fix_bridge::fix::OrderMassStatusRequest> const &event) {
   send(event);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderMassCancelRequest> const &event) {
+void Session::operator()(Trace<fix_bridge::fix::OrderMassCancelRequest> const &event) {
   send(event);
 }
 
 void Session::operator()(Session::State state) {
-  if (roq::utils::update(state_, state))
-    roq::log::debug("state={}"sv, magic_enum::enum_name(state));
+  if (utils::update(state_, state))
+    log::debug("state={}"sv, magic_enum::enum_name(state));
 }
 
 // io::net::ConnectionManager::Handler
 
-void Session::operator()(roq::io::net::ConnectionManager::Connected const &) {
-  roq::log::debug("Connected"sv);
+void Session::operator()(io::net::ConnectionManager::Connected const &) {
+  log::debug("Connected"sv);
   send_logon();
   (*this)(State::LOGON_SENT);
 }
 
-void Session::operator()(roq::io::net::ConnectionManager::Disconnected const &) {
-  roq::log::debug("Disconnected"sv);
+void Session::operator()(io::net::ConnectionManager::Disconnected const &) {
+  log::debug("Disconnected"sv);
   outbound_ = {};
   inbound_ = {};
   next_heartbeat_ = {};
@@ -144,30 +144,30 @@ void Session::operator()(roq::io::net::ConnectionManager::Disconnected const &) 
   (*this)(State::DISCONNECTED);
 }
 
-void Session::operator()(roq::io::net::ConnectionManager::Read const &) {
+void Session::operator()(io::net::ConnectionManager::Read const &) {
   auto logger = [this](auto &message) {
     if (debug_) [[unlikely]]
-      roq::log::info("{}"sv, roq::debug::fix::Message{message});
+      log::info("{}"sv, debug::fix::Message{message});
   };
   auto buffer = (*connection_manager_).buffer();
   size_t total_bytes = 0;
   while (!std::empty(buffer)) {
-    roq::TraceInfo trace_info;
+    TraceInfo trace_info;
     auto parser = [&](auto &message) {
       try {
         check(message.header);
-        roq::Trace event{trace_info, message};
+        Trace event{trace_info, message};
         parse(event);
       } catch (std::exception &) {
-        roq::log::warn("{}"sv, roq::debug::fix::Message{buffer});
+        log::warn("{}"sv, debug::fix::Message{buffer});
 #ifndef NDEBUG
-        roq::log::warn("{}"sv, roq::debug::hex::Message{buffer});
+        log::warn("{}"sv, debug::hex::Message{buffer});
 #endif
-        roq::log::error("Message could not be parsed. PLEASE REPORT!"sv);
+        log::error("Message could not be parsed. PLEASE REPORT!"sv);
         throw;
       }
     };
-    auto bytes = roq::fix::Reader<FIX_VERSION>::dispatch(buffer, parser, logger);
+    auto bytes = fix::Reader<FIX_VERSION>::dispatch(buffer, parser, logger);
     if (bytes == 0)
       break;
     assert(bytes <= std::size(buffer));
@@ -179,19 +179,19 @@ void Session::operator()(roq::io::net::ConnectionManager::Read const &) {
 
 // inbound
 
-void Session::check(roq::fix::Header const &header) {
+void Session::check(fix::Header const &header) {
   auto current = header.msg_seq_num;
   auto expected = inbound_.msg_seq_num + 1;
   if (current != expected) [[unlikely]] {
     if (expected < current) {
-      roq::log::warn(
+      log::warn(
           "*** SEQUENCE GAP *** "
           "current={} previous={} distance={}"sv,
           current,
           inbound_.msg_seq_num,
           current - inbound_.msg_seq_num);
     } else {
-      roq::log::warn(
+      log::warn(
           "*** SEQUENCE REPLAY *** "
           "current={} previous={} distance={}"sv,
           current,
@@ -202,142 +202,141 @@ void Session::check(roq::fix::Header const &header) {
   inbound_.msg_seq_num = current;
 }
 
-void Session::parse(roq::Trace<roq::fix::Message> const &event) {
+void Session::parse(Trace<fix::Message> const &event) {
   auto &[trace_info, message] = event;
   auto &header = message.header;
   switch (header.msg_type) {
-    using enum roq::fix::MsgType;
+    using enum fix::MsgType;
     case REJECT: {
-      auto reject = roq::fix_bridge::fix::Reject::create(message);
+      auto reject = fix_bridge::fix::Reject::create(message);
       dispatch(event, reject);
       break;
     }
     case RESEND_REQUEST: {
-      auto resend_request = roq::fix_bridge::fix::ResendRequest::create(message);
+      auto resend_request = fix_bridge::fix::ResendRequest::create(message);
       dispatch(event, resend_request);
       break;
     }
     case LOGON: {
-      auto logon = roq::fix_bridge::fix::Logon::create(message);
+      auto logon = fix_bridge::fix::Logon::create(message);
       dispatch(event, logon);
       break;
     }
     case LOGOUT: {
-      auto logout = roq::fix_bridge::fix::Heartbeat::create(message);
+      auto logout = fix_bridge::fix::Heartbeat::create(message);
       dispatch(event, logout);
       break;
     }
     case HEARTBEAT: {
-      auto heartbeat = roq::fix_bridge::fix::Heartbeat::create(message);
+      auto heartbeat = fix_bridge::fix::Heartbeat::create(message);
       dispatch(event, heartbeat);
       break;
     }
     case TEST_REQUEST: {
-      auto test_request = roq::fix_bridge::fix::TestRequest::create(message);
+      auto test_request = fix_bridge::fix::TestRequest::create(message);
       dispatch(event, test_request);
       break;
     }
     case BUSINESS_MESSAGE_REJECT: {
-      auto business_message_reject = roq::fix_bridge::fix::BusinessMessageReject::create(message);
+      auto business_message_reject = fix_bridge::fix::BusinessMessageReject::create(message);
       dispatch(event, business_message_reject);
       break;
     }
     case SECURITY_LIST: {
-      auto security_list = roq::fix_bridge::fix::SecurityList::create(message, decode_buffer_);
+      auto security_list = fix_bridge::fix::SecurityList::create(message, decode_buffer_);
       dispatch(event, security_list);
       break;
     }
     case SECURITY_DEFINITION: {
-      auto security_definition = roq::fix_bridge::fix::SecurityDefinition::create(message, decode_buffer_);
+      auto security_definition = fix_bridge::fix::SecurityDefinition::create(message, decode_buffer_);
       dispatch(event, security_definition);
       break;
     }
     case MARKET_DATA_REQUEST_REJECT: {
-      auto market_data_request_reject = roq::fix_bridge::fix::MarketDataRequestReject::create(message, decode_buffer_);
+      auto market_data_request_reject = fix_bridge::fix::MarketDataRequestReject::create(message, decode_buffer_);
       dispatch(event, market_data_request_reject);
       break;
     }
     case MARKET_DATA_SNAPSHOT_FULL_REFRESH: {
       auto market_data_snapshot_full_refresh =
-          roq::fix_bridge::fix::MarketDataSnapshotFullRefresh::create(message, decode_buffer_);
+          fix_bridge::fix::MarketDataSnapshotFullRefresh::create(message, decode_buffer_);
       dispatch(event, market_data_snapshot_full_refresh);
       break;
     }
     case MARKET_DATA_INCREMENTAL_REFRESH: {
       auto market_data_incremental_refresh =
-          roq::fix_bridge::fix::MarketDataIncrementalRefresh::create(message, decode_buffer_);
+          fix_bridge::fix::MarketDataIncrementalRefresh::create(message, decode_buffer_);
       dispatch(event, market_data_incremental_refresh);
       break;
     }
     case ORDER_CANCEL_REJECT: {
-      auto order_cancel_reject = roq::fix_bridge::fix::OrderCancelReject::create(message, decode_buffer_);
+      auto order_cancel_reject = fix_bridge::fix::OrderCancelReject::create(message, decode_buffer_);
       dispatch(event, order_cancel_reject);
       break;
     }
     case EXECUTION_REPORT: {
-      auto execution_report = roq::fix_bridge::fix::ExecutionReport::create(message, decode_buffer_);
+      auto execution_report = fix_bridge::fix::ExecutionReport::create(message, decode_buffer_);
       dispatch(event, execution_report);
       break;
     }
     default:
-      roq::log::warn("Unexpected msg_type={}"sv, header.msg_type);
+      log::warn("Unexpected msg_type={}"sv, header.msg_type);
   }
 }
 
 template <typename T>
-void Session::dispatch(roq::Trace<roq::fix::Message> const &event, T const &value) {
+void Session::dispatch(Trace<fix::Message> const &event, T const &value) {
   auto &[trace_info, message] = event;
-  roq::Trace event_2{trace_info, value};
+  Trace event_2{trace_info, value};
   (*this)(event_2, message.header);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::Reject> const &event, roq::fix::Header const &) {
+void Session::operator()(Trace<fix_bridge::fix::Reject> const &event, fix::Header const &) {
   auto &[trace_info, reject] = event;
-  roq::log::debug("reject={}, trace_info={}"sv, reject, trace_info);
+  log::debug("reject={}, trace_info={}"sv, reject, trace_info);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::ResendRequest> const &event, roq::fix::Header const &) {
+void Session::operator()(Trace<fix_bridge::fix::ResendRequest> const &event, fix::Header const &) {
   auto &[trace_info, resend_request] = event;
-  roq::log::debug("resend_request={}, trace_info={}"sv, resend_request, trace_info);
+  log::debug("resend_request={}, trace_info={}"sv, resend_request, trace_info);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logon> const &event, roq::fix::Header const &) {
+void Session::operator()(Trace<fix_bridge::fix::Logon> const &event, fix::Header const &) {
   auto &[trace_info, logon] = event;
-  roq::log::debug("logon={}, trace_info={}"sv, logon, trace_info);
+  log::debug("logon={}, trace_info={}"sv, logon, trace_info);
   assert(state_ == State::LOGON_SENT);
   download_security_list();
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::Logout> const &event, roq::fix::Header const &) {
+void Session::operator()(Trace<fix_bridge::fix::Logout> const &event, fix::Header const &) {
   auto &[trace_info, logout] = event;
-  roq::log::debug("logout={}, trace_info={}"sv, logout, trace_info);
+  log::debug("logout={}, trace_info={}"sv, logout, trace_info);
   // note! mandated, must send a logout response
   send_logout(LOGOUT_RESPONSE);
-  roq::log::warn("closing connection"sv);
+  log::warn("closing connection"sv);
   (*connection_manager_).close();
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::Heartbeat> const &event, roq::fix::Header const &) {
+void Session::operator()(Trace<fix_bridge::fix::Heartbeat> const &event, fix::Header const &) {
   auto &[trace_info, heartbeat] = event;
-  roq::log::debug("heartbeat={}, trace_info={}"sv, heartbeat, trace_info);
+  log::debug("heartbeat={}, trace_info={}"sv, heartbeat, trace_info);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::TestRequest> const &event, roq::fix::Header const &) {
+void Session::operator()(Trace<fix_bridge::fix::TestRequest> const &event, fix::Header const &) {
   auto &[trace_info, test_request] = event;
-  roq::log::debug("test_request={}, trace_info={}"sv, test_request, trace_info);
+  log::debug("test_request={}, trace_info={}"sv, test_request, trace_info);
   send_heartbeat(test_request.test_req_id);
 }
 
-void Session::operator()(
-    roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &event, roq::fix::Header const &) {
+void Session::operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &event, fix::Header const &) {
   auto &[trace_info, business_message_reject] = event;
-  roq::log::debug("business_message_reject={}, trace_info={}"sv, business_message_reject, trace_info);
+  log::debug("business_message_reject={}, trace_info={}"sv, business_message_reject, trace_info);
   handler_(event, username_);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::SecurityList> const &event, roq::fix::Header const &) {
+void Session::operator()(Trace<fix_bridge::fix::SecurityList> const &event, fix::Header const &) {
   auto &[trace_info, security_list] = event;
-  roq::log::debug("security_list={}, trace_info={}"sv, security_list, trace_info);
+  log::debug("security_list={}, trace_info={}"sv, security_list, trace_info);
   assert(state_ == State::GET_SECURITY_LIST);
   for (auto &item : security_list.no_related_sym) {
     if (shared_.include(item.symbol)) {
@@ -350,42 +349,38 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::SecurityList> const &e
   (*this)(State::READY);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::SecurityDefinition> const &event, roq::fix::Header const &) {
+void Session::operator()(Trace<fix_bridge::fix::SecurityDefinition> const &event, fix::Header const &) {
   auto &[trace_info, security_definition] = event;
-  roq::log::debug("security_definition={}, trace_info={}"sv, security_definition, trace_info);
+  log::debug("security_definition={}, trace_info={}"sv, security_definition, trace_info);
   handler_(event);
 }
 
-void Session::operator()(
-    roq::Trace<roq::fix_bridge::fix::MarketDataRequestReject> const &event, roq::fix::Header const &) {
+void Session::operator()(Trace<fix_bridge::fix::MarketDataRequestReject> const &event, fix::Header const &) {
   auto &[trace_info, market_data_request_reject] = event;
-  roq::log::debug("market_data_request_reject={}, trace_info={}"sv, market_data_request_reject, trace_info);
+  log::debug("market_data_request_reject={}, trace_info={}"sv, market_data_request_reject, trace_info);
 }
 
-void Session::operator()(
-    roq::Trace<roq::fix_bridge::fix::MarketDataSnapshotFullRefresh> const &event, roq::fix::Header const &) {
+void Session::operator()(Trace<fix_bridge::fix::MarketDataSnapshotFullRefresh> const &event, fix::Header const &) {
   auto &[trace_info, market_data_snapshot_full_refresh] = event;
-  roq::log::debug(
-      "market_data_snapshot_full_refresh={}, trace_info={}"sv, market_data_snapshot_full_refresh, trace_info);
+  log::debug("market_data_snapshot_full_refresh={}, trace_info={}"sv, market_data_snapshot_full_refresh, trace_info);
   // XXX must forward
 }
 
-void Session::operator()(
-    roq::Trace<roq::fix_bridge::fix::MarketDataIncrementalRefresh> const &event, roq::fix::Header const &) {
+void Session::operator()(Trace<fix_bridge::fix::MarketDataIncrementalRefresh> const &event, fix::Header const &) {
   auto &[trace_info, market_data_incremental_refresh] = event;
-  roq::log::debug("market_data_incremental_refresh={}, trace_info={}"sv, market_data_incremental_refresh, trace_info);
+  log::debug("market_data_incremental_refresh={}, trace_info={}"sv, market_data_incremental_refresh, trace_info);
   // XXX must forward
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &event, roq::fix::Header const &) {
+void Session::operator()(Trace<fix_bridge::fix::OrderCancelReject> const &event, fix::Header const &) {
   auto &[trace_info, order_cancel_reject] = event;
-  roq::log::debug("order_cancel_reject={}, trace_info={}"sv, order_cancel_reject, trace_info);
+  log::debug("order_cancel_reject={}, trace_info={}"sv, order_cancel_reject, trace_info);
   handler_(event, username_);
 }
 
-void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &event, roq::fix::Header const &) {
+void Session::operator()(Trace<fix_bridge::fix::ExecutionReport> const &event, fix::Header const &) {
   auto &[trace_info, execution_report] = event;
-  roq::log::debug("execution_report={}, trace_info={}"sv, execution_report, trace_info);
+  log::debug("execution_report={}, trace_info={}"sv, execution_report, trace_info);
   handler_(event, username_);
 }
 
@@ -393,10 +388,10 @@ void Session::operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const
 
 template <typename T>
 void Session::send(T const &value) {
-  if constexpr (roq::utils::is_specialization<T, roq::Trace>::value) {
+  if constexpr (utils::is_specialization<T, Trace>::value) {
     // external
     if (!ready())
-      throw roq::oms::NotReady{"not ready"sv};
+      throw oms::NotReady{"not ready"sv};
     send_helper(value.value);
   } else {
     // internal
@@ -406,8 +401,8 @@ void Session::send(T const &value) {
 
 template <typename T>
 void Session::send_helper(T const &value) {
-  auto sending_time = roq::clock::get_realtime();
-  auto header = roq::fix::Header{
+  auto sending_time = clock::get_realtime();
+  auto header = fix::Header{
       .version = FIX_VERSION,
       .msg_type = T::MSG_TYPE,
       .sender_comp_id = sender_comp_id_,
@@ -417,14 +412,14 @@ void Session::send_helper(T const &value) {
   };
   auto message = value.encode(header, encode_buffer_);
   if (debug_) [[unlikely]]
-    roq::log::info("{}"sv, roq::debug::fix::Message{message});
+    log::info("{}"sv, debug::fix::Message{message});
   (*connection_manager_).send(message);
 }
 
 void Session::send_logon() {
-  auto heart_bt_int = static_cast<decltype(roq::fix_bridge::fix::Logon::heart_bt_int)>(
+  auto heart_bt_int = static_cast<decltype(fix_bridge::fix::Logon::heart_bt_int)>(
       std::chrono::duration_cast<std::chrono::seconds>(ping_freq_).count());
-  auto logon = roq::fix_bridge::fix::Logon{
+  auto logon = fix_bridge::fix::Logon{
       .encrypt_method = {},
       .heart_bt_int = heart_bt_int,
       .reset_seq_num_flag = true,
@@ -436,14 +431,14 @@ void Session::send_logon() {
 }
 
 void Session::send_logout(std::string_view const &text) {
-  auto logout = roq::fix_bridge::fix::Logout{
+  auto logout = fix_bridge::fix::Logout{
       .text = text,
   };
   send(logout);
 }
 
 void Session::send_heartbeat(std::string_view const &test_req_id) {
-  auto heartbeat = roq::fix_bridge::fix::Heartbeat{
+  auto heartbeat = fix_bridge::fix::Heartbeat{
       .test_req_id = test_req_id,
   };
   send(heartbeat);
@@ -451,52 +446,52 @@ void Session::send_heartbeat(std::string_view const &test_req_id) {
 
 void Session::send_test_request(std::chrono::nanoseconds now) {
   auto test_req_id = fmt::format("{}"sv, now.count());
-  auto test_request = roq::fix_bridge::fix::TestRequest{
+  auto test_request = fix_bridge::fix::TestRequest{
       .test_req_id = test_req_id,
   };
   send(test_request);
 }
 
 void Session::send_security_list_request() {
-  auto security_list_request = roq::fix_bridge::fix::SecurityListRequest{
+  auto security_list_request = fix_bridge::fix::SecurityListRequest{
       .security_req_id = "test"sv,
-      .security_list_request_type = roq::fix::SecurityListRequestType::ALL_SECURITIES,
+      .security_list_request_type = fix::SecurityListRequestType::ALL_SECURITIES,
       .symbol = {},
       .security_exchange = {},
       .trading_session_id = {},
-      .subscription_request_type = roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
+      .subscription_request_type = fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
   };
   send(security_list_request);
 }
 
 void Session::send_security_definition_request(std::string_view const &exchange, std::string_view const &symbol) {
-  auto security_definition_request = roq::fix_bridge::fix::SecurityDefinitionRequest{
+  auto security_definition_request = fix_bridge::fix::SecurityDefinitionRequest{
       .security_req_id = "test"sv,
-      .security_request_type = roq::fix::SecurityRequestType::REQUEST_LIST_SECURITIES,
+      .security_request_type = fix::SecurityRequestType::REQUEST_LIST_SECURITIES,
       .symbol = symbol,
       .security_exchange = exchange,
       .trading_session_id = {},
-      .subscription_request_type = roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
+      .subscription_request_type = fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
   };
   send(security_definition_request);
 }
 
 void Session::send_market_data_request(std::string_view const &exchange, std::string_view const &symbol) {
-  auto md_entry_types = std::array<roq::fix_bridge::fix::MDReq, 2>{{
-      {.md_entry_type = roq::fix::MDEntryType::BID},
-      {.md_entry_type = roq::fix::MDEntryType::OFFER},
+  auto md_entry_types = std::array<fix_bridge::fix::MDReq, 2>{{
+      {.md_entry_type = fix::MDEntryType::BID},
+      {.md_entry_type = fix::MDEntryType::OFFER},
   }};
-  auto related_sym = std::array<roq::fix_bridge::fix::InstrmtMDReq, 1>{{
+  auto related_sym = std::array<fix_bridge::fix::InstrmtMDReq, 1>{{
       {
           .symbol = symbol,
           .security_exchange = exchange,
       },
   }};
-  auto market_data_request = roq::fix_bridge::fix::MarketDataRequest{
+  auto market_data_request = fix_bridge::fix::MarketDataRequest{
       .md_req_id = "test"sv,
-      .subscription_request_type = roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
+      .subscription_request_type = fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
       .market_depth = market_depth_,
-      .md_update_type = roq::fix::MDUpdateType::INCREMENTAL_REFRESH,
+      .md_update_type = fix::MDUpdateType::INCREMENTAL_REFRESH,
       .aggregated_book = true,  // note! false=MbO, true=MbP
       .no_md_entry_types = md_entry_types,
       .no_related_sym = related_sym,

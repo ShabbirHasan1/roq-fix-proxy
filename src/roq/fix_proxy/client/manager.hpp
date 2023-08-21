@@ -25,7 +25,7 @@ namespace fix_proxy {
 namespace client {
 
 struct Manager final : public fix::Listener::Handler, public json::Listener::Handler {
-  Manager(Session::Handler &, Settings const &, roq::io::Context &, Shared &);
+  Manager(Session::Handler &, Settings const &, io::Context &, Shared &);
 
   void operator()(Timer const &);
 
