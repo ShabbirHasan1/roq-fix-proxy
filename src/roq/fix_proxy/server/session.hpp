@@ -45,7 +45,7 @@
 
 namespace roq {
 namespace fix_proxy {
-namespace fix {
+namespace server {
 
 // note! supports both rest and websocket
 
@@ -187,6 +187,6 @@ struct Session final : public roq::io::net::ConnectionManager::Handler {
   bool const disable_market_data_;
 };
 
-}  // namespace fix
+}  // namespace server
 }  // namespace fix_proxy
 }  // namespace roq

@@ -1,6 +1,9 @@
-set(TARGET_NAME ${PROJECT_NAME}-rest)
+set(TARGET_NAME ${PROJECT_NAME}-client)
 
-set(SOURCES response.cpp session.cpp)
+add_subdirectory(fix)
+add_subdirectory(json)
+
+set(SOURCES manager.cpp)
 
 add_library(${TARGET_NAME} OBJECT ${SOURCES})
 

@@ -1,6 +1,6 @@
 /* Copyright (c) 2017-2023, Hans Erik Thrane */
 
-#include "roq/fix_proxy/fix/session.hpp"
+#include "roq/fix_proxy/server/session.hpp"
 
 #include "roq/logging.hpp"
 
@@ -25,7 +25,7 @@ using namespace std::literals;
 
 namespace roq {
 namespace fix_proxy {
-namespace fix {
+namespace server {
 
 // === CONSTANTS ===
 
@@ -515,6 +515,6 @@ void Session::download_security_list() {
   (*this)(State::GET_SECURITY_LIST);
 }
 
-}  // namespace fix
+}  // namespace server
 }  // namespace fix_proxy
 }  // namespace roq

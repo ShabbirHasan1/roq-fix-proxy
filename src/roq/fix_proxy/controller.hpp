@@ -16,18 +16,18 @@
 #include "roq/fix_proxy/settings.hpp"
 #include "roq/fix_proxy/shared.hpp"
 
-#include "roq/fix_proxy/fix/session.hpp"
+#include "roq/fix_proxy/server/session.hpp"
 
-#include "roq/fix_proxy/rest/session.hpp"
+#include "roq/fix_proxy/client/manager.hpp"
+#include "roq/fix_proxy/client/session.hpp"
 
 namespace roq {
 namespace fix_proxy {
 
-struct Controller final : public roq::io::net::tcp::Listener::Handler,
-                          public roq::io::sys::Signal::Handler,
+struct Controller final : public roq::io::sys::Signal::Handler,
                           public roq::io::sys::Timer::Handler,
-                          public fix::Session::Handler,
-                          public rest::Session::Handler {
+                          public server::Session::Handler,
+                          public client::Session::Handler {
   Controller(
       Settings const &, Config const &, roq::io::Context &, std::span<std::string_view const> const &connections);
 
@@ -40,10 +40,7 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
   // io::sys::Timer::Handler
   void operator()(roq::io::sys::Timer::Event const &) override;
 
-  // io::net::tcp::Listener::Handler
-  void operator()(roq::io::net::tcp::Connection::Factory &) override;
-
-  // fix::Session::Handler
+  // server::Session::Handler
   void operator()(roq::Trace<roq::fix_bridge::fix::SecurityDefinition> const &) override;
   void operator()(
       roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &, std::string_view const &username) override;
@@ -51,7 +48,7 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
       roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &, std::string_view const &username) override;
   void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &, std::string_view const &username) override;
 
-  // rest::Session::Handler
+  // client::Session::Handler
   void operator()(
       roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &, std::string_view const &username) override;
   void operator()(roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &, std::string_view const &username) override;
@@ -65,8 +62,6 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
       roq::Trace<roq::fix_bridge::fix::OrderMassCancelRequest> const &, std::string_view const &username) override;
 
   // utilities
-
-  void remove_zombies(std::chrono::nanoseconds now);
 
   template <typename... Args>
   void dispatch(Args &&...);
@@ -82,15 +77,9 @@ struct Controller final : public roq::io::net::tcp::Listener::Handler,
   std::unique_ptr<roq::io::sys::Signal> const terminate_;
   std::unique_ptr<roq::io::sys::Signal> const interrupt_;
   std::unique_ptr<roq::io::sys::Timer> const timer_;
-  //
   Shared shared_;
-  // fix
-  absl::flat_hash_map<std::string, std::unique_ptr<fix::Session>> fix_sessions_;
-  // json
-  std::unique_ptr<roq::io::net::tcp::Listener> const json_listener_;
-  absl::flat_hash_map<uint64_t, std::unique_ptr<rest::Session>> rest_sessions_;
-  std::chrono::nanoseconds next_garbage_collection_ = {};
-  uint64_t next_session_id_ = {};
+  absl::flat_hash_map<std::string, std::unique_ptr<server::Session>> server_sessions_;
+  client::Manager client_manager_;
 };
 
 }  // namespace fix_proxy

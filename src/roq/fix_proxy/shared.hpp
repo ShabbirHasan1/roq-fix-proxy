@@ -20,6 +20,8 @@ namespace fix_proxy {
 struct Shared final {
   Shared(Settings const &, Config const &);
 
+  uint64_t next_session_id = {};
+
   absl::flat_hash_set<std::string> symbols;
 
   bool include(std::string_view const &symbol) const;

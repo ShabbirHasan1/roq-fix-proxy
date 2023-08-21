@@ -1,12 +1,13 @@
 /* Copyright (c) 2017-2023, Hans Erik Thrane */
 
-#include "roq/fix_proxy/rest/response.hpp"
+#include "roq/fix_proxy/client/json/response.hpp"
 
 using namespace std::literals;
 
 namespace roq {
 namespace fix_proxy {
-namespace rest {
+namespace client {
+namespace json {
 
 // === CONSTANTS ===
 
@@ -39,6 +40,7 @@ void Response::send(
   server_.send(response);
 }
 
-}  // namespace rest
+}  // namespace json
+}  // namespace client
 }  // namespace fix_proxy
 }  // namespace roq

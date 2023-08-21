@@ -9,7 +9,8 @@
 
 namespace roq {
 namespace fix_proxy {
-namespace rest {
+namespace client {
+namespace json {
 
 // helper
 
@@ -36,6 +37,7 @@ struct Response final {
   std::string &encode_buffer_;
 };
 
-}  // namespace rest
+}  // namespace json
+}  // namespace client
 }  // namespace fix_proxy
 }  // namespace roq

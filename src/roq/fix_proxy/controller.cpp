@@ -8,6 +8,8 @@
 
 #include "roq/logging.hpp"
 
+#include "roq/fix_proxy/client/json/session.hpp"
+
 using namespace std::literals;
 
 namespace roq {
@@ -22,14 +24,14 @@ auto const TIMER_FREQUENCY = 100ms;
 // === HELPERS ===
 
 namespace {
-auto create_fix_sessions(auto &handler, auto &settings, auto &context, auto &shared, auto &connections) {
+auto create_server_sessions(auto &handler, auto &settings, auto &context, auto &shared, auto &connections) {
   if (std::size(connections) != 1)
     roq::log::fatal("Unexpected: only supporting 1 FIX connection (for now)"sv);
-  absl::flat_hash_map<std::string, std::unique_ptr<fix::Session>> result;
+  absl::flat_hash_map<std::string, std::unique_ptr<server::Session>> result;
   auto &connection = connections[0];
   auto uri = roq::io::web::URI{connection};
   roq::log::debug("{}"sv, uri);
-  auto session = std::make_unique<fix::Session>(
+  auto session = std::make_unique<server::Session>(
       handler, settings, context, shared, uri, settings.fix.username, settings.fix.password);
   result.emplace(settings.fix.username, std::move(session));
   return result;
@@ -52,8 +54,8 @@ Controller::Controller(
     : context_{context}, terminate_{context.create_signal(*this, roq::io::sys::Signal::Type::TERMINATE)},
       interrupt_{context.create_signal(*this, roq::io::sys::Signal::Type::INTERRUPT)},
       timer_{context.create_timer(*this, TIMER_FREQUENCY)}, shared_{settings, config},
-      fix_sessions_{create_fix_sessions(*this, settings, context, shared_, connections)},
-      json_listener_{create_json_listener(*this, settings, context_)} {
+      server_sessions_{create_server_sessions(*this, settings, context, shared_, connections)},
+      client_manager_{*this, settings, context, shared_} {
 }
 
 void Controller::run() {
@@ -81,16 +83,7 @@ void Controller::operator()(roq::io::sys::Timer::Event const &event) {
       .now = event.now,
   };
   dispatch(timer);
-  remove_zombies(event.now);
-}
-
-// io::net::tcp::Listener::Handler
-
-void Controller::operator()(roq::io::net::tcp::Connection::Factory &factory) {
-  auto session_id = ++next_session_id_;
-  roq::log::info("Adding session_id={}..."sv, session_id);
-  auto session = std::make_unique<rest::Session>(*this, session_id, factory, shared_);
-  rest_sessions_.try_emplace(session_id, std::move(session));
+  client_manager_(timer);
 }
 
 // fix::Session::Handler
@@ -149,25 +142,18 @@ void Controller::operator()(
 
 // utilities
 
-void Controller::remove_zombies(std::chrono::nanoseconds now) {
-  if (now < next_garbage_collection_)
-    return;
-  next_garbage_collection_ = now + 1s;
-  shared_.session_cleanup([&](auto session_id) { rest_sessions_.erase(session_id); });
-}
-
 template <typename... Args>
 void Controller::dispatch(Args &&...args) {
   auto message_info = roq::MessageInfo{};
   roq::Event event{message_info, std::forward<Args>(args)...};
-  for (auto &[_, item] : fix_sessions_)
+  for (auto &[_, item] : server_sessions_)
     (*item)(event);
 }
 
 template <typename T>
 void Controller::dispatch_to_fix(roq::Trace<T> const &event, std::string_view const &username) {
-  auto iter = fix_sessions_.find(username);
-  if (iter == std::end(fix_sessions_)) [[unlikely]]
+  auto iter = server_sessions_.find(username);
+  if (iter == std::end(server_sessions_)) [[unlikely]]
     roq::log::fatal(R"(Unexpected: username="{}")"sv, username);  // note! should not be possible
   (*(*iter).second)(event);
 }
@@ -176,11 +162,10 @@ template <typename T>
 void Controller::dispatch_to_json(roq::Trace<T> const &event, std::string_view const &username) {
   auto success = false;
   shared_.session_find(username, [&](auto session_id) {
-    auto iter = rest_sessions_.find(session_id);
-    if (iter != std::end(rest_sessions_)) {
-      (*(*iter).second)(event);
+    client_manager_.find(session_id, [&](auto &session) {
+      session(event);
       success = true;
-    }
+    });
   });
   if (!success)
     roq::log::warn<0>(R"(Undeliverable: username="{}")"sv);

@@ -1,6 +1,6 @@
 /* Copyright (c) 2017-2023, Hans Erik Thrane */
 
-#include "roq/fix_proxy/rest/session.hpp"
+#include "roq/fix_proxy/client/json/session.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -23,8 +23,8 @@
 
 #include "roq/fix_proxy/error.hpp"
 
-#include "roq/fix_proxy/rest/business_message_reject.hpp"
-#include "roq/fix_proxy/rest/execution_report.hpp"
+#include "roq/fix_proxy/client/json/business_message_reject.hpp"
+#include "roq/fix_proxy/client/json/execution_report.hpp"
 
 using namespace std::literals;
 
@@ -33,7 +33,8 @@ using namespace std::literals;
 
 namespace roq {
 namespace fix_proxy {
-namespace rest {
+namespace client {
+namespace json {
 
 // === CONSTANTS ===
 
@@ -111,7 +112,11 @@ T get(nlohmann::json::value_type const &value, std::string_view const &key) {
 
 // === IMPLEMENTATION ===
 
-Session::Session(Handler &handler, uint64_t session_id, roq::io::net::tcp::Connection::Factory &factory, Shared &shared)
+Session::Session(
+    client::Session::Handler &handler,
+    uint64_t session_id,
+    roq::io::net::tcp::Connection::Factory &factory,
+    Shared &shared)
     : handler_{handler}, session_id_{session_id}, server_{roq::web::rest::ServerFactory::create(*this, factory)},
       shared_{shared} {
 }
@@ -513,6 +518,7 @@ void Session::send_text(fmt::format_string<Args...> const &fmt, Args &&...args) 
   (*server_).send_text(shared_.encode_buffer);
 }
 
-}  // namespace rest
+}  // namespace json
+}  // namespace client
 }  // namespace fix_proxy
 }  // namespace roq

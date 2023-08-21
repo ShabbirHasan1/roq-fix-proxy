@@ -10,6 +10,7 @@
 
 namespace roq {
 namespace fix_proxy {
+namespace client {
 namespace json {
 
 // note! supports both rest and websocket
@@ -41,17 +42,18 @@ struct BusinessMessageReject final {
 };
 
 }  // namespace json
+}  // namespace client
 }  // namespace fix_proxy
 }  // namespace roq
 
 template <>
-struct fmt::formatter<roq::fix_proxy::json::BusinessMessageReject> {
+struct fmt::formatter<roq::fix_proxy::client::json::BusinessMessageReject> {
   template <typename Context>
   constexpr auto parse(Context &context) {
     return std::begin(context);
   }
   template <typename Context>
-  auto format(roq::fix_proxy::json::BusinessMessageReject const &value, Context &context) const {
+  auto format(roq::fix_proxy::client::json::BusinessMessageReject const &value, Context &context) const {
     return value.format_to(context);
   }
 };

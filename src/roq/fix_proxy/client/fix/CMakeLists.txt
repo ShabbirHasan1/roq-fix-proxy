@@ -1,6 +1,6 @@
-set(TARGET_NAME ${PROJECT_NAME}-fix)
+set(TARGET_NAME ${PROJECT_NAME}-client-fix)
 
-set(SOURCES session.cpp)
+set(SOURCES listener.cpp session.cpp)
 
 add_library(${TARGET_NAME} OBJECT ${SOURCES})
 

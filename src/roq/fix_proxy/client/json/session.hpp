@@ -13,47 +13,25 @@
 
 #include "roq/web/rest/server.hpp"
 
-#include "roq/fix_bridge/fix/business_message_reject.hpp"
-#include "roq/fix_bridge/fix/execution_report.hpp"
-#include "roq/fix_bridge/fix/new_order_single.hpp"
-#include "roq/fix_bridge/fix/order_cancel_reject.hpp"
-#include "roq/fix_bridge/fix/order_cancel_replace_request.hpp"
-#include "roq/fix_bridge/fix/order_cancel_request.hpp"
-#include "roq/fix_bridge/fix/order_mass_cancel_request.hpp"
-#include "roq/fix_bridge/fix/order_mass_status_request.hpp"
-#include "roq/fix_bridge/fix/order_status_request.hpp"
-
 #include "roq/fix_proxy/shared.hpp"
 
-#include "roq/fix_proxy/rest/response.hpp"
+#include "roq/fix_proxy/client/session.hpp"
+
+#include "roq/fix_proxy/client/json/response.hpp"
 
 namespace roq {
 namespace fix_proxy {
-namespace rest {
+namespace client {
+namespace json {
 
 // note! supports both rest and websocket
 
-struct Session final : public roq::web::rest::Server::Handler {
-  struct Handler {
-    virtual void operator()(
-        roq::Trace<roq::fix_bridge::fix::OrderStatusRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(
-        roq::Trace<roq::fix_bridge::fix::NewOrderSingle> const &, std::string_view const &username) = 0;
-    virtual void operator()(
-        roq::Trace<roq::fix_bridge::fix::OrderCancelReplaceRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(
-        roq::Trace<roq::fix_bridge::fix::OrderCancelRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(
-        roq::Trace<roq::fix_bridge::fix::OrderMassStatusRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(
-        roq::Trace<roq::fix_bridge::fix::OrderMassCancelRequest> const &, std::string_view const &username) = 0;
-  };
+struct Session final : public client::Session, public roq::web::rest::Server::Handler {
+  Session(client::Session::Handler &, uint64_t session_id, roq::io::net::tcp::Connection::Factory &, Shared &);
 
-  Session(Handler &, uint64_t session_id, roq::io::net::tcp::Connection::Factory &, Shared &);
-
-  void operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &);
-  void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &);
-  void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &);
+  void operator()(roq::Trace<roq::fix_bridge::fix::BusinessMessageReject> const &) override;
+  void operator()(roq::Trace<roq::fix_bridge::fix::OrderCancelReject> const &) override;
+  void operator()(roq::Trace<roq::fix_bridge::fix::ExecutionReport> const &) override;
 
  protected:
   bool ready() const;
@@ -104,7 +82,7 @@ struct Session final : public roq::web::rest::Server::Handler {
   void send_text(fmt::format_string<Args...> const &, Args &&...);
 
  private:
-  Handler &handler_;
+  client::Session::Handler &handler_;
   uint64_t const session_id_;
   std::unique_ptr<roq::web::rest::Server> server_;
   Shared &shared_;
@@ -112,6 +90,7 @@ struct Session final : public roq::web::rest::Server::Handler {
   std::string username_;
 };
 
-}  // namespace rest
+}  // namespace json
+}  // namespace client
 }  // namespace fix_proxy
 }  // namespace roq

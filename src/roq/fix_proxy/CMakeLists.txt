@@ -1,8 +1,8 @@
 set(TARGET_NAME ${PROJECT_NAME})
 
 add_subdirectory(flags)
-add_subdirectory(fix)
-add_subdirectory(rest)
+add_subdirectory(server)
+add_subdirectory(client)
 
 add_executable(
   ${TARGET_NAME}
@@ -19,8 +19,10 @@ add_dependencies(${TARGET_NAME} ${TARGET_NAME}-flags-autogen-headers)
 target_link_libraries(
   ${TARGET_NAME}
   PRIVATE ${TARGET_NAME}-flags
-          ${TARGET_NAME}-fix
-          ${TARGET_NAME}-rest
+          ${TARGET_NAME}-server
+          ${TARGET_NAME}-client-fix
+          ${TARGET_NAME}-client-json
+          ${TARGET_NAME}-client
           ${PROJECT_NAME}-third_party-re2
           roq-fix-bridge::roq-fix-bridge-fix
           roq-fix::roq-fix
