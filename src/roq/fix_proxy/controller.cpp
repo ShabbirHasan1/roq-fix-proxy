@@ -59,7 +59,7 @@ void Controller::operator()(io::sys::Timer::Event const &event) {
   dispatch(timer);
 }
 
-// fix::Session::Handler
+// server::Session::Handler
 
 void Controller::operator()(Trace<fix_bridge::fix::SecurityDefinition> const &event) {
   auto &[trace_info, security_definition] = event;
@@ -79,7 +79,7 @@ void Controller::operator()(Trace<fix_bridge::fix::ExecutionReport> const &event
   dispatch_to_client(event, username);
 }
 
-// rest::Session::Handler
+// client::Session::Handler
 
 void Controller::operator()(Trace<fix_bridge::fix::OrderStatusRequest> const &event, std::string_view const &username) {
   dispatch_to_server(event, username);
