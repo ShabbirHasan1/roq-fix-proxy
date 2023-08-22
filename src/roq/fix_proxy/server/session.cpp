@@ -362,13 +362,13 @@ void Session::operator()(Trace<fix_bridge::fix::MarketDataRequestReject> const &
 
 void Session::operator()(Trace<fix_bridge::fix::MarketDataSnapshotFullRefresh> const &event, fix::Header const &) {
   auto &[trace_info, market_data_snapshot_full_refresh] = event;
-  log::debug("market_data_snapshot_full_refresh={}, trace_info={}"sv, market_data_snapshot_full_refresh, trace_info);
+  log::debug<1>("market_data_snapshot_full_refresh={}, trace_info={}"sv, market_data_snapshot_full_refresh, trace_info);
   // XXX must forward
 }
 
 void Session::operator()(Trace<fix_bridge::fix::MarketDataIncrementalRefresh> const &event, fix::Header const &) {
   auto &[trace_info, market_data_incremental_refresh] = event;
-  log::debug("market_data_incremental_refresh={}, trace_info={}"sv, market_data_incremental_refresh, trace_info);
+  log::debug<1>("market_data_incremental_refresh={}, trace_info={}"sv, market_data_incremental_refresh, trace_info);
   // XXX must forward
 }
 

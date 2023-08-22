@@ -14,7 +14,6 @@
       "name": "json_listen_address",
       "type": "std::string",
       "validator": "roq::flags::validators::ListenAddress",
-      "required": true,
       "description": "listen address"
     },
     {
