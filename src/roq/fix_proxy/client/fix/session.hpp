@@ -69,9 +69,11 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
 
   // - send
   template <std::size_t level, typename T>
+  void send_and_close(T const &);
+  template <std::size_t level, typename T>
   void send(T const &);
   template <std::size_t level, typename T>
-  void send(T const &, std::chrono::nanoseconds sending_time, std::chrono::nanoseconds origin_create_time);
+  void send(T const &, std::chrono::nanoseconds sending_time);
 
   // - receive
   void check(roq::fix::Header const &);
@@ -113,7 +115,13 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   Shared &shared_;
   io::Buffer buffer_;
   enum class State { WAITING_LOGON, READY, ZOMBIE } state_ = {};
-  std::string username_;
+  struct {
+    uint64_t msg_seq_num = {};
+  } outbound_;
+  struct {
+    uint64_t msg_seq_num = {};
+  } inbound_;
+  std::string comp_id_;
   // buffer
   std::vector<std::byte> decode_buffer_;
   std::vector<std::byte> encode_buffer_;

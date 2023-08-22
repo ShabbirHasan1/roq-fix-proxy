@@ -4,9 +4,6 @@
 
 #include "roq/logging.hpp"
 
-#include "roq/fix_bridge/fix/logon.hpp"
-#include "roq/fix_bridge/fix/logout.hpp"
-
 using namespace std::literals;
 
 namespace roq {
@@ -19,6 +16,10 @@ namespace fix {
 namespace {
 auto const FIX_VERSION = roq::fix::Version::FIX_44;
 auto const ERROR_UNEXPECTED_MSG_TYPE = "UNEXPECTED MSG_TYPE"sv;
+auto const ERROR_UNKNOWN_TARGET_COMP_ID = "UNKNOWN TARGET_COMP_ID"sv;
+auto const ERROR_UNEXPECTED_LOGON = "UNEXPECTED LOGON"sv;
+auto const ERROR_NO_LOGON = "NO LOGON"sv;
+auto const ERROR_GOODBYE = "goodbye"sv;
 }  // namespace
 
 // === IMPLEMENTATION ===
@@ -131,63 +132,57 @@ void Session::operator()(io::net::tcp::Connection::Disconnected const &) {
 // utilities
 
 template <std::size_t level, typename T>
-void Session::send(T const &event) {
-  assert(state_ == State::READY);
+void Session::send_and_close(T const &event) {
+  assert(state_ != State::ZOMBIE);
   auto sending_time = clock::get_realtime();
-  send_helper<level>(event, sending_time);
+  send<level>(event, sending_time);
+  close();
 }
 
 template <std::size_t level, typename T>
-void Session::send(T const &event, std::chrono::nanoseconds sending_time, std::chrono::nanoseconds origin_create_time) {
-  /*
-  log::info<level>("{} sending: event={}"sv, prefix_, event);
+void Session::send(T const &event) {
+  assert(state_ == State::READY);
+  auto sending_time = clock::get_realtime();
+  send<level>(event, sending_time);
+}
+
+template <std::size_t level, typename T>
+void Session::send(T const &event, std::chrono::nanoseconds sending_time) {
+  log::info<level>("sending: event={}"sv, event);
   assert(!std::empty(comp_id_));
   auto header = roq::fix::Header{
       .version = FIX_VERSION,
       .msg_type = T::MSG_TYPE,
-      .sender_comp_id = shared_.settings.fix.fix_comp_id,
+      .sender_comp_id = shared_.settings.client.comp_id,
       .target_comp_id = comp_id_,
       .msg_seq_num = ++outbound_.msg_seq_num,  // note!
       .sending_time = sending_time,
   };
   auto message = event.encode(header, encode_buffer_);
-  shared_.fix_log.sending<level>(id_, message);
   (*connection_).send(message);
-  if (origin_create_time.count() == 0)
-    return;
-  auto now = clock::get_system();
-  auto latency = now - origin_create_time;
-  shared_.latency.end_to_end.update(latency.count());
-  */
 }
 
 void Session::check(roq::fix::Header const &header) {
-  /*
   auto current = header.msg_seq_num;
   auto expected = inbound_.msg_seq_num + 1;
   if (current != expected) [[unlikely]] {
     if (expected < current) {
       log::warn(
-          "{} "
           "*** SEQUENCE GAP *** "
           "current={} previous={} distance={}"sv,
-          prefix_,
           current,
           inbound_.msg_seq_num,
           current - inbound_.msg_seq_num);
     } else {
       log::warn(
-          "{} "
           "*** SEQUENCE REPLAY *** "
           "current={} previous={} distance={}"sv,
-          prefix_,
           current,
           inbound_.msg_seq_num,
           inbound_.msg_seq_num - current);
     }
   }
   inbound_.msg_seq_num = current;
-  */
 }
 
 void Session::parse(Trace<roq::fix::Message> const &event) {
@@ -265,7 +260,7 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
           .business_reject_reason = roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
           .text = ERROR_UNEXPECTED_MSG_TYPE,
       };
-      // send<2>(response);
+      send<2>(response);
       break;
     }
   };
@@ -281,12 +276,84 @@ void Session::dispatch(Trace<roq::fix::Message> const &event, Args &&...args) {
 
 // session
 
-void Session::operator()(Trace<fix_bridge::fix::Logon> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::Logon> const &, roq::fix::Header const &header) {
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON: {
+      comp_id_ = header.sender_comp_id;
+      if (header.target_comp_id != shared_.settings.client.comp_id) {
+        log::error(
+            R"(Unexpected target_comp_id="{}" (expected: "{}"))"sv,
+            header.target_comp_id,
+            shared_.settings.client.comp_id);
+        auto response = fix_bridge::fix::Reject{
+            .ref_seq_num = header.msg_seq_num,
+            .text = ERROR_UNKNOWN_TARGET_COMP_ID,
+            .ref_tag_id = {},
+            .ref_msg_type = header.msg_type,
+            .session_reject_reason = roq::fix::SessionRejectReason::OTHER,
+        };
+        send_and_close<2>(response);
+      } else {
+        // XXX proper logon
+        state_ = READY;
+        auto heart_bt_int = std::chrono::duration_cast<std::chrono::seconds>(shared_.settings.client.heartbeat_freq);
+        auto response = fix_bridge::fix::Logon{
+            .encrypt_method = roq::fix::EncryptMethod::NONE,
+            .heart_bt_int = static_cast<uint16_t>(heart_bt_int.count()),
+            .reset_seq_num_flag = {},
+            .next_expected_msg_seq_num = {},
+            .username = {},
+            .password = {},
+        };
+        send<2>(response);
+      }
+      break;
+    }
+    case READY: {
+      auto response = fix_bridge::fix::Reject{
+          .ref_seq_num = header.msg_seq_num,
+          .text = ERROR_UNEXPECTED_LOGON,
+          .ref_tag_id = {},
+          .ref_msg_type = header.msg_type,
+          .session_reject_reason = roq::fix::SessionRejectReason::OTHER,
+      };
+      send_and_close<2>(response);
+      break;
+    }
+    case ZOMBIE:
+      break;
+  }
 }
 
-void Session::operator()(Trace<fix_bridge::fix::Logout> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::Logout> const &event, roq::fix::Header const &header) {
+  auto &[trace_info, logout] = event;
+  log::info<1>("logout={}"sv, logout);
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON: {
+      auto response = fix_bridge::fix::Reject{
+          .ref_seq_num = header.msg_seq_num,
+          .text = ERROR_NO_LOGON,
+          .ref_tag_id = {},
+          .ref_msg_type = header.msg_type,
+          .session_reject_reason = roq::fix::SessionRejectReason::OTHER,
+      };
+      send_and_close<2>(response);
+      break;
+    }
+    case READY: {
+      auto response = fix_bridge::fix::Logout{
+          .text = ERROR_GOODBYE,
+      };
+      send_and_close<2>(response);
+      break;
+    }
+    case ZOMBIE:
+      assert(false);
+      // note! should already be closed
+      break;
+  }
 }
 
 void Session::operator()(Trace<fix_bridge::fix::TestRequest> const &, roq::fix::Header const &) {

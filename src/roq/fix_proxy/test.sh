@@ -6,6 +6,7 @@
   --server_sender_comp_id "roq-fix-client-test" \
   --server_username "trader" \
   --client_listen_address "tcp://localhost:1234" \
+  --client_comp_id "proxy" \
   --client_json_listen_address "tcp://localhost:2345" \
   tcp://localhost:3456 \
   $@
