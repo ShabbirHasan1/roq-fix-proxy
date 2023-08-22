@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "roq/stop.hpp"
+#include "roq/timer.hpp"
 #include "roq/trace.hpp"
 
 #include "roq/fix_bridge/fix/business_message_reject.hpp"
@@ -32,6 +34,9 @@ struct Session {
   };
 
   virtual ~Session() = default;
+
+  virtual void operator()(Event<Stop> const &) = 0;
+  virtual void operator()(Event<Timer> const &) = 0;
 
   virtual void operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &) = 0;
   virtual void operator()(Trace<fix_bridge::fix::OrderCancelReject> const &) = 0;

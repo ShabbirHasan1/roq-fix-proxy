@@ -7,6 +7,8 @@
 #include <chrono>
 #include <memory>
 
+#include "roq/start.hpp"
+#include "roq/stop.hpp"
 #include "roq/timer.hpp"
 
 #include "roq/io/context.hpp"
@@ -27,7 +29,14 @@ namespace client {
 struct Manager final : public fix::Listener::Handler, public json::Listener::Handler {
   Manager(Session::Handler &, Settings const &, io::Context &, Shared &);
 
-  void operator()(Timer const &);
+  void operator()(Event<Start> const &);
+  void operator()(Event<Stop> const &);
+  void operator()(Event<Timer> const &);
+
+  void dispatch(auto &value) {
+    for (auto &[_, item] : sessions_)
+      (*item)(value);
+  }
 
   template <typename Callback>
   bool find(uint64_t session_id, Callback callback) {

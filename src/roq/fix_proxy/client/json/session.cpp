@@ -118,6 +118,12 @@ Session::Session(
       shared_{shared} {
 }
 
+void Session::operator()(Event<Stop> const &) {
+}
+
+void Session::operator()(Event<Timer> const &) {
+}
+
 void Session::operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &event) {
   if (zombie())
     return;

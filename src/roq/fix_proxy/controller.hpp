@@ -16,6 +16,7 @@
 #include "roq/fix_proxy/settings.hpp"
 #include "roq/fix_proxy/shared.hpp"
 
+#include "roq/fix_proxy/server/manager.hpp"
 #include "roq/fix_proxy/server/session.hpp"
 
 #include "roq/fix_proxy/client/manager.hpp"
@@ -70,7 +71,7 @@ struct Controller final : public io::sys::Signal::Handler,
   std::unique_ptr<io::sys::Signal> const interrupt_;
   std::unique_ptr<io::sys::Timer> const timer_;
   Shared shared_;
-  absl::flat_hash_map<std::string, std::unique_ptr<server::Session>> server_sessions_;
+  server::Manager server_manager_;
   client::Manager client_manager_;
 };
 

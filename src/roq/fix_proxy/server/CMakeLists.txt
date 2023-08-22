@@ -1,6 +1,6 @@
 set(TARGET_NAME ${PROJECT_NAME}-server)
 
-set(SOURCES session.cpp)
+set(SOURCES manager.cpp session.cpp)
 
 add_library(${TARGET_NAME} OBJECT ${SOURCES})
 

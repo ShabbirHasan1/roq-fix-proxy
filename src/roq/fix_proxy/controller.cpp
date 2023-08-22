@@ -8,8 +8,6 @@
 
 #include "roq/logging.hpp"
 
-#include "roq/fix_proxy/client/json/session.hpp"
-
 using namespace std::literals;
 
 namespace roq {
@@ -21,23 +19,6 @@ namespace {
 auto const TIMER_FREQUENCY = 100ms;
 }
 
-// === HELPERS ===
-
-namespace {
-auto create_server_sessions(auto &handler, auto &settings, auto &context, auto &shared, auto &connections) {
-  if (std::size(connections) != 1)
-    log::fatal("Unexpected: only supporting 1 FIX connection (for now)"sv);
-  absl::flat_hash_map<std::string, std::unique_ptr<server::Session>> result;
-  auto &connection = connections[0];
-  auto uri = io::web::URI{connection};
-  log::debug("{}"sv, uri);
-  auto session = std::make_unique<server::Session>(
-      handler, settings, context, shared, uri, settings.fix.username, settings.fix.password);
-  result.emplace(settings.fix.username, std::move(session));
-  return result;
-}
-}  // namespace
-
 // === IMPLEMENTATION ===
 
 Controller::Controller(
@@ -48,7 +29,7 @@ Controller::Controller(
     : context_{context}, terminate_{context.create_signal(*this, io::sys::Signal::Type::TERMINATE)},
       interrupt_{context.create_signal(*this, io::sys::Signal::Type::INTERRUPT)},
       timer_{context.create_timer(*this, TIMER_FREQUENCY)}, shared_{settings, config},
-      server_sessions_{create_server_sessions(*this, settings, context, shared_, connections)},
+      server_manager_{*this, settings, context, shared_, connections},
       client_manager_{*this, settings, context, shared_} {
 }
 
@@ -77,7 +58,6 @@ void Controller::operator()(io::sys::Timer::Event const &event) {
       .now = event.now,
   };
   dispatch(timer);
-  client_manager_(timer);
 }
 
 // fix::Session::Handler
@@ -135,16 +115,16 @@ template <typename... Args>
 void Controller::dispatch(Args &&...args) {
   auto message_info = MessageInfo{};
   Event event{message_info, std::forward<Args>(args)...};
-  for (auto &[_, item] : server_sessions_)
-    (*item)(event);
+  server_manager_(event);
+  client_manager_(event);
 }
 
 template <typename T>
 void Controller::dispatch_to_server(Trace<T> const &event, std::string_view const &username) {
-  auto iter = server_sessions_.find(username);
-  if (iter == std::end(server_sessions_)) [[unlikely]]
+  if (server_manager_.find(username, [&](auto &session) { session(event); })) {
+  } else {
     log::fatal(R"(Unexpected: username="{}")"sv, username);  // note! should not be possible
-  (*(*iter).second)(event);
+  }
 }
 
 template <typename T>

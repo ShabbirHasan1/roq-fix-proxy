@@ -21,6 +21,9 @@ namespace fix {
 struct Session final : public client::Session, public io::net::tcp::Connection::Handler {
   Session(client::Session::Handler &, uint64_t session_id, io::net::tcp::Connection::Factory &, Shared &);
 
+  void operator()(Event<Stop> const &) override;
+  void operator()(Event<Timer> const &) override;
+
   void operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &) override;
   void operator()(Trace<fix_bridge::fix::OrderCancelReject> const &) override;
   void operator()(Trace<fix_bridge::fix::ExecutionReport> const &) override;
