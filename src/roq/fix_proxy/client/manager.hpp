@@ -48,7 +48,7 @@ struct Manager final : public fix::Listener::Handler, public json::Listener::Han
   }
 
  protected:
-  // json::Listener::Handler
+  // fix::Listener::Handler + json::Listener::Handler
   void operator()(Factory &) override;
 
   // utilities

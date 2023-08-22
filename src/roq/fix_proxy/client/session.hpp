@@ -2,14 +2,18 @@
 
 #pragma once
 
+#include "roq/event.hpp"
 #include "roq/stop.hpp"
 #include "roq/timer.hpp"
 #include "roq/trace.hpp"
 
+// inbound
 #include "roq/fix_bridge/fix/business_message_reject.hpp"
 #include "roq/fix_bridge/fix/execution_report.hpp"
-#include "roq/fix_bridge/fix/new_order_single.hpp"
 #include "roq/fix_bridge/fix/order_cancel_reject.hpp"
+
+// outbound
+#include "roq/fix_bridge/fix/new_order_single.hpp"
 #include "roq/fix_bridge/fix/order_cancel_replace_request.hpp"
 #include "roq/fix_bridge/fix/order_cancel_request.hpp"
 #include "roq/fix_bridge/fix/order_mass_cancel_request.hpp"

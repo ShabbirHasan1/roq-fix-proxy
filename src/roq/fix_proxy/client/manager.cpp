@@ -2,10 +2,6 @@
 
 #include "roq/fix_proxy/client/manager.hpp"
 
-#include "roq/event.hpp"
-#include "roq/exceptions.hpp"
-#include "roq/timer.hpp"
-
 #include "roq/logging.hpp"
 
 using namespace std::literals;
@@ -56,38 +52,6 @@ void Manager::remove_zombies(std::chrono::nanoseconds now) {
   next_garbage_collection_ = now + GARBAGE_COLLECTION_FREQUENCY;
   shared_.session_cleanup([&](auto session_id) { sessions_.erase(session_id); });
 }
-
-/*
-template <typename... Args>
-void Controller::dispatch(Args &&...args) {
-  auto message_info = MessageInfo{};
-  Event event{message_info, std::forward<Args>(args)...};
-  for (auto &[_, item] : server_sessions_)
-    (*item)(event);
-}
-
-template <typename T>
-void Controller::dispatch_to_fix(Trace<T> const &event, std::string_view const &username) {
-  auto iter = server_sessions_.find(username);
-  if (iter == std::end(server_sessions_)) [[unlikely]]
-    log::fatal(R"(Unexpected: username="{}")"sv, username);  // note! should not be possible
-  (*(*iter).second)(event);
-}
-
-template <typename T>
-void Controller::dispatch_to_json(Trace<T> const &event, std::string_view const &username) {
-  auto success = false;
-  shared_.session_find(username, [&](auto session_id) {
-    auto iter = client_sessions_.find(session_id);
-    if (iter != std::end(client_sessions_)) {
-      (*(*iter).second)(event);
-      success = true;
-    }
-  });
-  if (!success)
-    log::warn<0>(R"(Undeliverable: username="{}")"sv);
-}
-*/
 
 }  // namespace client
 }  // namespace fix_proxy

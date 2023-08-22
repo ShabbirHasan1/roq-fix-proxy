@@ -3,7 +3,6 @@
 #include "roq/fix_proxy/controller.hpp"
 
 #include "roq/event.hpp"
-#include "roq/exceptions.hpp"
 #include "roq/timer.hpp"
 
 #include "roq/logging.hpp"

@@ -6,6 +6,8 @@
 #include <absl/container/flat_hash_set.h>
 
 #include <memory>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "roq/api.hpp"
@@ -19,8 +21,7 @@
 
 #include "roq/fix/message.hpp"
 
-#include "roq/fix_bridge/fix/business_message_reject.hpp"
-#include "roq/fix_bridge/fix/execution_report.hpp"
+// inbound
 #include "roq/fix_bridge/fix/heartbeat.hpp"
 #include "roq/fix_bridge/fix/logon.hpp"
 #include "roq/fix_bridge/fix/logout.hpp"
@@ -28,7 +29,6 @@
 #include "roq/fix_bridge/fix/market_data_request_reject.hpp"
 #include "roq/fix_bridge/fix/market_data_snapshot_full_refresh.hpp"
 #include "roq/fix_bridge/fix/new_order_single.hpp"
-#include "roq/fix_bridge/fix/order_cancel_reject.hpp"
 #include "roq/fix_bridge/fix/order_cancel_replace_request.hpp"
 #include "roq/fix_bridge/fix/order_cancel_request.hpp"
 #include "roq/fix_bridge/fix/order_mass_cancel_request.hpp"
@@ -39,6 +39,11 @@
 #include "roq/fix_bridge/fix/security_definition.hpp"
 #include "roq/fix_bridge/fix/security_list.hpp"
 #include "roq/fix_bridge/fix/test_request.hpp"
+
+// outbound
+#include "roq/fix_bridge/fix/business_message_reject.hpp"
+#include "roq/fix_bridge/fix/execution_report.hpp"
+#include "roq/fix_bridge/fix/order_cancel_reject.hpp"
 
 #include "roq/fix_proxy/settings.hpp"
 #include "roq/fix_proxy/shared.hpp"

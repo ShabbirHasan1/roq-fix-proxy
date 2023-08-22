@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <span>
+#include <string>
 #include <string_view>
 
 #include "roq/io/context.hpp"
