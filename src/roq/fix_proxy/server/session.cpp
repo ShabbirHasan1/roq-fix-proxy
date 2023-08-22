@@ -67,11 +67,11 @@ Session::Session(
     std::string_view const &username,
     std::string_view const &password)
     : handler_{handler}, shared_{shared}, username_{username}, password_{password},
-      sender_comp_id_{settings.fix.sender_comp_id}, target_comp_id_{settings.fix.target_comp_id},
-      ping_freq_{settings.fix.ping_freq}, debug_{settings.fix.debug}, market_depth_{settings.fix.market_depth},
+      sender_comp_id_{settings.server.sender_comp_id}, target_comp_id_{settings.server.target_comp_id},
+      ping_freq_{settings.server.ping_freq}, debug_{settings.server.debug}, market_depth_{settings.server.market_depth},
       connection_factory_{create_connection_factory(settings, context, uri)},
       connection_manager_{create_connection_manager(*this, settings, *connection_factory_)},
-      decode_buffer_(settings.fix.decode_buffer_size), encode_buffer_(settings.fix.encode_buffer_size),
+      decode_buffer_(settings.server.decode_buffer_size), encode_buffer_(settings.server.encode_buffer_size),
       disable_market_data_{settings.test.disable_market_data} {
 }
 

@@ -1,8 +1,8 @@
 !!! THIS FILE HAS BEEN AUTO-GENERATED !!!
 roq-fix-proxy-flags
-fix.hpp
-rest.hpp
+server.hpp
+client.hpp
 flags.hpp
-fix.cpp
-rest.cpp
+server.cpp
+client.cpp
 flags.cpp

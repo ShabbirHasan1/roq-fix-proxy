@@ -1,0 +1,26 @@
+{
+  "name": "Client",
+  "type": "flags",
+  "prefix": "client_",
+  "values": [
+    {
+      "name": "listen_address",
+      "type": "std::string",
+      "validator": "roq::flags::validators::ListenAddress",
+      "required": true,
+      "description": "listen address"
+    },
+    {
+      "name": "json_listen_address",
+      "type": "std::string",
+      "validator": "roq::flags::validators::ListenAddress",
+      "required": true,
+      "description": "listen address"
+    },
+    {
+      "name": "json_url_prefix",
+      "type": "std::string",
+      "description": "json url prefix"
+    }
+  ]
+}

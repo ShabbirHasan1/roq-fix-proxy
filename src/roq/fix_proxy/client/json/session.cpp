@@ -191,8 +191,8 @@ void Session::operator()(web::rest::Server::Request const &request) {
     } else {
       log::info("DEBUG request={}"sv, request);
       auto path = request.path;  // note! url path has already been split
-      if (!std::empty(path) && !std::empty(shared_.settings.rest.url_prefix) &&
-          path[0] == shared_.settings.rest.url_prefix)
+      if (!std::empty(path) && !std::empty(shared_.settings.client.json_url_prefix) &&
+          path[0] == shared_.settings.client.json_url_prefix)
         path = path.subspan(1);  // drop prefix
       if (!std::empty(path)) {
         Response response{*server_, request, shared_.encode_buffer};

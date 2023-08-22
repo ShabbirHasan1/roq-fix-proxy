@@ -21,8 +21,8 @@ auto create_sessions(auto &handler, auto &settings, auto &context, auto &shared,
   auto uri = io::web::URI{connection};
   log::debug("{}"sv, uri);
   auto session = std::make_unique<server::Session>(
-      handler, settings, context, shared, uri, settings.fix.username, settings.fix.password);
-  result.emplace(settings.fix.username, std::move(session));
+      handler, settings, context, shared, uri, settings.server.username, settings.server.password);
+  result.emplace(settings.server.username, std::move(session));
   return result;
 }
 }  // namespace

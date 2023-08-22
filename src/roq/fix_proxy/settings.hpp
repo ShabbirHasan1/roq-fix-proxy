@@ -7,9 +7,9 @@
 
 #include "roq/args/parser.hpp"
 
-#include "roq/fix_proxy/flags/fix.hpp"
+#include "roq/fix_proxy/flags/client.hpp"
 #include "roq/fix_proxy/flags/flags.hpp"
-#include "roq/fix_proxy/flags/rest.hpp"
+#include "roq/fix_proxy/flags/server.hpp"
 
 namespace roq {
 namespace fix_proxy {
@@ -25,8 +25,8 @@ struct Settings final {
     bool tls_validate_certificate = {};
   } net;
 
-  flags::FIX fix;
-  flags::REST rest;
+  flags::Server server;
+  flags::Client client;
 
   struct {
     bool disable_market_data = {};

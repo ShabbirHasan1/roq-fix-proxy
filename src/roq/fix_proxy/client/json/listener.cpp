@@ -17,7 +17,9 @@ namespace json {
 
 namespace {
 auto create_listener(auto &handler, auto &settings, auto &context) {
-  auto network_address = io::NetworkAddress{settings.rest.listen_address};
+  if (std::empty(settings.client.json_listen_address))
+    return std::unique_ptr<io::net::tcp::Listener>();
+  auto network_address = io::NetworkAddress{settings.client.json_listen_address};
   log::debug("{}"sv, network_address);
   return context.create_tcp_listener(handler, network_address);
 }
