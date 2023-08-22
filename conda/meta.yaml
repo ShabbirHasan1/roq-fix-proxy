@@ -12,7 +12,7 @@ build:
     - ROQ_BUILD_NUMBER                                                                                                  
     - ROQ_BUILD_TYPE                                                                                                    
   run_exports:                                                                                                          
-    - {{ pin_subpackage('roq-fix-bridge', max_pin='x.x.x') }}
+    - {{ pin_subpackage('roq-fix-proxy', max_pin='x.x.x') }}
 
 requirements:
   build:
