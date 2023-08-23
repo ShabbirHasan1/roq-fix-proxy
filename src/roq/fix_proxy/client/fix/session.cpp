@@ -106,8 +106,10 @@ bool Session::zombie() const {
 }
 
 void Session::close() {
-  state_ = State::ZOMBIE;
-  (*connection_).close();
+  if (state_ != State::ZOMBIE) {
+    (*connection_).close();
+    make_zombie();
+  }
 }
 
 // io::net::tcp::Connection::Handler
@@ -151,9 +153,17 @@ void Session::operator()(io::net::tcp::Connection::Read const &) {
 }
 
 void Session::operator()(io::net::tcp::Connection::Disconnected const &) {
+  make_zombie();
 }
 
 // utilities
+
+void Session::make_zombie() {
+  if (state_ == State::ZOMBIE)
+    return;
+  state_ = State::ZOMBIE;
+  shared_.session_remove(session_id_);
+}
 
 template <std::size_t level, typename T>
 void Session::send_and_close(T const &event) {

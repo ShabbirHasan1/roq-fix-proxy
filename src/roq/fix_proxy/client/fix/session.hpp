@@ -67,6 +67,8 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
 
   // utilities
 
+  void make_zombie();
+
   // - send
   template <std::size_t level, typename T>
   void send_and_close(T const &);
