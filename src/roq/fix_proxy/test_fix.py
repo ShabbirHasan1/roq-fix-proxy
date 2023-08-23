@@ -11,7 +11,7 @@ if __name__ == "__main__":
     msg.append_pair(8, 'FIX.4.4')
     msg.append_pair(35, 'A')
     msg.append_pair(49, 'me')
-    msg.append_pair(56, 'you')
+    msg.append_pair(56, 'proxy')
     msg.append_utc_timestamp(52, precision=6, header=True)
     msg.append_pair(553, 'user')
     msg.append_pair(554, 'pwd')
