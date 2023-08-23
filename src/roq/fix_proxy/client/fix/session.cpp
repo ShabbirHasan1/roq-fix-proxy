@@ -392,10 +392,24 @@ void Session::operator()(Trace<fix_bridge::fix::Logout> const &event, roq::fix::
       break;
     }
     case READY: {
-      auto response = fix_bridge::fix::Logout{
-          .text = ERROR_GOODBYE,
+      auto success = [&]() {
+        username_.clear();
+        auto response = fix_bridge::fix::Logout{
+            .text = ERROR_GOODBYE,
+        };
+        send_and_close<2>(response);
       };
-      send_and_close<2>(response);
+      auto failure = [&](auto &reason) {
+        auto response = fix_bridge::fix::Reject{
+            .ref_seq_num = header.msg_seq_num,
+            .text = reason,
+            .ref_tag_id = {},
+            .ref_msg_type = header.msg_type,
+            .session_reject_reason = roq::fix::SessionRejectReason::OTHER,
+        };
+        send_and_close<2>(response);
+      };
+      shared_.session_logout(session_id_, success, failure);
       break;
     }
     case ZOMBIE:
