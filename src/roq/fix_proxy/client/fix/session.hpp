@@ -114,6 +114,7 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   std::unique_ptr<io::net::tcp::Connection> connection_;
   Shared &shared_;
   io::Buffer buffer_;
+  std::chrono::nanoseconds const logon_timeout_;
   enum class State { WAITING_LOGON, READY, ZOMBIE } state_ = {};
   struct {
     uint64_t msg_seq_num = {};
@@ -122,6 +123,9 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
     uint64_t msg_seq_num = {};
   } inbound_;
   std::string comp_id_;
+  std::string username_;
+  std::chrono::nanoseconds next_heartbeat_ = {};
+  bool waiting_for_heartbeat_ = {};
   // buffer
   std::vector<std::byte> decode_buffer_;
   std::vector<std::byte> encode_buffer_;

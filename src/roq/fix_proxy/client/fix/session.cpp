@@ -15,11 +15,23 @@ namespace fix {
 
 namespace {
 auto const FIX_VERSION = roq::fix::Version::FIX_44;
+
+auto const ERROR_GOODBYE = "goodbye"sv;
+auto const ERROR_MISSING_HEARTBEAT = "MISSING HEARTBEAT"sv;
+auto const ERROR_NO_LOGON = "NO LOGON"sv;
+auto const ERROR_UNEXPECTED_LOGON = "UNEXPECTED LOGON"sv;
 auto const ERROR_UNEXPECTED_MSG_TYPE = "UNEXPECTED MSG_TYPE"sv;
 auto const ERROR_UNKNOWN_TARGET_COMP_ID = "UNKNOWN TARGET_COMP_ID"sv;
-auto const ERROR_UNEXPECTED_LOGON = "UNEXPECTED LOGON"sv;
-auto const ERROR_NO_LOGON = "NO LOGON"sv;
-auto const ERROR_GOODBYE = "goodbye"sv;
+auto const ERROR_UNSUPPORTED_MSG_TYPE = "UNSUPPORTED MSG_TYPE"sv;
+}  // namespace
+
+// === HELPERS ===
+
+namespace {
+auto create_logon_timeout(auto &settings) {
+  auto now = clock::get_system();
+  return now + settings.client.logon_timeout;
+}
 }  // namespace
 
 // === IMPLEMENTATION ===
@@ -27,50 +39,62 @@ auto const ERROR_GOODBYE = "goodbye"sv;
 Session::Session(
     client::Session::Handler &handler, uint64_t session_id, io::net::tcp::Connection::Factory &factory, Shared &shared)
     : handler_{handler}, session_id_{session_id}, connection_{factory.create(*this)}, shared_{shared},
-      decode_buffer_(shared.settings.client.decode_buffer_size),
+      logon_timeout_{create_logon_timeout(shared_.settings)}, decode_buffer_(shared.settings.client.decode_buffer_size),
       encode_buffer_(shared.settings.client.encode_buffer_size) {
 }
 
 void Session::operator()(Event<Stop> const &) {
 }
 
-void Session::operator()(Event<Timer> const &) {
+void Session::operator()(Event<Timer> const &event) {
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON:
+      if (logon_timeout_ < event.value.now) {
+        log::warn("Closing connection (reason: client did not send a logon message)"sv);
+        close();
+      }
+      break;
+    case READY:
+      if (next_heartbeat_ < event.value.now) {
+        next_heartbeat_ = event.value.now + shared_.settings.client.heartbeat_freq;
+        if (waiting_for_heartbeat_) {
+          log::warn("Closing connection (reason: client did not send heartbeat)"sv);
+          auto logout = fix_bridge::fix::Logout{
+              .text = ERROR_MISSING_HEARTBEAT,
+          };
+          send_and_close<2>(logout);
+        } else {
+          auto test_req_id = fmt::format("{}"sv, event.value.now);  // XXX TODO something else
+          auto test_request = fix_bridge::fix::TestRequest{
+              .test_req_id = test_req_id,
+          };
+          send<4>(test_request);
+          waiting_for_heartbeat_ = true;
+        }
+      }
+      break;
+    case ZOMBIE:
+      break;
+  }
 }
 
 void Session::operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &event) {
-  if (zombie())
-    return;
-  /*
   auto &[trace_info, business_message_reject] = event;
-  send_text(
-      R"({{)"
-      R"("jsonrpc":"{}",)"
-      R"("method":"business_message_reject",)"
-      R"("params":{})"
-      R"(}})"sv,
-      JSONRPC_VERSION,
-      json::BusinessMessageReject{business_message_reject});
-  */
+  if (ready())
+    send<2>(business_message_reject);
 }
 
-void Session::operator()(Trace<fix_bridge::fix::OrderCancelReject> const &) {
-  // XXX TODO send notification
+void Session::operator()(Trace<fix_bridge::fix::OrderCancelReject> const &event) {
+  auto &[trace_info, order_cancel_reject] = event;
+  if (ready())
+    send<2>(order_cancel_reject);
 }
 
 void Session::operator()(Trace<fix_bridge::fix::ExecutionReport> const &event) {
-  if (zombie())
-    return;
-  /*
   auto &[trace_info, execution_report] = event;
-  send_text(
-      R"({{)"
-      R"("jsonrpc":"{}",)"
-      R"("method":"execution_report",)"
-      R"("params":{})"
-      R"(}})"sv,
-      JSONRPC_VERSION,
-      json::ExecutionReport{execution_report});
-  */
+  if (ready())
+    send<2>(execution_report);
 }
 
 bool Session::ready() const {
@@ -276,7 +300,8 @@ void Session::dispatch(Trace<roq::fix::Message> const &event, Args &&...args) {
 
 // session
 
-void Session::operator()(Trace<fix_bridge::fix::Logon> const &, roq::fix::Header const &header) {
+void Session::operator()(Trace<fix_bridge::fix::Logon> const &event, roq::fix::Header const &header) {
+  auto &logon = event.value;
   switch (state_) {
     using enum State;
     case WAITING_LOGON: {
@@ -295,18 +320,32 @@ void Session::operator()(Trace<fix_bridge::fix::Logon> const &, roq::fix::Header
         };
         send_and_close<2>(response);
       } else {
-        // XXX proper logon
-        state_ = READY;
-        auto heart_bt_int = std::chrono::duration_cast<std::chrono::seconds>(shared_.settings.client.heartbeat_freq);
-        auto response = fix_bridge::fix::Logon{
-            .encrypt_method = roq::fix::EncryptMethod::NONE,
-            .heart_bt_int = static_cast<uint16_t>(heart_bt_int.count()),
-            .reset_seq_num_flag = {},
-            .next_expected_msg_seq_num = {},
-            .username = {},
-            .password = {},
+        auto success = [&]() {
+          state_ = State::READY;
+          username_ = logon.username;
+          auto heart_bt_int = std::chrono::duration_cast<std::chrono::seconds>(shared_.settings.client.heartbeat_freq);
+          auto response = fix_bridge::fix::Logon{
+              .encrypt_method = roq::fix::EncryptMethod::NONE,
+              .heart_bt_int = static_cast<uint16_t>(heart_bt_int.count()),
+              .reset_seq_num_flag = {},
+              .next_expected_msg_seq_num = {},
+              .username = {},
+              .password = {},
+          };
+          send<2>(response);
         };
-        send<2>(response);
+        auto failure = [&](auto &reason) {
+          log::error("Invalid logon (reason: {})"sv, reason);
+          auto response = fix_bridge::fix::Reject{
+              .ref_seq_num = header.msg_seq_num,
+              .text = reason,
+              .ref_tag_id = {},
+              .ref_msg_type = header.msg_type,
+              .session_reject_reason = roq::fix::SessionRejectReason::OTHER,
+          };
+          send_and_close<2>(response);
+        };
+        shared_.session_logon(session_id_, logon.username, logon.password, success, failure);
       }
       break;
     }
@@ -350,26 +389,99 @@ void Session::operator()(Trace<fix_bridge::fix::Logout> const &event, roq::fix::
       break;
     }
     case ZOMBIE:
-      assert(false);
-      // note! should already be closed
       break;
   }
 }
 
-void Session::operator()(Trace<fix_bridge::fix::TestRequest> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::TestRequest> const &event, roq::fix::Header const &header) {
+  auto &[trace_info, test_request] = event;
+  log::info<1>("test_request={}"sv, test_request);
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON: {
+      auto response = fix_bridge::fix::Reject{
+          .ref_seq_num = header.msg_seq_num,
+          .text = ERROR_NO_LOGON,
+          .ref_tag_id = {},
+          .ref_msg_type = header.msg_type,
+          .session_reject_reason = roq::fix::SessionRejectReason::OTHER,
+      };
+      send_and_close<2>(response);
+      break;
+    }
+    case READY: {
+      auto heartbeat = fix_bridge::fix::Heartbeat{
+          .test_req_id = test_request.test_req_id,
+      };
+      send<4>(heartbeat);
+      break;
+    }
+    case ZOMBIE:
+      break;
+  }
 }
 
-void Session::operator()(Trace<fix_bridge::fix::ResendRequest> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::ResendRequest> const &event, roq::fix::Header const &header) {
+  auto &[trace_info, resend_request] = event;
+  log::info<1>("resend_request={}"sv, resend_request);
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON: {
+      auto response = fix_bridge::fix::Reject{
+          .ref_seq_num = header.msg_seq_num,
+          .text = ERROR_NO_LOGON,
+          .ref_tag_id = {},
+          .ref_msg_type = header.msg_type,
+          .session_reject_reason = roq::fix::SessionRejectReason::OTHER,
+      };
+      send_and_close<2>(response);
+      break;
+    }
+    case READY: {
+      auto response = fix_bridge::fix::BusinessMessageReject{
+          .ref_seq_num = header.msg_seq_num,
+          .ref_msg_type = header.msg_type,
+          .business_reject_ref_id = {},
+          .business_reject_reason = roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
+          .text = ERROR_UNSUPPORTED_MSG_TYPE,
+      };
+      send<2>(response);
+      break;
+    }
+    case ZOMBIE:
+      assert(false);
+      break;
+  }
 }
 
-void Session::operator()(Trace<fix_bridge::fix::Reject> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::Reject> const &event, roq::fix::Header const &) {
+  auto &[trace_info, reject] = event;
+  log::warn("reject={}"sv, reject);
+  close();
 }
 
-void Session::operator()(Trace<fix_bridge::fix::Heartbeat> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::Heartbeat> const &event, roq::fix::Header const &header) {
+  auto &[trace_info, heartbeat] = event;
+  log::info<1>("heartbeat={}"sv, heartbeat);
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON: {
+      auto response = fix_bridge::fix::Reject{
+          .ref_seq_num = header.msg_seq_num,
+          .text = ERROR_NO_LOGON,
+          .ref_tag_id = {},
+          .ref_msg_type = header.msg_type,
+          .session_reject_reason = roq::fix::SessionRejectReason::OTHER,
+      };
+      send<2>(response);
+      break;
+    }
+    case READY:
+      waiting_for_heartbeat_ = false;
+      break;
+    case ZOMBIE:
+      break;
+  }
 }
 
 // business

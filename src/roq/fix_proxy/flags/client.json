@@ -17,6 +17,13 @@
       "description": "component name"
     },
     {
+      "name": "logon_timeout",
+      "type": "std::chrono::nanoseconds",
+      "required": true,
+      "default": "5s",
+      "description": "logon timeout"
+    },
+    {
       "name": "heartbeat_freq",
       "type": "std::chrono::nanoseconds",
       "required": true,
