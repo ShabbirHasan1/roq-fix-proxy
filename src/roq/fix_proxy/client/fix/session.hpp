@@ -110,6 +110,11 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
 
   void operator()(Trace<fix_bridge::fix::RequestForPositions> const &, roq::fix::Header const &);
 
+  void send_reject(roq::fix::Header const &, roq::fix::SessionRejectReason, std::string_view const &text);
+
+  void send_business_message_reject(
+      roq::fix::Header const &, roq::fix::BusinessRejectReason, std::string_view const &text);
+
  private:
   client::Session::Handler &handler_;
   uint64_t const session_id_;

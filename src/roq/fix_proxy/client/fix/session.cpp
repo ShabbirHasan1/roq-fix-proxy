@@ -285,18 +285,11 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
     case REQUEST_FOR_POSITIONS:
       dispatch<fix_bridge::fix::RequestForPositions>(event, decode_buffer_);
       break;
-    default: {
+    default:
       log::warn("Unexpected: msg_type={}"sv, message.header.msg_type);
-      auto response = fix_bridge::fix::BusinessMessageReject{
-          .ref_seq_num = message.header.msg_seq_num,
-          .ref_msg_type = message.header.msg_type,
-          .business_reject_ref_id = {},
-          .business_reject_reason = roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
-          .text = ERROR_UNEXPECTED_MSG_TYPE,
-      };
-      send<2>(response);
+      send_business_message_reject(
+          message.header, roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE, ERROR_UNEXPECTED_MSG_TYPE);
       break;
-    }
   };
 }
 
@@ -321,14 +314,7 @@ void Session::operator()(Trace<fix_bridge::fix::Logon> const &event, roq::fix::H
             R"(Unexpected target_comp_id="{}" (expected: "{}"))"sv,
             header.target_comp_id,
             shared_.settings.client.comp_id);
-        auto response = fix_bridge::fix::Reject{
-            .ref_seq_num = header.msg_seq_num,
-            .text = ERROR_UNKNOWN_TARGET_COMP_ID,
-            .ref_tag_id = {},
-            .ref_msg_type = header.msg_type,
-            .session_reject_reason = roq::fix::SessionRejectReason::OTHER,
-        };
-        send_and_close<2>(response);
+        send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_UNKNOWN_TARGET_COMP_ID);
       } else {
         auto success = [&]() {
           state_ = State::READY;
@@ -346,30 +332,15 @@ void Session::operator()(Trace<fix_bridge::fix::Logon> const &event, roq::fix::H
         };
         auto failure = [&](auto &reason) {
           log::error("Invalid logon (reason: {})"sv, reason);
-          auto response = fix_bridge::fix::Reject{
-              .ref_seq_num = header.msg_seq_num,
-              .text = reason,
-              .ref_tag_id = {},
-              .ref_msg_type = header.msg_type,
-              .session_reject_reason = roq::fix::SessionRejectReason::OTHER,
-          };
-          send_and_close<2>(response);
+          send_reject(header, roq::fix::SessionRejectReason::OTHER, reason);
         };
         shared_.session_logon(session_id_, logon.username, logon.password, success, failure);
       }
       break;
     }
-    case READY: {
-      auto response = fix_bridge::fix::Reject{
-          .ref_seq_num = header.msg_seq_num,
-          .text = ERROR_UNEXPECTED_LOGON,
-          .ref_tag_id = {},
-          .ref_msg_type = header.msg_type,
-          .session_reject_reason = roq::fix::SessionRejectReason::OTHER,
-      };
-      send_and_close<2>(response);
+    case READY:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_UNEXPECTED_LOGON);
       break;
-    }
     case ZOMBIE:
       break;
   }
@@ -380,17 +351,9 @@ void Session::operator()(Trace<fix_bridge::fix::Logout> const &event, roq::fix::
   log::info<1>("logout={}"sv, logout);
   switch (state_) {
     using enum State;
-    case WAITING_LOGON: {
-      auto response = fix_bridge::fix::Reject{
-          .ref_seq_num = header.msg_seq_num,
-          .text = ERROR_NO_LOGON,
-          .ref_tag_id = {},
-          .ref_msg_type = header.msg_type,
-          .session_reject_reason = roq::fix::SessionRejectReason::OTHER,
-      };
-      send_and_close<2>(response);
+    case WAITING_LOGON:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    }
     case READY: {
       auto success = [&]() {
         username_.clear();
@@ -399,16 +362,7 @@ void Session::operator()(Trace<fix_bridge::fix::Logout> const &event, roq::fix::
         };
         send_and_close<2>(response);
       };
-      auto failure = [&](auto &reason) {
-        auto response = fix_bridge::fix::Reject{
-            .ref_seq_num = header.msg_seq_num,
-            .text = reason,
-            .ref_tag_id = {},
-            .ref_msg_type = header.msg_type,
-            .session_reject_reason = roq::fix::SessionRejectReason::OTHER,
-        };
-        send_and_close<2>(response);
-      };
+      auto failure = [&](auto &reason) { send_reject(header, roq::fix::SessionRejectReason::OTHER, reason); };
       shared_.session_logout(session_id_, success, failure);
       break;
     }
@@ -422,17 +376,9 @@ void Session::operator()(Trace<fix_bridge::fix::TestRequest> const &event, roq::
   log::info<1>("test_request={}"sv, test_request);
   switch (state_) {
     using enum State;
-    case WAITING_LOGON: {
-      auto response = fix_bridge::fix::Reject{
-          .ref_seq_num = header.msg_seq_num,
-          .text = ERROR_NO_LOGON,
-          .ref_tag_id = {},
-          .ref_msg_type = header.msg_type,
-          .session_reject_reason = roq::fix::SessionRejectReason::OTHER,
-      };
-      send_and_close<2>(response);
+    case WAITING_LOGON:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    }
     case READY: {
       auto heartbeat = fix_bridge::fix::Heartbeat{
           .test_req_id = test_request.test_req_id,
@@ -450,28 +396,13 @@ void Session::operator()(Trace<fix_bridge::fix::ResendRequest> const &event, roq
   log::info<1>("resend_request={}"sv, resend_request);
   switch (state_) {
     using enum State;
-    case WAITING_LOGON: {
-      auto response = fix_bridge::fix::Reject{
-          .ref_seq_num = header.msg_seq_num,
-          .text = ERROR_NO_LOGON,
-          .ref_tag_id = {},
-          .ref_msg_type = header.msg_type,
-          .session_reject_reason = roq::fix::SessionRejectReason::OTHER,
-      };
-      send_and_close<2>(response);
+    case WAITING_LOGON:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    }
-    case READY: {
-      auto response = fix_bridge::fix::BusinessMessageReject{
-          .ref_seq_num = header.msg_seq_num,
-          .ref_msg_type = header.msg_type,
-          .business_reject_ref_id = {},
-          .business_reject_reason = roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
-          .text = ERROR_UNSUPPORTED_MSG_TYPE,
-      };
-      send<2>(response);
+    case READY:
+      send_business_message_reject(
+          header, roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE, ERROR_UNSUPPORTED_MSG_TYPE);
       break;
-    }
     case ZOMBIE:
       assert(false);
       break;
@@ -489,17 +420,9 @@ void Session::operator()(Trace<fix_bridge::fix::Heartbeat> const &event, roq::fi
   log::info<1>("heartbeat={}"sv, heartbeat);
   switch (state_) {
     using enum State;
-    case WAITING_LOGON: {
-      auto response = fix_bridge::fix::Reject{
-          .ref_seq_num = header.msg_seq_num,
-          .text = ERROR_NO_LOGON,
-          .ref_tag_id = {},
-          .ref_msg_type = header.msg_type,
-          .session_reject_reason = roq::fix::SessionRejectReason::OTHER,
-      };
-      send<2>(response);
+    case WAITING_LOGON:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    }
     case READY:
       waiting_for_heartbeat_ = false;
       break;
@@ -510,56 +433,143 @@ void Session::operator()(Trace<fix_bridge::fix::Heartbeat> const &event, roq::fi
 
 // business
 
-void Session::operator()(Trace<fix_bridge::fix::TradingSessionStatusRequest> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::TradingSessionStatusRequest> const &, roq::fix::Header const &header) {
+  send_business_message_reject(
+      header,
+      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
+      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<fix_bridge::fix::SecurityListRequest> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::SecurityListRequest> const &, roq::fix::Header const &header) {
+  send_business_message_reject(
+      header,
+      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
+      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<fix_bridge::fix::SecurityDefinitionRequest> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::SecurityDefinitionRequest> const &, roq::fix::Header const &header) {
+  send_business_message_reject(
+      header,
+      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
+      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<fix_bridge::fix::SecurityStatusRequest> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::SecurityStatusRequest> const &, roq::fix::Header const &header) {
+  send_business_message_reject(
+      header,
+      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
+      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<fix_bridge::fix::MarketDataRequest> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::MarketDataRequest> const &, roq::fix::Header const &header) {
+  send_business_message_reject(
+      header,
+      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
+      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<fix_bridge::fix::OrderStatusRequest> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::OrderStatusRequest> const &, roq::fix::Header const &header) {
+  send_business_message_reject(
+      header,
+      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
+      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<fix_bridge::fix::OrderMassStatusRequest> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::OrderMassStatusRequest> const &, roq::fix::Header const &header) {
+  send_business_message_reject(
+      header,
+      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
+      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<fix_bridge::fix::NewOrderSingle> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::NewOrderSingle> const &event, roq::fix::Header const &header) {
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
+      break;
+    case READY:
+      handler_(event, username_);
+      break;
+    case ZOMBIE:
+      break;
+  }
 }
 
-void Session::operator()(Trace<fix_bridge::fix::OrderCancelRequest> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::OrderCancelRequest> const &event, roq::fix::Header const &header) {
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
+      break;
+    case READY:
+      handler_(event, username_);
+      break;
+    case ZOMBIE:
+      break;
+  }
 }
 
-void Session::operator()(Trace<fix_bridge::fix::OrderCancelReplaceRequest> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(
+    Trace<fix_bridge::fix::OrderCancelReplaceRequest> const &event, roq::fix::Header const &header) {
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
+      break;
+    case READY:
+      handler_(event, username_);
+      break;
+    case ZOMBIE:
+      break;
+  }
 }
 
-void Session::operator()(Trace<fix_bridge::fix::OrderMassCancelRequest> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::OrderMassCancelRequest> const &, roq::fix::Header const &header) {
+  send_business_message_reject(
+      header,
+      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
+      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<fix_bridge::fix::TradeCaptureReportRequest> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::TradeCaptureReportRequest> const &, roq::fix::Header const &header) {
+  send_business_message_reject(
+      header,
+      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
+      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<fix_bridge::fix::RequestForPositions> const &, roq::fix::Header const &) {
-  // XXX
+void Session::operator()(Trace<fix_bridge::fix::RequestForPositions> const &, roq::fix::Header const &header) {
+  send_business_message_reject(
+      header,
+      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
+      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
+}
+
+void Session::send_reject(
+    roq::fix::Header const &header, roq::fix::SessionRejectReason session_reject_reason, std::string_view const &text) {
+  auto response = fix_bridge::fix::Reject{
+      .ref_seq_num = header.msg_seq_num,
+      .text = text,
+      .ref_tag_id = {},
+      .ref_msg_type = header.msg_type,
+      .session_reject_reason = session_reject_reason,
+  };
+  send_and_close<2>(response);
+}
+
+void Session::send_business_message_reject(
+    roq::fix::Header const &header,
+    roq::fix::BusinessRejectReason business_reject_reason,
+    std::string_view const &text) {
+  auto response = fix_bridge::fix::BusinessMessageReject{
+      .ref_seq_num = header.msg_seq_num,
+      .ref_msg_type = header.msg_type,
+      .business_reject_ref_id = {},
+      .business_reject_reason = business_reject_reason,
+      .text = text,
+  };
+  send<2>(response);
 }
 
 }  // namespace fix
