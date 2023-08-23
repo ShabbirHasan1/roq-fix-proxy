@@ -117,6 +117,7 @@ void Session::close() {
 void Session::operator()(io::net::tcp::Connection::Read const &) {
   if (state_ == State::ZOMBIE)
     return;
+  buffer_.append(*connection_);
   auto buffer = buffer_.data();
   try {
     size_t total_bytes = 0;
