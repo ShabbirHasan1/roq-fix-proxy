@@ -38,6 +38,7 @@ auto const LOGOUT_RESPONSE = "LOGOUT"sv;
 
 namespace {
 auto create_connection_factory(auto &settings, auto &context, auto &uri) {
+  log::debug("uri={}"sv, uri);
   auto config = io::net::ConnectionFactory::Config{
       .interface = {},
       .uris = {&uri, 1},

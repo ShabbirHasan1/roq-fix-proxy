@@ -24,5 +24,5 @@ $PREFIX ./roq-fix-proxy \
   --client_listen_address "$HOME/run/fix-proxy.sock" \
   --client_comp_id "proxy" \
   --client_json_listen_address "tcp://localhost:2345" \
-  tcp://localhost:3456 \
+  $HOME/run/fix-bridge.sock \
   $@
