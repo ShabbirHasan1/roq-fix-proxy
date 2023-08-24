@@ -16,6 +16,7 @@ else
 fi
 
 $PREFIX ./roq-fix-proxy \
+  --name "fix-proxy" \
   --config_file config/test.toml \
   --server_target_comp_id "roq-fix-bridge" \
   --server_sender_comp_id "roq-fix-client-test" \

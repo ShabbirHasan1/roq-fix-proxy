@@ -14,6 +14,17 @@
       "type": "bool",
       "default": false,
       "description": "disable market data?"
+    },
+    {
+      "name": "name",
+      "type": "std::string",
+      "required": true,
+      "description": "service name (CURRENTLY UNUSED)"
+    },
+    {
+      "name": "service_listen_address",
+      "type": "std::string",
+      "description": "service listen address (CURRENTLY UNUSED)"
     }
   ]
 }
