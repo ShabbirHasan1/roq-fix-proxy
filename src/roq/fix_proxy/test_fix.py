@@ -2,6 +2,7 @@
 
 from datetime import datetime
 
+import os
 import socket
 
 import simplefix
@@ -48,8 +49,9 @@ def new_order_single_request():
     return request
 
 if __name__ == "__main__":
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect(('localhost', 1234))
+    home = os.getenv('HOME')
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+        s.connect('{}/run/fix-proxy.sock'.format(home))
         s.sendall(logon_request())
         response = s.recv(4096)
         print(response)

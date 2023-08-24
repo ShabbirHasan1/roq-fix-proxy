@@ -115,6 +115,9 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   void send_business_message_reject(
       roq::fix::Header const &, roq::fix::BusinessRejectReason, std::string_view const &text);
 
+  template <typename T>
+  Trace<T> enrich(Trace<T> const &) const;
+
  private:
   client::Session::Handler &handler_;
   uint64_t const session_id_;
@@ -131,6 +134,8 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   } inbound_;
   std::string comp_id_;
   std::string username_;
+  std::string strategy_id_;
+  fix_bridge::fix::Party party_;
   std::chrono::nanoseconds next_heartbeat_ = {};
   bool waiting_for_heartbeat_ = {};
   // buffer

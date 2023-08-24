@@ -6,3 +6,14 @@ symbols = [
   "^BTC(-USD[A-Z]?)?-DERIBIT-INDEX$",  # index                                                                          
   "^ETH(-USD[A-Z]?)?-DERIBIT-INDEX$"   # index                                                                          
 ]
+
+#[users]
+
+#[users.c1]
+#accounts="A1"
+
+#[users.c2]
+#accounts="A2"
+
+#[users.c3]
+#accounts=["A1","A2"]

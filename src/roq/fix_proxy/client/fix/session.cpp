@@ -320,6 +320,13 @@ void Session::operator()(Trace<fix_bridge::fix::Logon> const &event, roq::fix::H
         auto success = [&]() {
           state_ = State::READY;
           username_ = logon.username;
+          // XXX EXPERIMENTAL
+          strategy_id_ = "123"sv;
+          party_ = {
+              .party_id = strategy_id_,
+              .party_id_source = roq::fix::PartyIDSource::PROPRIETARY_CUSTOM_CODE,
+              .party_role = roq::fix::PartyRole::CLIENT_ID,
+          };
           auto heart_bt_int = std::chrono::duration_cast<std::chrono::seconds>(shared_.settings.client.heartbeat_freq);
           auto response = fix_bridge::fix::Logon{
               .encrypt_method = roq::fix::EncryptMethod::NONE,
@@ -489,9 +496,11 @@ void Session::operator()(Trace<fix_bridge::fix::NewOrderSingle> const &event, ro
     case WAITING_LOGON:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY:
-      handler_(event, username_);
+    case READY: {
+      auto event_2 = enrich(event);
+      handler_(event_2, username_);
       break;
+    }
     case ZOMBIE:
       break;
   }
@@ -503,9 +512,11 @@ void Session::operator()(Trace<fix_bridge::fix::OrderCancelRequest> const &event
     case WAITING_LOGON:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY:
-      handler_(event, username_);
+    case READY: {
+      auto event_2 = enrich(event);
+      handler_(event_2, username_);
       break;
+    }
     case ZOMBIE:
       break;
   }
@@ -518,9 +529,11 @@ void Session::operator()(
     case WAITING_LOGON:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY:
-      handler_(event, username_);
+    case READY: {
+      auto event_2 = enrich(event);
+      handler_(event_2, username_);
       break;
+    }
     case ZOMBIE:
       break;
   }
@@ -571,6 +584,15 @@ void Session::send_business_message_reject(
       .text = text,
   };
   send<2>(response);
+}
+
+template <typename T>
+Trace<T> Session::enrich(Trace<T> const &event) const {
+  assert(!std::empty(party_.party_id));
+  auto &[trace_info, value] = event;
+  auto value_2 = value;
+  value_2.no_party_ids = {&party_, 1};
+  return {trace_info, value_2};
 }
 
 }  // namespace fix
