@@ -67,6 +67,52 @@ R parse_symbols(auto &node) {
   }
   return result;
 }
+
+auto parse_user(auto &node) {
+  auto table = *node.as_table();
+  User result;
+  for (auto [key, value] : table) {
+    if (key == "component"sv) {
+      result.component = *value.template value<std::string>();
+    } else if (key == "username"sv) {
+      result.username = *value.template value<std::string>();
+    } else if (key == "password"sv) {
+      result.password = *value.template value<std::string>();
+    } else if (key == "accounts"sv) {
+      // XXX TODO
+    } else if (key == "strategy_id"sv) {
+      result.strategy_id = *value.template value<uint32_t>();
+    } else {
+      log::fatal(R"(Unexpected: user key="{}")"sv, key.str());
+    }
+  }
+  return result;
+}
+
+template <typename R>
+R parse_users(auto &node) {
+  using result_type = std::remove_cvref<R>::type;
+  result_type result;
+  auto parse_helper = [&](auto &node) {
+    if (node.is_table()) {
+      auto &table = *node.as_table();
+      for (auto [key, value] : table) {
+        if (value.is_table()) {
+          auto user = parse_user(value);
+        } else {
+          log::fatal(R"(Unexpected: "users.{}" must be a table)"sv, key.str());
+        }
+      }
+    } else {
+      log::fatal(R"(Unexpected: "users" must be a table)"sv);
+    }
+  };
+  if (find_and_remove(node, "users"sv, parse_helper)) {
+  } else {
+    log::fatal(R"(Unexpected: did not find the "users" table)"sv);
+  }
+  return result;
+}
 }  // namespace
 
 // === IMPLEMENTATION ===
@@ -81,7 +127,8 @@ Config Config::parse_text(std::string_view const &text) {
   return Config{root};
 }
 
-Config::Config(auto &node) : symbols{parse_symbols<decltype(symbols)>(node)} {
+Config::Config(auto &node)
+    : symbols{parse_symbols<decltype(symbols)>(node)}, users{parse_users<decltype(users)>(node)} {
   check_empty(node);
 }
 

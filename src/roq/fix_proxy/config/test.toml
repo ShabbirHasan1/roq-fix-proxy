@@ -7,13 +7,25 @@ symbols = [
   "^ETH(-USD[A-Z]?)?-DERIBIT-INDEX$"   # index                                                                          
 ]
 
-#[users]
+[users]
 
-#[users.c1]
-#accounts="A1"
+[users.c1]
+component = "test"
+username = "c1"
+password = "p1"
+accounts = "A1"
+strategy_id = 1
 
-#[users.c2]
-#accounts="A2"
+[users.c2]
+component = "test"
+username = "c2"
+password = "p2"
+accounts = "A2"
+strategy_id = 2
 
-#[users.c3]
-#accounts=["A1","A2"]
+[users.c3]
+component = "test"
+username = "c3"
+password = "p3"
+accounts = ["A1", "A2"]
+strategy_id = 3
