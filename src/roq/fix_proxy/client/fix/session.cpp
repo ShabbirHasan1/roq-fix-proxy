@@ -497,8 +497,11 @@ void Session::operator()(Trace<fix_bridge::fix::NewOrderSingle> const &event, ro
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY: {
+      /*
       auto event_2 = enrich(event);
       handler_(event_2, username_);
+      */
+      handler_(event, username_);
       break;
     }
     case ZOMBIE:
@@ -513,8 +516,11 @@ void Session::operator()(Trace<fix_bridge::fix::OrderCancelRequest> const &event
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY: {
+      /*
       auto event_2 = enrich(event);
       handler_(event_2, username_);
+      */
+      handler_(event, username_);
       break;
     }
     case ZOMBIE:
@@ -530,8 +536,11 @@ void Session::operator()(
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY: {
+      /*
       auto event_2 = enrich(event);
       handler_(event_2, username_);
+      */
+      handler_(event, username_);
       break;
     }
     case ZOMBIE:
