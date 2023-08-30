@@ -42,11 +42,17 @@ struct Controller final : public io::sys::Signal::Handler,
   // server::Session::Handler
   void operator()(Trace<fix_bridge::fix::SecurityDefinition> const &) override;
   void operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &, std::string_view const &username) override;
+  void operator()(Trace<fix_bridge::fix::MarketDataRequestReject> const &, std::string_view const &username) override;
+  void operator()(
+      Trace<fix_bridge::fix::MarketDataSnapshotFullRefresh> const &, std::string_view const &username) override;
+  void operator()(
+      Trace<fix_bridge::fix::MarketDataIncrementalRefresh> const &, std::string_view const &username) override;
   void operator()(Trace<fix_bridge::fix::OrderCancelReject> const &, std::string_view const &username) override;
   void operator()(Trace<fix_bridge::fix::ExecutionReport> const &, std::string_view const &username) override;
 
   // client::Session::Handler
   void operator()(Trace<fix_bridge::fix::OrderStatusRequest> const &, std::string_view const &username) override;
+  void operator()(Trace<fix_bridge::fix::MarketDataRequest> const &, std::string_view const &username) override;
   void operator()(Trace<fix_bridge::fix::NewOrderSingle> const &, std::string_view const &username) override;
   void operator()(Trace<fix_bridge::fix::OrderCancelReplaceRequest> const &, std::string_view const &username) override;
   void operator()(Trace<fix_bridge::fix::OrderCancelRequest> const &, std::string_view const &username) override;

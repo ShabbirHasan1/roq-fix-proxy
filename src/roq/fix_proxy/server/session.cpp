@@ -103,6 +103,10 @@ void Session::operator()(Trace<fix_bridge::fix::OrderStatusRequest> const &event
   send(event);
 }
 
+void Session::operator()(Trace<fix_bridge::fix::MarketDataRequest> const &event) {
+  send(event);
+}
+
 void Session::operator()(Trace<fix_bridge::fix::NewOrderSingle> const &event) {
   send(event);
 }
@@ -359,18 +363,19 @@ void Session::operator()(Trace<fix_bridge::fix::SecurityDefinition> const &event
 void Session::operator()(Trace<fix_bridge::fix::MarketDataRequestReject> const &event, fix::Header const &) {
   auto &[trace_info, market_data_request_reject] = event;
   log::debug("market_data_request_reject={}, trace_info={}"sv, market_data_request_reject, trace_info);
+  handler_(event, username_);
 }
 
 void Session::operator()(Trace<fix_bridge::fix::MarketDataSnapshotFullRefresh> const &event, fix::Header const &) {
   auto &[trace_info, market_data_snapshot_full_refresh] = event;
   log::debug<1>("market_data_snapshot_full_refresh={}, trace_info={}"sv, market_data_snapshot_full_refresh, trace_info);
-  // XXX must forward
+  handler_(event, username_);
 }
 
 void Session::operator()(Trace<fix_bridge::fix::MarketDataIncrementalRefresh> const &event, fix::Header const &) {
   auto &[trace_info, market_data_incremental_refresh] = event;
   log::debug<1>("market_data_incremental_refresh={}, trace_info={}"sv, market_data_incremental_refresh, trace_info);
-  // XXX must forward
+  handler_(event, username_);
 }
 
 void Session::operator()(Trace<fix_bridge::fix::OrderCancelReject> const &event, fix::Header const &) {

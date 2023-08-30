@@ -71,6 +71,21 @@ void Controller::operator()(
   dispatch_to_client(event, username);
 }
 
+void Controller::operator()(
+    Trace<fix_bridge::fix::MarketDataRequestReject> const &event, std::string_view const &username) {
+  dispatch_to_client(event, username);
+}
+
+void Controller::operator()(
+    Trace<fix_bridge::fix::MarketDataSnapshotFullRefresh> const &event, std::string_view const &username) {
+  dispatch_to_client(event, username);
+}
+
+void Controller::operator()(
+    Trace<fix_bridge::fix::MarketDataIncrementalRefresh> const &event, std::string_view const &username) {
+  dispatch_to_client(event, username);
+}
+
 void Controller::operator()(Trace<fix_bridge::fix::OrderCancelReject> const &event, std::string_view const &username) {
   dispatch_to_client(event, username);
 }
@@ -82,6 +97,10 @@ void Controller::operator()(Trace<fix_bridge::fix::ExecutionReport> const &event
 // client::Session::Handler
 
 void Controller::operator()(Trace<fix_bridge::fix::OrderStatusRequest> const &event, std::string_view const &username) {
+  dispatch_to_server(event, username);
+}
+
+void Controller::operator()(Trace<fix_bridge::fix::MarketDataRequest> const &event, std::string_view const &username) {
   dispatch_to_server(event, username);
 }
 

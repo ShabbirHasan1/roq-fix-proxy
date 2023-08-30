@@ -51,6 +51,9 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   void operator()(Event<Timer> const &) override;
 
   void operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &) override;
+  void operator()(Trace<fix_bridge::fix::MarketDataRequestReject> const &) override;
+  void operator()(Trace<fix_bridge::fix::MarketDataSnapshotFullRefresh> const &) override;
+  void operator()(Trace<fix_bridge::fix::MarketDataIncrementalRefresh> const &) override;
   void operator()(Trace<fix_bridge::fix::OrderCancelReject> const &) override;
   void operator()(Trace<fix_bridge::fix::ExecutionReport> const &) override;
 

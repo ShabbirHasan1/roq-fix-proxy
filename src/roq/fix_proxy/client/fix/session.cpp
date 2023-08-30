@@ -4,6 +4,8 @@
 
 #include "roq/logging.hpp"
 
+#include "roq/utils/chrono.hpp"  // hh_mm_ss
+
 using namespace std::literals;
 
 namespace roq {
@@ -83,6 +85,24 @@ void Session::operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &ev
   auto &[trace_info, business_message_reject] = event;
   if (ready())
     send<2>(business_message_reject);
+}
+
+void Session::operator()(Trace<fix_bridge::fix::MarketDataRequestReject> const &event) {
+  auto &[trace_info, market_data_request_reject] = event;
+  if (ready())
+    send<2>(market_data_request_reject);
+}
+
+void Session::operator()(Trace<fix_bridge::fix::MarketDataSnapshotFullRefresh> const &event) {
+  auto &[trace_info, market_data_snapshot_full_refresh] = event;
+  if (ready())
+    send<2>(market_data_snapshot_full_refresh);
+}
+
+void Session::operator()(Trace<fix_bridge::fix::MarketDataIncrementalRefresh> const &event) {
+  auto &[trace_info, market_data_incremental_refresh] = event;
+  if (ready())
+    send<2>(market_data_incremental_refresh);
 }
 
 void Session::operator()(Trace<fix_bridge::fix::OrderCancelReject> const &event) {
@@ -469,11 +489,18 @@ void Session::operator()(Trace<fix_bridge::fix::SecurityStatusRequest> const &, 
       ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<fix_bridge::fix::MarketDataRequest> const &, roq::fix::Header const &header) {
-  send_business_message_reject(
-      header,
-      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
-      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
+void Session::operator()(Trace<fix_bridge::fix::MarketDataRequest> const &event, roq::fix::Header const &header) {
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
+      break;
+    case READY:
+      handler_(event, username_);
+      break;
+    case ZOMBIE:
+      break;
+  }
 }
 
 void Session::operator()(Trace<fix_bridge::fix::OrderStatusRequest> const &, roq::fix::Header const &header) {

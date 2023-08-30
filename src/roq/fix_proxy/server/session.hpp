@@ -26,6 +26,7 @@
 #include "roq/fix_bridge/fix/logon.hpp"
 #include "roq/fix_bridge/fix/logout.hpp"
 #include "roq/fix_bridge/fix/market_data_incremental_refresh.hpp"
+#include "roq/fix_bridge/fix/market_data_request.hpp"
 #include "roq/fix_bridge/fix/market_data_request_reject.hpp"
 #include "roq/fix_bridge/fix/market_data_snapshot_full_refresh.hpp"
 #include "roq/fix_bridge/fix/new_order_single.hpp"
@@ -59,6 +60,12 @@ struct Session final : public io::net::ConnectionManager::Handler {
     virtual void operator()(Trace<fix_bridge::fix::SecurityDefinition> const &) = 0;
     virtual void operator()(
         Trace<fix_bridge::fix::BusinessMessageReject> const &, std::string_view const &username) = 0;
+    virtual void operator()(
+        Trace<fix_bridge::fix::MarketDataRequestReject> const &, std::string_view const &username) = 0;
+    virtual void operator()(
+        Trace<fix_bridge::fix::MarketDataSnapshotFullRefresh> const &, std::string_view const &username) = 0;
+    virtual void operator()(
+        Trace<fix_bridge::fix::MarketDataIncrementalRefresh> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<fix_bridge::fix::OrderCancelReject> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<fix_bridge::fix::ExecutionReport> const &, std::string_view const &username) = 0;
   };
@@ -79,6 +86,7 @@ struct Session final : public io::net::ConnectionManager::Handler {
   bool ready() const;
 
   void operator()(Trace<fix_bridge::fix::OrderStatusRequest> const &);
+  void operator()(Trace<fix_bridge::fix::MarketDataRequest> const &);
   void operator()(Trace<fix_bridge::fix::NewOrderSingle> const &);
   void operator()(Trace<fix_bridge::fix::OrderCancelReplaceRequest> const &);
   void operator()(Trace<fix_bridge::fix::OrderCancelRequest> const &);

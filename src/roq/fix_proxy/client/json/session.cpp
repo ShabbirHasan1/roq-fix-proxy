@@ -138,6 +138,18 @@ void Session::operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &ev
       json::BusinessMessageReject{business_message_reject});
 }
 
+void Session::operator()(Trace<fix_bridge::fix::MarketDataRequestReject> const &) {
+  log::fatal("not implemented"sv);
+}
+
+void Session::operator()(Trace<fix_bridge::fix::MarketDataSnapshotFullRefresh> const &) {
+  log::fatal("not implemented"sv);
+}
+
+void Session::operator()(Trace<fix_bridge::fix::MarketDataIncrementalRefresh> const &) {
+  log::fatal("not implemented"sv);
+}
+
 void Session::operator()(Trace<fix_bridge::fix::OrderCancelReject> const &) {
   // XXX TODO send notification
 }
