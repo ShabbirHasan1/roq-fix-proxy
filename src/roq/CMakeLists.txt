@@ -1,2 +1,2 @@
 add_subdirectory(third_party/re2)
-add_subdirectory(fix_proxy)
+add_subdirectory(proxy)
