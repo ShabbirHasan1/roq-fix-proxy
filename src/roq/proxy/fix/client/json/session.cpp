@@ -125,7 +125,7 @@ void Session::operator()(Event<Stop> const &) {
 void Session::operator()(Event<Timer> const &) {
 }
 
-void Session::operator()(Trace<roq::fix::codec::BusinessMessageReject> const &event) {
+void Session::operator()(Trace<roq::codec::fix::BusinessMessageReject> const &event) {
   if (zombie())
     return;
   auto &[trace_info, business_message_reject] = event;
@@ -139,23 +139,23 @@ void Session::operator()(Trace<roq::fix::codec::BusinessMessageReject> const &ev
       client::json::BusinessMessageReject{business_message_reject});
 }
 
-void Session::operator()(Trace<roq::fix::codec::MarketDataRequestReject> const &) {
+void Session::operator()(Trace<roq::codec::fix::MarketDataRequestReject> const &) {
   log::fatal("not implemented"sv);
 }
 
-void Session::operator()(Trace<roq::fix::codec::MarketDataSnapshotFullRefresh> const &) {
+void Session::operator()(Trace<roq::codec::fix::MarketDataSnapshotFullRefresh> const &) {
   log::fatal("not implemented"sv);
 }
 
-void Session::operator()(Trace<roq::fix::codec::MarketDataIncrementalRefresh> const &) {
+void Session::operator()(Trace<roq::codec::fix::MarketDataIncrementalRefresh> const &) {
   log::fatal("not implemented"sv);
 }
 
-void Session::operator()(Trace<roq::fix::codec::OrderCancelReject> const &) {
+void Session::operator()(Trace<roq::codec::fix::OrderCancelReject> const &) {
   // XXX TODO send notification
 }
 
-void Session::operator()(Trace<roq::fix::codec::ExecutionReport> const &event) {
+void Session::operator()(Trace<roq::codec::fix::ExecutionReport> const &event) {
   if (zombie())
     return;
   auto &[trace_info, execution_report] = event;
@@ -374,7 +374,7 @@ void Session::order_status_request(TraceInfo const &trace_info, auto const &para
   auto order_id = get<std::string_view>(params, "order_id"sv);
   auto cl_ord_id = get<std::string_view>(params, "cl_ord_id"sv);
   auto ord_status_req_id = get<std::string_view>(params, "ord_status_req_id"sv);
-  auto order_status_request = roq::fix::codec::OrderStatusRequest{
+  auto order_status_request = roq::codec::fix::OrderStatusRequest{
       .order_id = order_id,
       .cl_ord_id = cl_ord_id,
       .no_party_ids = {},
@@ -398,7 +398,7 @@ void Session::new_order_single(TraceInfo const &trace_info, auto const &params, 
   auto price = get<utils::Number>(params, "price"sv);
   auto stop_px = get<utils::Number>(params, "stop_px"sv);
   auto time_in_force = get<roq::fix::TimeInForce>(params, "time_in_force"sv);
-  auto new_order_single = roq::fix::codec::NewOrderSingle{
+  auto new_order_single = roq::codec::fix::NewOrderSingle{
       .cl_ord_id = cl_ord_id,
       .no_party_ids = {},
       .account = {},
@@ -428,7 +428,7 @@ void Session::order_cancel_request(TraceInfo const &trace_info, auto const &para
   auto cl_ord_id = get<std::string_view>(params, "cl_ord_id"sv);
   auto exchange = get<std::string_view>(params, "exchange"sv);
   auto symbol = get<std::string_view>(params, "symbol"sv);
-  auto order_cancel_request = roq::fix::codec::OrderCancelRequest{
+  auto order_cancel_request = roq::codec::fix::OrderCancelRequest{
       .orig_cl_ord_id = orig_cl_ord_id,
       .order_id = {},
       .cl_ord_id = cl_ord_id,
@@ -447,7 +447,7 @@ void Session::order_cancel_request(TraceInfo const &trace_info, auto const &para
 
 void Session::order_mass_status_request(TraceInfo const &trace_info, auto const &params, auto const &id) {
   auto mass_status_req_id = get<std::string_view>(params, "mass_status_req_id"sv);
-  auto order_mass_status_request = roq::fix::codec::OrderMassStatusRequest{
+  auto order_mass_status_request = roq::codec::fix::OrderMassStatusRequest{
       .mass_status_req_id = mass_status_req_id,
       .mass_status_req_type = roq::fix::MassStatusReqType::ORDERS,
       .no_party_ids = {},
@@ -464,7 +464,7 @@ void Session::order_mass_status_request(TraceInfo const &trace_info, auto const 
 void Session::order_mass_cancel_request(TraceInfo const &trace_info, auto const &params, auto const &id) {
   auto cl_ord_id = get<std::string_view>(params, "cl_ord_id"sv);
   // note! FIX 4.4 doesn't support parties
-  auto order_mass_cancel_request = roq::fix::codec::OrderMassCancelRequest{
+  auto order_mass_cancel_request = roq::codec::fix::OrderMassCancelRequest{
       .cl_ord_id = cl_ord_id,
       .mass_cancel_request_type = roq::fix::MassCancelRequestType::CANCEL_ALL_ORDERS,
       .trading_session_id = {},

@@ -6,7 +6,7 @@
 
 #include "roq/json/string.hpp"
 
-#include "roq/fix/codec/business_message_reject.hpp"
+#include "roq/codec/fix/business_message_reject.hpp"
 
 namespace roq {
 namespace proxy {
@@ -17,7 +17,7 @@ namespace json {
 // note! supports both rest and websocket
 
 struct BusinessMessageReject final {
-  explicit BusinessMessageReject(roq::fix::codec::BusinessMessageReject const &value) : value_{value} {}
+  explicit BusinessMessageReject(roq::codec::fix::BusinessMessageReject const &value) : value_{value} {}
 
   template <typename Context>
   auto format_to(Context &context) const {
@@ -39,7 +39,7 @@ struct BusinessMessageReject final {
   }
 
  private:
-  roq::fix::codec::BusinessMessageReject const &value_;
+  roq::codec::fix::BusinessMessageReject const &value_;
 };
 
 }  // namespace json
