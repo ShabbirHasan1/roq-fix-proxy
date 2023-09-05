@@ -119,8 +119,8 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   void send_business_message_reject(
       roq::fix::Header const &, roq::fix::BusinessRejectReason, std::string_view const &text);
 
-  template <typename T>
-  Trace<T> enrich(Trace<T> const &) const;
+  template <typename T, typename Callback>
+  bool add_party_ids(Trace<T> const &, Callback) const;
 
  private:
   client::Session::Handler &handler_;

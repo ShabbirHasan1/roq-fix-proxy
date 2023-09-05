@@ -74,7 +74,7 @@ Session::Session(
       connection_factory_{create_connection_factory(settings, context, uri)},
       connection_manager_{create_connection_manager(*this, settings, *connection_factory_)},
       decode_buffer_(settings.server.decode_buffer_size), encode_buffer_(settings.server.encode_buffer_size),
-      disable_market_data_{settings.test.disable_market_data} {
+      enable_market_data_{settings.test.enable_market_data} {
 }
 
 void Session::operator()(Event<Start> const &) {
@@ -109,14 +109,17 @@ void Session::operator()(Trace<fix_bridge::fix::MarketDataRequest> const &event)
 }
 
 void Session::operator()(Trace<fix_bridge::fix::NewOrderSingle> const &event) {
+  log::debug("new_order_single={}"sv, event.value);
   send(event);
 }
 
 void Session::operator()(Trace<fix_bridge::fix::OrderCancelReplaceRequest> const &event) {
+  log::debug("order_cancel_replace_request={}"sv, event.value);
   send(event);
 }
 
 void Session::operator()(Trace<fix_bridge::fix::OrderCancelRequest> const &event) {
+  log::debug("order_cancel_request={}"sv, event.value);
   send(event);
 }
 
@@ -348,7 +351,7 @@ void Session::operator()(Trace<fix_bridge::fix::SecurityList> const &event, roq:
     if (shared_.include(item.symbol)) {
       exchange_symbols_[item.security_exchange].emplace(item.symbol);
       send_security_definition_request(item.security_exchange, item.symbol);
-      if (!disable_market_data_)
+      if (enable_market_data_)  // XXX FIXME TEST
         send_market_data_request(item.security_exchange, item.symbol);
     }
   }
@@ -483,6 +486,15 @@ void Session::send_security_definition_request(std::string_view const &exchange,
   send(security_definition_request);
 }
 
+// download
+
+void Session::download_security_list() {
+  send_security_list_request();
+  (*this)(State::GET_SECURITY_LIST);
+}
+
+// XXX FIXME TEST
+
 void Session::send_market_data_request(std::string_view const &exchange, std::string_view const &symbol) {
   auto md_entry_types = std::array<fix_bridge::fix::MDReq, 2>{{
       {.md_entry_type = roq::fix::MDEntryType::BID},
@@ -508,13 +520,6 @@ void Session::send_market_data_request(std::string_view const &exchange, std::st
       .custom_value = {},
   };
   send(market_data_request);
-}
-
-// download
-
-void Session::download_security_list() {
-  send_security_list_request();
-  (*this)(State::GET_SECURITY_LIST);
 }
 
 }  // namespace server

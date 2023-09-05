@@ -10,12 +10,6 @@
       "description": "config file (path)"
     },
     {
-      "name": "disable_market_data",
-      "type": "bool",
-      "default": false,
-      "description": "disable market data?"
-    },
-    {
       "name": "name",
       "type": "std::string",
       "required": true,
@@ -25,6 +19,12 @@
       "name": "service_listen_address",
       "type": "std::string",
       "description": "service listen address (CURRENTLY UNUSED)"
+    },
+    {
+      "name": "enable_market_data",
+      "type": "bool",
+      "default": false,
+      "description": "enable market data auto-subscription?"
     }
   ]
 }

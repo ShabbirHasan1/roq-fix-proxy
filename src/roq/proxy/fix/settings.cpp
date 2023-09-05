@@ -28,7 +28,7 @@ Settings Settings::create(args::Parser const &) {
       .server = flags::Server::create(),
       .client = flags::Client::create(),
       .test{
-          .disable_market_data = flags.disable_market_data,
+          .enable_market_data = flags.enable_market_data,
       },
   };
 }

@@ -26,6 +26,7 @@ auto const ERROR_UNEXPECTED_LOGON = "UNEXPECTED LOGON"sv;
 auto const ERROR_UNEXPECTED_MSG_TYPE = "UNEXPECTED MSG_TYPE"sv;
 auto const ERROR_UNKNOWN_TARGET_COMP_ID = "UNKNOWN TARGET_COMP_ID"sv;
 auto const ERROR_UNSUPPORTED_MSG_TYPE = "UNSUPPORTED MSG_TYPE"sv;
+auto const ERROR_UNSUPPORTED_PARTY_IDS = "UNSUPPORTED PARTY_IDS"sv;
 }  // namespace
 
 // === HELPERS ===
@@ -524,14 +525,12 @@ void Session::operator()(Trace<fix_bridge::fix::NewOrderSingle> const &event, ro
     case WAITING_LOGON:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY: {
-      /*
-      auto event_2 = enrich(event);
-      handler_(event_2, username_);
-      */
-      handler_(event, username_);
+    case READY:
+      if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, username_); })) {
+      } else {
+        send_business_message_reject(header, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
+      }
       break;
-    }
     case ZOMBIE:
       break;
   }
@@ -543,14 +542,12 @@ void Session::operator()(Trace<fix_bridge::fix::OrderCancelRequest> const &event
     case WAITING_LOGON:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY: {
-      /*
-      auto event_2 = enrich(event);
-      handler_(event_2, username_);
-      */
-      handler_(event, username_);
+    case READY:
+      if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, username_); })) {
+      } else {
+        send_business_message_reject(header, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
+      }
       break;
-    }
     case ZOMBIE:
       break;
   }
@@ -563,14 +560,12 @@ void Session::operator()(
     case WAITING_LOGON:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY: {
-      /*
-      auto event_2 = enrich(event);
-      handler_(event_2, username_);
-      */
-      handler_(event, username_);
+    case READY:
+      if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, username_); })) {
+      } else {
+        send_business_message_reject(header, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
+      }
       break;
-    }
     case ZOMBIE:
       break;
   }
@@ -623,13 +618,18 @@ void Session::send_business_message_reject(
   send<2>(response);
 }
 
-template <typename T>
-Trace<T> Session::enrich(Trace<T> const &event) const {
+template <typename T, typename Callback>
+bool Session::add_party_ids(Trace<T> const &event, Callback callback) const {
   assert(!std::empty(party_.party_id));
   auto &[trace_info, value] = event;
-  auto value_2 = value;
-  value_2.no_party_ids = {&party_, 1};
-  return {trace_info, value_2};
+  if (std::empty(value.no_party_ids)) {
+    auto value_2 = value;
+    value_2.no_party_ids = {&party_, 1};
+    Trace event_2{trace_info, value_2};
+    callback(event_2);
+    return true;
+  }
+  return false;
 }
 
 }  // namespace fix

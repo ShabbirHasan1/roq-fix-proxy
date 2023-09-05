@@ -30,7 +30,7 @@ struct Settings final {
   flags::Client client;
 
   struct {
-    bool disable_market_data = {};
+    bool enable_market_data = {};
   } test;
 };
 

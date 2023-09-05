@@ -196,7 +196,7 @@ struct Session final : public io::net::ConnectionManager::Handler {
   std::chrono::nanoseconds next_heartbeat_ = {};
   absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>> exchange_symbols_;
   // TEST
-  bool const disable_market_data_;
+  bool const enable_market_data_;
 };
 
 }  // namespace server

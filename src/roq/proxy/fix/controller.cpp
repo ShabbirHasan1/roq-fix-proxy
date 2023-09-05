@@ -156,7 +156,7 @@ void Controller::dispatch_to_client(Trace<T> const &event, std::string_view cons
     });
   });
   if (!success)
-    log::warn<0>(R"(Undeliverable: username="{}")"sv);
+    log::warn<0>(R"(Undeliverable: username="{}")"sv, username);
 }
 
 }  // namespace fix
