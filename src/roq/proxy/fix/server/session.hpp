@@ -58,17 +58,15 @@ namespace server {
 
 struct Session final : public io::net::ConnectionManager::Handler {
   struct Handler {
-    virtual void operator()(Trace<roq::codec::fix::SecurityDefinition> const &) = 0;
+    virtual void operator()(Trace<codec::fix::SecurityDefinition> const &) = 0;
+    virtual void operator()(Trace<codec::fix::BusinessMessageReject> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::MarketDataRequestReject> const &, std::string_view const &username) = 0;
     virtual void operator()(
-        Trace<roq::codec::fix::BusinessMessageReject> const &, std::string_view const &username) = 0;
+        Trace<codec::fix::MarketDataSnapshotFullRefresh> const &, std::string_view const &username) = 0;
     virtual void operator()(
-        Trace<roq::codec::fix::MarketDataRequestReject> const &, std::string_view const &username) = 0;
-    virtual void operator()(
-        Trace<roq::codec::fix::MarketDataSnapshotFullRefresh> const &, std::string_view const &username) = 0;
-    virtual void operator()(
-        Trace<roq::codec::fix::MarketDataIncrementalRefresh> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<roq::codec::fix::OrderCancelReject> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<roq::codec::fix::ExecutionReport> const &, std::string_view const &username) = 0;
+        Trace<codec::fix::MarketDataIncrementalRefresh> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::OrderCancelReject> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::ExecutionReport> const &, std::string_view const &username) = 0;
   };
 
   Session(
@@ -86,13 +84,13 @@ struct Session final : public io::net::ConnectionManager::Handler {
 
   bool ready() const;
 
-  void operator()(Trace<roq::codec::fix::OrderStatusRequest> const &);
-  void operator()(Trace<roq::codec::fix::MarketDataRequest> const &);
-  void operator()(Trace<roq::codec::fix::NewOrderSingle> const &);
-  void operator()(Trace<roq::codec::fix::OrderCancelReplaceRequest> const &);
-  void operator()(Trace<roq::codec::fix::OrderCancelRequest> const &);
-  void operator()(Trace<roq::codec::fix::OrderMassStatusRequest> const &);
-  void operator()(Trace<roq::codec::fix::OrderMassCancelRequest> const &);
+  void operator()(Trace<codec::fix::OrderStatusRequest> const &);
+  void operator()(Trace<codec::fix::MarketDataRequest> const &);
+  void operator()(Trace<codec::fix::NewOrderSingle> const &);
+  void operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &);
+  void operator()(Trace<codec::fix::OrderCancelRequest> const &);
+  void operator()(Trace<codec::fix::OrderMassStatusRequest> const &);
+  void operator()(Trace<codec::fix::OrderMassCancelRequest> const &);
 
  private:
   enum class State;
@@ -116,30 +114,30 @@ struct Session final : public io::net::ConnectionManager::Handler {
 
   // - session
 
-  void operator()(Trace<roq::codec::fix::Reject> const &, roq::fix::Header const &);
-  void operator()(Trace<roq::codec::fix::ResendRequest> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::Reject> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::ResendRequest> const &, roq::fix::Header const &);
 
-  void operator()(Trace<roq::codec::fix::Logon> const &, roq::fix::Header const &);
-  void operator()(Trace<roq::codec::fix::Logout> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::Logon> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::Logout> const &, roq::fix::Header const &);
 
-  void operator()(Trace<roq::codec::fix::Heartbeat> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::Heartbeat> const &, roq::fix::Header const &);
 
-  void operator()(Trace<roq::codec::fix::TestRequest> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::TestRequest> const &, roq::fix::Header const &);
 
   // - business
 
-  void operator()(Trace<roq::codec::fix::BusinessMessageReject> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::BusinessMessageReject> const &, roq::fix::Header const &);
 
-  void operator()(Trace<roq::codec::fix::SecurityList> const &, roq::fix::Header const &);
-  void operator()(Trace<roq::codec::fix::SecurityDefinition> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::SecurityList> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::SecurityDefinition> const &, roq::fix::Header const &);
 
-  void operator()(Trace<roq::codec::fix::MarketDataRequestReject> const &, roq::fix::Header const &);
-  void operator()(Trace<roq::codec::fix::MarketDataSnapshotFullRefresh> const &, roq::fix::Header const &);
-  void operator()(Trace<roq::codec::fix::MarketDataIncrementalRefresh> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::MarketDataRequestReject> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &, roq::fix::Header const &);
 
-  void operator()(Trace<roq::codec::fix::OrderCancelReject> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::OrderCancelReject> const &, roq::fix::Header const &);
 
-  void operator()(Trace<roq::codec::fix::ExecutionReport> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::ExecutionReport> const &, roq::fix::Header const &);
 
   // outbound
 

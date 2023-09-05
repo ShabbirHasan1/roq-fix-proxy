@@ -64,13 +64,13 @@ void Session::operator()(Event<Timer> const &event) {
         next_heartbeat_ = event.value.now + shared_.settings.client.heartbeat_freq;
         if (waiting_for_heartbeat_) {
           log::warn("Closing connection (reason: client did not send heartbeat)"sv);
-          auto logout = roq::codec::fix::Logout{
+          auto logout = codec::fix::Logout{
               .text = ERROR_MISSING_HEARTBEAT,
           };
           send_and_close<2>(logout);
         } else {
           auto test_req_id = fmt::format("{}"sv, event.value.now);  // XXX TODO something else
-          auto test_request = roq::codec::fix::TestRequest{
+          auto test_request = codec::fix::TestRequest{
               .test_req_id = test_req_id,
           };
           send<4>(test_request);
@@ -83,37 +83,37 @@ void Session::operator()(Event<Timer> const &event) {
   }
 }
 
-void Session::operator()(Trace<roq::codec::fix::BusinessMessageReject> const &event) {
+void Session::operator()(Trace<codec::fix::BusinessMessageReject> const &event) {
   auto &[trace_info, business_message_reject] = event;
   if (ready())
     send<2>(business_message_reject);
 }
 
-void Session::operator()(Trace<roq::codec::fix::MarketDataRequestReject> const &event) {
+void Session::operator()(Trace<codec::fix::MarketDataRequestReject> const &event) {
   auto &[trace_info, market_data_request_reject] = event;
   if (ready())
     send<2>(market_data_request_reject);
 }
 
-void Session::operator()(Trace<roq::codec::fix::MarketDataSnapshotFullRefresh> const &event) {
+void Session::operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &event) {
   auto &[trace_info, market_data_snapshot_full_refresh] = event;
   if (ready())
     send<2>(market_data_snapshot_full_refresh);
 }
 
-void Session::operator()(Trace<roq::codec::fix::MarketDataIncrementalRefresh> const &event) {
+void Session::operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &event) {
   auto &[trace_info, market_data_incremental_refresh] = event;
   if (ready())
     send<2>(market_data_incremental_refresh);
 }
 
-void Session::operator()(Trace<roq::codec::fix::OrderCancelReject> const &event) {
+void Session::operator()(Trace<codec::fix::OrderCancelReject> const &event) {
   auto &[trace_info, order_cancel_reject] = event;
   if (ready())
     send<2>(order_cancel_reject);
 }
 
-void Session::operator()(Trace<roq::codec::fix::ExecutionReport> const &event) {
+void Session::operator()(Trace<codec::fix::ExecutionReport> const &event) {
   auto &[trace_info, execution_report] = event;
   if (ready())
     send<2>(execution_report);
@@ -248,65 +248,65 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
     using enum roq::fix::MsgType;
     // session
     case LOGON:
-      dispatch<roq::codec::fix::Logon>(event);
+      dispatch<codec::fix::Logon>(event);
       break;
     case LOGOUT:
-      dispatch<roq::codec::fix::Logout>(event);
+      dispatch<codec::fix::Logout>(event);
       break;
     case TEST_REQUEST:
-      dispatch<roq::codec::fix::TestRequest>(event);
+      dispatch<codec::fix::TestRequest>(event);
       break;
     case RESEND_REQUEST:
-      dispatch<roq::codec::fix::ResendRequest>(event);
+      dispatch<codec::fix::ResendRequest>(event);
       break;
     case REJECT:
-      dispatch<roq::codec::fix::Reject>(event);
+      dispatch<codec::fix::Reject>(event);
       break;
     case HEARTBEAT:
-      dispatch<roq::codec::fix::Heartbeat>(event);
+      dispatch<codec::fix::Heartbeat>(event);
       break;
       // business
       // - trading session
     case TRADING_SESSION_STATUS_REQUEST:
-      dispatch<roq::codec::fix::TradingSessionStatusRequest>(event);
+      dispatch<codec::fix::TradingSessionStatusRequest>(event);
       break;
       // - market data
     case SECURITY_LIST_REQUEST:
-      dispatch<roq::codec::fix::SecurityListRequest>(event);
+      dispatch<codec::fix::SecurityListRequest>(event);
       break;
     case SECURITY_DEFINITION_REQUEST:
-      dispatch<roq::codec::fix::SecurityDefinitionRequest>(event, decode_buffer_);
+      dispatch<codec::fix::SecurityDefinitionRequest>(event, decode_buffer_);
       break;
     case SECURITY_STATUS_REQUEST:
-      dispatch<roq::codec::fix::SecurityStatusRequest>(event, decode_buffer_);
+      dispatch<codec::fix::SecurityStatusRequest>(event, decode_buffer_);
       break;
     case MARKET_DATA_REQUEST:
-      dispatch<roq::codec::fix::MarketDataRequest>(event, decode_buffer_);
+      dispatch<codec::fix::MarketDataRequest>(event, decode_buffer_);
       break;
       // - order management
     case ORDER_STATUS_REQUEST:
-      dispatch<roq::codec::fix::OrderStatusRequest>(event, decode_buffer_);
+      dispatch<codec::fix::OrderStatusRequest>(event, decode_buffer_);
       break;
     case ORDER_MASS_STATUS_REQUEST:
-      dispatch<roq::codec::fix::OrderMassStatusRequest>(event, decode_buffer_);
+      dispatch<codec::fix::OrderMassStatusRequest>(event, decode_buffer_);
       break;
     case NEW_ORDER_SINGLE:
-      dispatch<roq::codec::fix::NewOrderSingle>(event, decode_buffer_);
+      dispatch<codec::fix::NewOrderSingle>(event, decode_buffer_);
       break;
     case ORDER_CANCEL_REQUEST:
-      dispatch<roq::codec::fix::OrderCancelRequest>(event, decode_buffer_);
+      dispatch<codec::fix::OrderCancelRequest>(event, decode_buffer_);
       break;
     case ORDER_CANCEL_REPLACE_REQUEST:
-      dispatch<roq::codec::fix::OrderCancelReplaceRequest>(event, decode_buffer_);
+      dispatch<codec::fix::OrderCancelReplaceRequest>(event, decode_buffer_);
       break;
     case ORDER_MASS_CANCEL_REQUEST:
-      dispatch<roq::codec::fix::OrderMassCancelRequest>(event, decode_buffer_);
+      dispatch<codec::fix::OrderMassCancelRequest>(event, decode_buffer_);
       break;
       // - trade capture reporting
-      dispatch<roq::codec::fix::TradeCaptureReportRequest>(event, decode_buffer_);
+      dispatch<codec::fix::TradeCaptureReportRequest>(event, decode_buffer_);
       break;
     case REQUEST_FOR_POSITIONS:
-      dispatch<roq::codec::fix::RequestForPositions>(event, decode_buffer_);
+      dispatch<codec::fix::RequestForPositions>(event, decode_buffer_);
       break;
     default:
       log::warn("Unexpected: msg_type={}"sv, message.header.msg_type);
@@ -326,7 +326,7 @@ void Session::dispatch(Trace<roq::fix::Message> const &event, Args &&...args) {
 
 // session
 
-void Session::operator()(Trace<roq::codec::fix::Logon> const &event, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::Logon> const &event, roq::fix::Header const &header) {
   auto &logon = event.value;
   switch (state_) {
     using enum State;
@@ -350,7 +350,7 @@ void Session::operator()(Trace<roq::codec::fix::Logon> const &event, roq::fix::H
               .party_role = roq::fix::PartyRole::CLIENT_ID,
           };
           auto heart_bt_int = std::chrono::duration_cast<std::chrono::seconds>(shared_.settings.client.heartbeat_freq);
-          auto response = roq::codec::fix::Logon{
+          auto response = codec::fix::Logon{
               .encrypt_method = roq::fix::EncryptMethod::NONE,
               .heart_bt_int = static_cast<uint16_t>(heart_bt_int.count()),
               .reset_seq_num_flag = {},
@@ -376,7 +376,7 @@ void Session::operator()(Trace<roq::codec::fix::Logon> const &event, roq::fix::H
   }
 }
 
-void Session::operator()(Trace<roq::codec::fix::Logout> const &event, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::Logout> const &event, roq::fix::Header const &header) {
   auto &[trace_info, logout] = event;
   log::info<1>("logout={}"sv, logout);
   switch (state_) {
@@ -387,7 +387,7 @@ void Session::operator()(Trace<roq::codec::fix::Logout> const &event, roq::fix::
     case READY: {
       auto success = [&]() {
         username_.clear();
-        auto response = roq::codec::fix::Logout{
+        auto response = codec::fix::Logout{
             .text = ERROR_GOODBYE,
         };
         send_and_close<2>(response);
@@ -401,7 +401,7 @@ void Session::operator()(Trace<roq::codec::fix::Logout> const &event, roq::fix::
   }
 }
 
-void Session::operator()(Trace<roq::codec::fix::TestRequest> const &event, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::TestRequest> const &event, roq::fix::Header const &header) {
   auto &[trace_info, test_request] = event;
   log::info<1>("test_request={}"sv, test_request);
   switch (state_) {
@@ -410,7 +410,7 @@ void Session::operator()(Trace<roq::codec::fix::TestRequest> const &event, roq::
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY: {
-      auto heartbeat = roq::codec::fix::Heartbeat{
+      auto heartbeat = codec::fix::Heartbeat{
           .test_req_id = test_request.test_req_id,
       };
       send<4>(heartbeat);
@@ -421,7 +421,7 @@ void Session::operator()(Trace<roq::codec::fix::TestRequest> const &event, roq::
   }
 }
 
-void Session::operator()(Trace<roq::codec::fix::ResendRequest> const &event, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::ResendRequest> const &event, roq::fix::Header const &header) {
   auto &[trace_info, resend_request] = event;
   log::info<1>("resend_request={}"sv, resend_request);
   switch (state_) {
@@ -439,13 +439,13 @@ void Session::operator()(Trace<roq::codec::fix::ResendRequest> const &event, roq
   }
 }
 
-void Session::operator()(Trace<roq::codec::fix::Reject> const &event, roq::fix::Header const &) {
+void Session::operator()(Trace<codec::fix::Reject> const &event, roq::fix::Header const &) {
   auto &[trace_info, reject] = event;
   log::warn("reject={}"sv, reject);
   close();
 }
 
-void Session::operator()(Trace<roq::codec::fix::Heartbeat> const &event, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::Heartbeat> const &event, roq::fix::Header const &header) {
   auto &[trace_info, heartbeat] = event;
   log::info<1>("heartbeat={}"sv, heartbeat);
   switch (state_) {
@@ -463,35 +463,35 @@ void Session::operator()(Trace<roq::codec::fix::Heartbeat> const &event, roq::fi
 
 // business
 
-void Session::operator()(Trace<roq::codec::fix::TradingSessionStatusRequest> const &, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::TradingSessionStatusRequest> const &, roq::fix::Header const &header) {
   send_business_message_reject(
       header,
       roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
       ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<roq::codec::fix::SecurityListRequest> const &, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::SecurityListRequest> const &, roq::fix::Header const &header) {
   send_business_message_reject(
       header,
       roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
       ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<roq::codec::fix::SecurityDefinitionRequest> const &, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::SecurityDefinitionRequest> const &, roq::fix::Header const &header) {
   send_business_message_reject(
       header,
       roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
       ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<roq::codec::fix::SecurityStatusRequest> const &, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::SecurityStatusRequest> const &, roq::fix::Header const &header) {
   send_business_message_reject(
       header,
       roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
       ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<roq::codec::fix::MarketDataRequest> const &event, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::MarketDataRequest> const &event, roq::fix::Header const &header) {
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
@@ -505,21 +505,21 @@ void Session::operator()(Trace<roq::codec::fix::MarketDataRequest> const &event,
   }
 }
 
-void Session::operator()(Trace<roq::codec::fix::OrderStatusRequest> const &, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::OrderStatusRequest> const &, roq::fix::Header const &header) {
   send_business_message_reject(
       header,
       roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
       ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<roq::codec::fix::OrderMassStatusRequest> const &, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::OrderMassStatusRequest> const &, roq::fix::Header const &header) {
   send_business_message_reject(
       header,
       roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
       ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<roq::codec::fix::NewOrderSingle> const &event, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::NewOrderSingle> const &event, roq::fix::Header const &header) {
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
@@ -536,7 +536,7 @@ void Session::operator()(Trace<roq::codec::fix::NewOrderSingle> const &event, ro
   }
 }
 
-void Session::operator()(Trace<roq::codec::fix::OrderCancelRequest> const &event, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::OrderCancelRequest> const &event, roq::fix::Header const &header) {
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
@@ -553,8 +553,7 @@ void Session::operator()(Trace<roq::codec::fix::OrderCancelRequest> const &event
   }
 }
 
-void Session::operator()(
-    Trace<roq::codec::fix::OrderCancelReplaceRequest> const &event, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &event, roq::fix::Header const &header) {
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
@@ -571,21 +570,21 @@ void Session::operator()(
   }
 }
 
-void Session::operator()(Trace<roq::codec::fix::OrderMassCancelRequest> const &, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::OrderMassCancelRequest> const &, roq::fix::Header const &header) {
   send_business_message_reject(
       header,
       roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
       ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<roq::codec::fix::TradeCaptureReportRequest> const &, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &, roq::fix::Header const &header) {
   send_business_message_reject(
       header,
       roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
       ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<roq::codec::fix::RequestForPositions> const &, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::RequestForPositions> const &, roq::fix::Header const &header) {
   send_business_message_reject(
       header,
       roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
@@ -594,7 +593,7 @@ void Session::operator()(Trace<roq::codec::fix::RequestForPositions> const &, ro
 
 void Session::send_reject(
     roq::fix::Header const &header, roq::fix::SessionRejectReason session_reject_reason, std::string_view const &text) {
-  auto response = roq::codec::fix::Reject{
+  auto response = codec::fix::Reject{
       .ref_seq_num = header.msg_seq_num,
       .text = text,
       .ref_tag_id = {},
@@ -608,7 +607,7 @@ void Session::send_business_message_reject(
     roq::fix::Header const &header,
     roq::fix::BusinessRejectReason business_reject_reason,
     std::string_view const &text) {
-  auto response = roq::codec::fix::BusinessMessageReject{
+  auto response = codec::fix::BusinessMessageReject{
       .ref_seq_num = header.msg_seq_num,
       .ref_msg_type = header.msg_type,
       .business_reject_ref_id = {},

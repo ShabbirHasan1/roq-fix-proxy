@@ -31,16 +31,13 @@ namespace client {
 
 struct Session {
   struct Handler {
-    virtual void operator()(Trace<roq::codec::fix::OrderStatusRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<roq::codec::fix::MarketDataRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<roq::codec::fix::NewOrderSingle> const &, std::string_view const &username) = 0;
-    virtual void operator()(
-        Trace<roq::codec::fix::OrderCancelReplaceRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<roq::codec::fix::OrderCancelRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(
-        Trace<roq::codec::fix::OrderMassStatusRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(
-        Trace<roq::codec::fix::OrderMassCancelRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::OrderStatusRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::MarketDataRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::NewOrderSingle> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::OrderCancelRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::OrderMassStatusRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::OrderMassCancelRequest> const &, std::string_view const &username) = 0;
   };
 
   virtual ~Session() = default;
@@ -48,12 +45,12 @@ struct Session {
   virtual void operator()(Event<Stop> const &) = 0;
   virtual void operator()(Event<Timer> const &) = 0;
 
-  virtual void operator()(Trace<roq::codec::fix::BusinessMessageReject> const &) = 0;
-  virtual void operator()(Trace<roq::codec::fix::MarketDataRequestReject> const &) = 0;
-  virtual void operator()(Trace<roq::codec::fix::MarketDataSnapshotFullRefresh> const &) = 0;
-  virtual void operator()(Trace<roq::codec::fix::MarketDataIncrementalRefresh> const &) = 0;
-  virtual void operator()(Trace<roq::codec::fix::OrderCancelReject> const &) = 0;
-  virtual void operator()(Trace<roq::codec::fix::ExecutionReport> const &) = 0;
+  virtual void operator()(Trace<codec::fix::BusinessMessageReject> const &) = 0;
+  virtual void operator()(Trace<codec::fix::MarketDataRequestReject> const &) = 0;
+  virtual void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &) = 0;
+  virtual void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &) = 0;
+  virtual void operator()(Trace<codec::fix::OrderCancelReject> const &) = 0;
+  virtual void operator()(Trace<codec::fix::ExecutionReport> const &) = 0;
 };
 
 }  // namespace client

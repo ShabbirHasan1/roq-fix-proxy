@@ -17,7 +17,7 @@ namespace json {
 // note! supports both rest and websocket
 
 struct BusinessMessageReject final {
-  explicit BusinessMessageReject(roq::codec::fix::BusinessMessageReject const &value) : value_{value} {}
+  explicit BusinessMessageReject(codec::fix::BusinessMessageReject const &value) : value_{value} {}
 
   template <typename Context>
   auto format_to(Context &context) const {
@@ -39,7 +39,7 @@ struct BusinessMessageReject final {
   }
 
  private:
-  roq::codec::fix::BusinessMessageReject const &value_;
+  codec::fix::BusinessMessageReject const &value_;
 };
 
 }  // namespace json
