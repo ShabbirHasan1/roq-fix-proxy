@@ -8,21 +8,21 @@
 #include "roq/trace.hpp"
 
 // inbound
-#include "roq/fix_bridge/fix/business_message_reject.hpp"
-#include "roq/fix_bridge/fix/execution_report.hpp"
-#include "roq/fix_bridge/fix/market_data_incremental_refresh.hpp"
-#include "roq/fix_bridge/fix/market_data_request_reject.hpp"
-#include "roq/fix_bridge/fix/market_data_snapshot_full_refresh.hpp"
-#include "roq/fix_bridge/fix/order_cancel_reject.hpp"
+#include "roq/fix/codec/business_message_reject.hpp"
+#include "roq/fix/codec/execution_report.hpp"
+#include "roq/fix/codec/market_data_incremental_refresh.hpp"
+#include "roq/fix/codec/market_data_request_reject.hpp"
+#include "roq/fix/codec/market_data_snapshot_full_refresh.hpp"
+#include "roq/fix/codec/order_cancel_reject.hpp"
 
 // outbound
-#include "roq/fix_bridge/fix/market_data_request.hpp"
-#include "roq/fix_bridge/fix/new_order_single.hpp"
-#include "roq/fix_bridge/fix/order_cancel_replace_request.hpp"
-#include "roq/fix_bridge/fix/order_cancel_request.hpp"
-#include "roq/fix_bridge/fix/order_mass_cancel_request.hpp"
-#include "roq/fix_bridge/fix/order_mass_status_request.hpp"
-#include "roq/fix_bridge/fix/order_status_request.hpp"
+#include "roq/fix/codec/market_data_request.hpp"
+#include "roq/fix/codec/new_order_single.hpp"
+#include "roq/fix/codec/order_cancel_replace_request.hpp"
+#include "roq/fix/codec/order_cancel_request.hpp"
+#include "roq/fix/codec/order_mass_cancel_request.hpp"
+#include "roq/fix/codec/order_mass_status_request.hpp"
+#include "roq/fix/codec/order_status_request.hpp"
 
 namespace roq {
 namespace proxy {
@@ -31,16 +31,16 @@ namespace client {
 
 struct Session {
   struct Handler {
-    virtual void operator()(Trace<fix_bridge::fix::OrderStatusRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<fix_bridge::fix::MarketDataRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<fix_bridge::fix::NewOrderSingle> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<roq::fix::codec::OrderStatusRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<roq::fix::codec::MarketDataRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<roq::fix::codec::NewOrderSingle> const &, std::string_view const &username) = 0;
     virtual void operator()(
-        Trace<fix_bridge::fix::OrderCancelReplaceRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<fix_bridge::fix::OrderCancelRequest> const &, std::string_view const &username) = 0;
+        Trace<roq::fix::codec::OrderCancelReplaceRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<roq::fix::codec::OrderCancelRequest> const &, std::string_view const &username) = 0;
     virtual void operator()(
-        Trace<fix_bridge::fix::OrderMassStatusRequest> const &, std::string_view const &username) = 0;
+        Trace<roq::fix::codec::OrderMassStatusRequest> const &, std::string_view const &username) = 0;
     virtual void operator()(
-        Trace<fix_bridge::fix::OrderMassCancelRequest> const &, std::string_view const &username) = 0;
+        Trace<roq::fix::codec::OrderMassCancelRequest> const &, std::string_view const &username) = 0;
   };
 
   virtual ~Session() = default;
@@ -48,12 +48,12 @@ struct Session {
   virtual void operator()(Event<Stop> const &) = 0;
   virtual void operator()(Event<Timer> const &) = 0;
 
-  virtual void operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &) = 0;
-  virtual void operator()(Trace<fix_bridge::fix::MarketDataRequestReject> const &) = 0;
-  virtual void operator()(Trace<fix_bridge::fix::MarketDataSnapshotFullRefresh> const &) = 0;
-  virtual void operator()(Trace<fix_bridge::fix::MarketDataIncrementalRefresh> const &) = 0;
-  virtual void operator()(Trace<fix_bridge::fix::OrderCancelReject> const &) = 0;
-  virtual void operator()(Trace<fix_bridge::fix::ExecutionReport> const &) = 0;
+  virtual void operator()(Trace<roq::fix::codec::BusinessMessageReject> const &) = 0;
+  virtual void operator()(Trace<roq::fix::codec::MarketDataRequestReject> const &) = 0;
+  virtual void operator()(Trace<roq::fix::codec::MarketDataSnapshotFullRefresh> const &) = 0;
+  virtual void operator()(Trace<roq::fix::codec::MarketDataIncrementalRefresh> const &) = 0;
+  virtual void operator()(Trace<roq::fix::codec::OrderCancelReject> const &) = 0;
+  virtual void operator()(Trace<roq::fix::codec::ExecutionReport> const &) = 0;
 };
 
 }  // namespace client

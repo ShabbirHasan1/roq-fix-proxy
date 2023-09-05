@@ -24,7 +24,7 @@ target_link_libraries(
           ${TARGET_NAME}-client-json
           ${TARGET_NAME}-client
           ${PROJECT_NAME}-third_party-re2
-          roq-fix-bridge::roq-fix-bridge-fix
+          roq-fix-codec::roq-fix-codec
           roq-fix::roq-fix
           roq-web::roq-web
           roq-io::roq-io

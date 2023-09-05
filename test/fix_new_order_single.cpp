@@ -5,7 +5,7 @@
 #include "roq/debug/fix/message.hpp"
 #include "roq/debug/hex/message.hpp"
 
-#include "roq/fix_bridge/fix/new_order_single.hpp"
+#include "roq/fix/codec/new_order_single.hpp"
 
 using namespace std::literals;
 using namespace std::chrono_literals;
@@ -14,7 +14,7 @@ using namespace roq;
 
 namespace {
 using Header = fix::Header;
-using NewOrderSingle = fix_bridge::fix::NewOrderSingle;
+using NewOrderSingle = fix::codec::NewOrderSingle;
 };  // namespace
 
 TEST_CASE("fix_new_order_single", "[fix_new_order_single]") {

@@ -34,12 +34,12 @@ struct Session final : public client::Session, public web::rest::Server::Handler
   void operator()(Event<Stop> const &) override;
   void operator()(Event<Timer> const &) override;
 
-  void operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &) override;
-  void operator()(Trace<fix_bridge::fix::MarketDataRequestReject> const &) override;
-  void operator()(Trace<fix_bridge::fix::MarketDataSnapshotFullRefresh> const &) override;
-  void operator()(Trace<fix_bridge::fix::MarketDataIncrementalRefresh> const &) override;
-  void operator()(Trace<fix_bridge::fix::OrderCancelReject> const &) override;
-  void operator()(Trace<fix_bridge::fix::ExecutionReport> const &) override;
+  void operator()(Trace<roq::fix::codec::BusinessMessageReject> const &) override;
+  void operator()(Trace<roq::fix::codec::MarketDataRequestReject> const &) override;
+  void operator()(Trace<roq::fix::codec::MarketDataSnapshotFullRefresh> const &) override;
+  void operator()(Trace<roq::fix::codec::MarketDataIncrementalRefresh> const &) override;
+  void operator()(Trace<roq::fix::codec::OrderCancelReject> const &) override;
+  void operator()(Trace<roq::fix::codec::ExecutionReport> const &) override;
 
  protected:
   bool ready() const;

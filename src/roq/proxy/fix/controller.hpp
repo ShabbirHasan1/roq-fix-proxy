@@ -41,24 +41,24 @@ struct Controller final : public io::sys::Signal::Handler,
   void operator()(io::sys::Timer::Event const &) override;
 
   // server::Session::Handler
-  void operator()(Trace<fix_bridge::fix::SecurityDefinition> const &) override;
-  void operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &, std::string_view const &username) override;
-  void operator()(Trace<fix_bridge::fix::MarketDataRequestReject> const &, std::string_view const &username) override;
+  void operator()(Trace<roq::fix::codec::SecurityDefinition> const &) override;
+  void operator()(Trace<roq::fix::codec::BusinessMessageReject> const &, std::string_view const &username) override;
+  void operator()(Trace<roq::fix::codec::MarketDataRequestReject> const &, std::string_view const &username) override;
   void operator()(
-      Trace<fix_bridge::fix::MarketDataSnapshotFullRefresh> const &, std::string_view const &username) override;
+      Trace<roq::fix::codec::MarketDataSnapshotFullRefresh> const &, std::string_view const &username) override;
   void operator()(
-      Trace<fix_bridge::fix::MarketDataIncrementalRefresh> const &, std::string_view const &username) override;
-  void operator()(Trace<fix_bridge::fix::OrderCancelReject> const &, std::string_view const &username) override;
-  void operator()(Trace<fix_bridge::fix::ExecutionReport> const &, std::string_view const &username) override;
+      Trace<roq::fix::codec::MarketDataIncrementalRefresh> const &, std::string_view const &username) override;
+  void operator()(Trace<roq::fix::codec::OrderCancelReject> const &, std::string_view const &username) override;
+  void operator()(Trace<roq::fix::codec::ExecutionReport> const &, std::string_view const &username) override;
 
   // client::Session::Handler
-  void operator()(Trace<fix_bridge::fix::OrderStatusRequest> const &, std::string_view const &username) override;
-  void operator()(Trace<fix_bridge::fix::MarketDataRequest> const &, std::string_view const &username) override;
-  void operator()(Trace<fix_bridge::fix::NewOrderSingle> const &, std::string_view const &username) override;
-  void operator()(Trace<fix_bridge::fix::OrderCancelReplaceRequest> const &, std::string_view const &username) override;
-  void operator()(Trace<fix_bridge::fix::OrderCancelRequest> const &, std::string_view const &username) override;
-  void operator()(Trace<fix_bridge::fix::OrderMassStatusRequest> const &, std::string_view const &username) override;
-  void operator()(Trace<fix_bridge::fix::OrderMassCancelRequest> const &, std::string_view const &username) override;
+  void operator()(Trace<roq::fix::codec::OrderStatusRequest> const &, std::string_view const &username) override;
+  void operator()(Trace<roq::fix::codec::MarketDataRequest> const &, std::string_view const &username) override;
+  void operator()(Trace<roq::fix::codec::NewOrderSingle> const &, std::string_view const &username) override;
+  void operator()(Trace<roq::fix::codec::OrderCancelReplaceRequest> const &, std::string_view const &username) override;
+  void operator()(Trace<roq::fix::codec::OrderCancelRequest> const &, std::string_view const &username) override;
+  void operator()(Trace<roq::fix::codec::OrderMassStatusRequest> const &, std::string_view const &username) override;
+  void operator()(Trace<roq::fix::codec::OrderMassCancelRequest> const &, std::string_view const &username) override;
 
   // utilities
 

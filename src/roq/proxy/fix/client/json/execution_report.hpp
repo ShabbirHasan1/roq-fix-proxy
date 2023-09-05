@@ -8,7 +8,7 @@
 #include "roq/json/number.hpp"
 #include "roq/json/string.hpp"
 
-#include "roq/fix_bridge/fix/execution_report.hpp"
+#include "roq/fix/codec/execution_report.hpp"
 
 namespace roq {
 namespace proxy {
@@ -19,7 +19,7 @@ namespace json {
 // note! supports both rest and websocket
 
 struct ExecutionReport final {
-  explicit ExecutionReport(fix_bridge::fix::ExecutionReport const &value) : value_{value} {}
+  explicit ExecutionReport(roq::fix::codec::ExecutionReport const &value) : value_{value} {}
 
   template <typename Context>
   auto format_to(Context &context) const {
@@ -101,7 +101,7 @@ struct ExecutionReport final {
   }
 
  private:
-  fix_bridge::fix::ExecutionReport const &value_;
+  roq::fix::codec::ExecutionReport const &value_;
 };
 
 }  // namespace json

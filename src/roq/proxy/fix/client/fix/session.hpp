@@ -11,27 +11,27 @@
 #include "roq/io/net/tcp/connection.hpp"
 
 // session
-#include "roq/fix_bridge/fix/heartbeat.hpp"
-#include "roq/fix_bridge/fix/logon.hpp"
-#include "roq/fix_bridge/fix/logout.hpp"
-#include "roq/fix_bridge/fix/reject.hpp"
-#include "roq/fix_bridge/fix/resend_request.hpp"
-#include "roq/fix_bridge/fix/test_request.hpp"
+#include "roq/fix/codec/heartbeat.hpp"
+#include "roq/fix/codec/logon.hpp"
+#include "roq/fix/codec/logout.hpp"
+#include "roq/fix/codec/reject.hpp"
+#include "roq/fix/codec/resend_request.hpp"
+#include "roq/fix/codec/test_request.hpp"
 
 // business
-#include "roq/fix_bridge/fix/market_data_request.hpp"
-#include "roq/fix_bridge/fix/new_order_single.hpp"
-#include "roq/fix_bridge/fix/order_cancel_replace_request.hpp"
-#include "roq/fix_bridge/fix/order_cancel_request.hpp"
-#include "roq/fix_bridge/fix/order_mass_cancel_request.hpp"
-#include "roq/fix_bridge/fix/order_mass_status_request.hpp"
-#include "roq/fix_bridge/fix/order_status_request.hpp"
-#include "roq/fix_bridge/fix/request_for_positions.hpp"
-#include "roq/fix_bridge/fix/security_definition_request.hpp"
-#include "roq/fix_bridge/fix/security_list_request.hpp"
-#include "roq/fix_bridge/fix/security_status_request.hpp"
-#include "roq/fix_bridge/fix/trade_capture_report_request.hpp"
-#include "roq/fix_bridge/fix/trading_session_status_request.hpp"
+#include "roq/fix/codec/market_data_request.hpp"
+#include "roq/fix/codec/new_order_single.hpp"
+#include "roq/fix/codec/order_cancel_replace_request.hpp"
+#include "roq/fix/codec/order_cancel_request.hpp"
+#include "roq/fix/codec/order_mass_cancel_request.hpp"
+#include "roq/fix/codec/order_mass_status_request.hpp"
+#include "roq/fix/codec/order_status_request.hpp"
+#include "roq/fix/codec/request_for_positions.hpp"
+#include "roq/fix/codec/security_definition_request.hpp"
+#include "roq/fix/codec/security_list_request.hpp"
+#include "roq/fix/codec/security_status_request.hpp"
+#include "roq/fix/codec/trade_capture_report_request.hpp"
+#include "roq/fix/codec/trading_session_status_request.hpp"
 
 #include "roq/proxy/fix/shared.hpp"
 
@@ -51,12 +51,12 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   void operator()(Event<Stop> const &) override;
   void operator()(Event<Timer> const &) override;
 
-  void operator()(Trace<fix_bridge::fix::BusinessMessageReject> const &) override;
-  void operator()(Trace<fix_bridge::fix::MarketDataRequestReject> const &) override;
-  void operator()(Trace<fix_bridge::fix::MarketDataSnapshotFullRefresh> const &) override;
-  void operator()(Trace<fix_bridge::fix::MarketDataIncrementalRefresh> const &) override;
-  void operator()(Trace<fix_bridge::fix::OrderCancelReject> const &) override;
-  void operator()(Trace<fix_bridge::fix::ExecutionReport> const &) override;
+  void operator()(Trace<roq::fix::codec::BusinessMessageReject> const &) override;
+  void operator()(Trace<roq::fix::codec::MarketDataRequestReject> const &) override;
+  void operator()(Trace<roq::fix::codec::MarketDataSnapshotFullRefresh> const &) override;
+  void operator()(Trace<roq::fix::codec::MarketDataIncrementalRefresh> const &) override;
+  void operator()(Trace<roq::fix::codec::OrderCancelReject> const &) override;
+  void operator()(Trace<roq::fix::codec::ExecutionReport> const &) override;
 
  protected:
   bool ready() const;
@@ -89,30 +89,30 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   template <typename T, typename... Args>
   void dispatch(Trace<roq::fix::Message> const &, Args &&...);
 
-  void operator()(Trace<fix_bridge::fix::Logon> const &, roq::fix::Header const &);
-  void operator()(Trace<fix_bridge::fix::Logout> const &, roq::fix::Header const &);
-  void operator()(Trace<fix_bridge::fix::TestRequest> const &, roq::fix::Header const &);
-  void operator()(Trace<fix_bridge::fix::ResendRequest> const &, roq::fix::Header const &);
-  void operator()(Trace<fix_bridge::fix::Reject> const &, roq::fix::Header const &);
-  void operator()(Trace<fix_bridge::fix::Heartbeat> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::Logon> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::Logout> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::TestRequest> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::ResendRequest> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::Reject> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::Heartbeat> const &, roq::fix::Header const &);
 
-  void operator()(Trace<fix_bridge::fix::TradingSessionStatusRequest> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::TradingSessionStatusRequest> const &, roq::fix::Header const &);
 
-  void operator()(Trace<fix_bridge::fix::SecurityListRequest> const &, roq::fix::Header const &);
-  void operator()(Trace<fix_bridge::fix::SecurityDefinitionRequest> const &, roq::fix::Header const &);
-  void operator()(Trace<fix_bridge::fix::SecurityStatusRequest> const &, roq::fix::Header const &);
-  void operator()(Trace<fix_bridge::fix::MarketDataRequest> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::SecurityListRequest> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::SecurityDefinitionRequest> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::SecurityStatusRequest> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::MarketDataRequest> const &, roq::fix::Header const &);
 
-  void operator()(Trace<fix_bridge::fix::OrderStatusRequest> const &, roq::fix::Header const &);
-  void operator()(Trace<fix_bridge::fix::OrderMassStatusRequest> const &, roq::fix::Header const &);
-  void operator()(Trace<fix_bridge::fix::NewOrderSingle> const &, roq::fix::Header const &);
-  void operator()(Trace<fix_bridge::fix::OrderCancelRequest> const &, roq::fix::Header const &);
-  void operator()(Trace<fix_bridge::fix::OrderCancelReplaceRequest> const &, roq::fix::Header const &);
-  void operator()(Trace<fix_bridge::fix::OrderMassCancelRequest> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::OrderStatusRequest> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::OrderMassStatusRequest> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::NewOrderSingle> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::OrderCancelRequest> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::OrderCancelReplaceRequest> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::OrderMassCancelRequest> const &, roq::fix::Header const &);
 
-  void operator()(Trace<fix_bridge::fix::TradeCaptureReportRequest> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::TradeCaptureReportRequest> const &, roq::fix::Header const &);
 
-  void operator()(Trace<fix_bridge::fix::RequestForPositions> const &, roq::fix::Header const &);
+  void operator()(Trace<roq::fix::codec::RequestForPositions> const &, roq::fix::Header const &);
 
   void send_reject(roq::fix::Header const &, roq::fix::SessionRejectReason, std::string_view const &text);
 
@@ -139,7 +139,7 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   std::string comp_id_;
   std::string username_;
   std::string strategy_id_;
-  fix_bridge::fix::Party party_;
+  roq::fix::codec::Party party_;
   std::chrono::nanoseconds next_heartbeat_ = {};
   bool waiting_for_heartbeat_ = {};
   // buffer

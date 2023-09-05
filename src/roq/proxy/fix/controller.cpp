@@ -62,69 +62,69 @@ void Controller::operator()(io::sys::Timer::Event const &event) {
 
 // server::Session::Handler
 
-void Controller::operator()(Trace<fix_bridge::fix::SecurityDefinition> const &event) {
+void Controller::operator()(Trace<roq::fix::codec::SecurityDefinition> const &event) {
   auto &[trace_info, security_definition] = event;
   shared_.symbols.emplace(security_definition.symbol);  // XXX TODO cache reference data
 }
 
 void Controller::operator()(
-    Trace<fix_bridge::fix::BusinessMessageReject> const &event, std::string_view const &username) {
+    Trace<roq::fix::codec::BusinessMessageReject> const &event, std::string_view const &username) {
   dispatch_to_client(event, username);
 }
 
 void Controller::operator()(
-    Trace<fix_bridge::fix::MarketDataRequestReject> const &event, std::string_view const &username) {
+    Trace<roq::fix::codec::MarketDataRequestReject> const &event, std::string_view const &username) {
   dispatch_to_client(event, username);
 }
 
 void Controller::operator()(
-    Trace<fix_bridge::fix::MarketDataSnapshotFullRefresh> const &event, std::string_view const &username) {
+    Trace<roq::fix::codec::MarketDataSnapshotFullRefresh> const &event, std::string_view const &username) {
   dispatch_to_client(event, username);
 }
 
 void Controller::operator()(
-    Trace<fix_bridge::fix::MarketDataIncrementalRefresh> const &event, std::string_view const &username) {
+    Trace<roq::fix::codec::MarketDataIncrementalRefresh> const &event, std::string_view const &username) {
   dispatch_to_client(event, username);
 }
 
-void Controller::operator()(Trace<fix_bridge::fix::OrderCancelReject> const &event, std::string_view const &username) {
+void Controller::operator()(Trace<roq::fix::codec::OrderCancelReject> const &event, std::string_view const &username) {
   dispatch_to_client(event, username);
 }
 
-void Controller::operator()(Trace<fix_bridge::fix::ExecutionReport> const &event, std::string_view const &username) {
+void Controller::operator()(Trace<roq::fix::codec::ExecutionReport> const &event, std::string_view const &username) {
   dispatch_to_client(event, username);
 }
 
 // client::Session::Handler
 
-void Controller::operator()(Trace<fix_bridge::fix::OrderStatusRequest> const &event, std::string_view const &username) {
+void Controller::operator()(Trace<roq::fix::codec::OrderStatusRequest> const &event, std::string_view const &username) {
   dispatch_to_server(event, username);
 }
 
-void Controller::operator()(Trace<fix_bridge::fix::MarketDataRequest> const &event, std::string_view const &username) {
+void Controller::operator()(Trace<roq::fix::codec::MarketDataRequest> const &event, std::string_view const &username) {
   dispatch_to_server(event, username);
 }
 
-void Controller::operator()(Trace<fix_bridge::fix::NewOrderSingle> const &event, std::string_view const &username) {
-  dispatch_to_server(event, username);
-}
-
-void Controller::operator()(
-    Trace<fix_bridge::fix::OrderCancelReplaceRequest> const &event, std::string_view const &username) {
-  dispatch_to_server(event, username);
-}
-
-void Controller::operator()(Trace<fix_bridge::fix::OrderCancelRequest> const &event, std::string_view const &username) {
+void Controller::operator()(Trace<roq::fix::codec::NewOrderSingle> const &event, std::string_view const &username) {
   dispatch_to_server(event, username);
 }
 
 void Controller::operator()(
-    Trace<fix_bridge::fix::OrderMassStatusRequest> const &event, std::string_view const &username) {
+    Trace<roq::fix::codec::OrderCancelReplaceRequest> const &event, std::string_view const &username) {
+  dispatch_to_server(event, username);
+}
+
+void Controller::operator()(Trace<roq::fix::codec::OrderCancelRequest> const &event, std::string_view const &username) {
   dispatch_to_server(event, username);
 }
 
 void Controller::operator()(
-    Trace<fix_bridge::fix::OrderMassCancelRequest> const &event, std::string_view const &username) {
+    Trace<roq::fix::codec::OrderMassStatusRequest> const &event, std::string_view const &username) {
+  dispatch_to_server(event, username);
+}
+
+void Controller::operator()(
+    Trace<roq::fix::codec::OrderMassCancelRequest> const &event, std::string_view const &username) {
   dispatch_to_server(event, username);
 }
 
