@@ -39,6 +39,7 @@
 #include "roq/codec/fix/resend_request.hpp"
 #include "roq/codec/fix/security_definition.hpp"
 #include "roq/codec/fix/security_list.hpp"
+#include "roq/codec/fix/security_list_request.hpp"
 #include "roq/codec/fix/test_request.hpp"
 
 // outbound
@@ -59,12 +60,16 @@ namespace server {
 struct Session final : public io::net::ConnectionManager::Handler {
   struct Handler {
     virtual void operator()(Trace<codec::fix::SecurityDefinition> const &) = 0;
+    // ...
     virtual void operator()(Trace<codec::fix::BusinessMessageReject> const &, std::string_view const &username) = 0;
+    // ...
+    virtual void operator()(Trace<codec::fix::SecurityList> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<codec::fix::MarketDataRequestReject> const &, std::string_view const &username) = 0;
     virtual void operator()(
         Trace<codec::fix::MarketDataSnapshotFullRefresh> const &, std::string_view const &username) = 0;
     virtual void operator()(
         Trace<codec::fix::MarketDataIncrementalRefresh> const &, std::string_view const &username) = 0;
+    // ...
     virtual void operator()(Trace<codec::fix::OrderCancelReject> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<codec::fix::ExecutionReport> const &, std::string_view const &username) = 0;
   };
@@ -84,8 +89,10 @@ struct Session final : public io::net::ConnectionManager::Handler {
 
   bool ready() const;
 
-  void operator()(Trace<codec::fix::OrderStatusRequest> const &);
+  void operator()(Trace<codec::fix::SecurityListRequest> const &);
   void operator()(Trace<codec::fix::MarketDataRequest> const &);
+  // ...
+  void operator()(Trace<codec::fix::OrderStatusRequest> const &);
   void operator()(Trace<codec::fix::NewOrderSingle> const &);
   void operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &);
   void operator()(Trace<codec::fix::OrderCancelRequest> const &);

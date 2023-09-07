@@ -100,11 +100,15 @@ bool Session::ready() const {
   return state_ == State::READY;
 }
 
-void Session::operator()(Trace<codec::fix::OrderStatusRequest> const &event) {
+void Session::operator()(Trace<codec::fix::MarketDataRequest> const &event) {
   send(event);
 }
 
-void Session::operator()(Trace<codec::fix::MarketDataRequest> const &event) {
+void Session::operator()(Trace<codec::fix::SecurityListRequest> const &event) {
+  send(event);
+}
+
+void Session::operator()(Trace<codec::fix::OrderStatusRequest> const &event) {
   send(event);
 }
 
@@ -345,16 +349,28 @@ void Session::operator()(Trace<codec::fix::BusinessMessageReject> const &event, 
 void Session::operator()(Trace<codec::fix::SecurityList> const &event, roq::fix::Header const &) {
   auto &[trace_info, security_list] = event;
   log::debug("security_list={}, trace_info={}"sv, security_list, trace_info);
-  assert(state_ == State::GET_SECURITY_LIST);
-  for (auto &item : security_list.no_related_sym) {
-    if (shared_.include(item.symbol)) {
-      exchange_symbols_[item.security_exchange].emplace(item.symbol);
-      send_security_definition_request(item.security_exchange, item.symbol);
-      if (enable_market_data_)  // XXX FIXME TEST
-        send_market_data_request(item.security_exchange, item.symbol);
+  switch (state_) {
+    using enum State;
+    case DISCONNECTED:
+    case LOGON_SENT:
+      assert(false);
+      break;
+    case GET_SECURITY_LIST: {
+      for (auto &item : security_list.no_related_sym) {
+        if (shared_.include(item.symbol)) {
+          exchange_symbols_[item.security_exchange].emplace(item.symbol);
+          send_security_definition_request(item.security_exchange, item.symbol);
+          if (enable_market_data_)  // XXX FIXME TEST
+            send_market_data_request(item.security_exchange, item.symbol);
+        }
+      }
+      (*this)(State::READY);
+      break;
     }
+    case READY:
+      handler_(event, username_);
+      break;
   }
-  (*this)(State::READY);
 }
 
 void Session::operator()(Trace<codec::fix::SecurityDefinition> const &event, roq::fix::Header const &) {
