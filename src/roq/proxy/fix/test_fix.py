@@ -32,6 +32,28 @@ def logon_request():
     return request
 
 
+def market_data_request():
+    msg = simplefix.FixMessage()
+    msg.append_pair(8, FIX)
+    msg.append_pair(35, "V")
+    msg.append_pair(49, SENDER_COMP_ID)
+    msg.append_pair(56, TARGET_COMP_ID)
+    msg.append_pair(262, "test")
+    msg.append_pair(263, 1)  # snapshot+updates
+    msg.append_pair(264, 0)  # full book
+    msg.append_pair(265, 1)  # incremental
+    msg.append_pair(266, "Y")  # aggregated book
+    msg.append_pair(267, 2)  # NoMDEntryTypes
+    msg.append_pair(269, 0)  # bid
+    msg.append_pair(269, 1)  # ask
+    msg.append_pair(146, 1)  # NoRelatedSym
+    msg.append_pair(55, "BTC-PERPETUAL")
+    msg.append_pair(207, "deribit")
+    request = msg.encode()
+    print(request)
+    return request
+
+
 def new_order_single_request():
     msg = simplefix.FixMessage()
     msg.append_pair(8, FIX)
@@ -58,6 +80,9 @@ if __name__ == "__main__":
         s.sendall(logon_request())
         response = s.recv(4096)
         print(response)
-        s.sendall(new_order_single_request())
-        response = s.recv(4096)
-        print(response)
+        # s.sendall(new_order_single_request())
+        s.sendall(market_data_request())
+        while True:
+            response = s.recv(4096)
+            if len(response) > 0:
+                print(response)
