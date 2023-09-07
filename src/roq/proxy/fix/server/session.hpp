@@ -41,6 +41,8 @@
 #include "roq/codec/fix/security_definition_request.hpp"
 #include "roq/codec/fix/security_list.hpp"
 #include "roq/codec/fix/security_list_request.hpp"
+#include "roq/codec/fix/security_status.hpp"
+#include "roq/codec/fix/security_status_request.hpp"
 #include "roq/codec/fix/test_request.hpp"
 
 // outbound
@@ -64,6 +66,7 @@ struct Session final : public io::net::ConnectionManager::Handler {
     // market data
     virtual void operator()(Trace<codec::fix::SecurityList> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<codec::fix::SecurityDefinition> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::SecurityStatus> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<codec::fix::MarketDataRequestReject> const &, std::string_view const &username) = 0;
     virtual void operator()(
         Trace<codec::fix::MarketDataSnapshotFullRefresh> const &, std::string_view const &username) = 0;
@@ -91,6 +94,7 @@ struct Session final : public io::net::ConnectionManager::Handler {
 
   void operator()(Trace<codec::fix::SecurityListRequest> const &);
   void operator()(Trace<codec::fix::SecurityDefinitionRequest> const &);
+  void operator()(Trace<codec::fix::SecurityStatusRequest> const &);
   void operator()(Trace<codec::fix::MarketDataRequest> const &);
   // ...
   void operator()(Trace<codec::fix::OrderStatusRequest> const &);
@@ -138,6 +142,7 @@ struct Session final : public io::net::ConnectionManager::Handler {
 
   void operator()(Trace<codec::fix::SecurityList> const &, roq::fix::Header const &);
   void operator()(Trace<codec::fix::SecurityDefinition> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::SecurityStatus> const &, roq::fix::Header const &);
 
   void operator()(Trace<codec::fix::MarketDataRequestReject> const &, roq::fix::Header const &);
   void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &, roq::fix::Header const &);

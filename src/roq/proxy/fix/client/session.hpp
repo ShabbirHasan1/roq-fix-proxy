@@ -16,6 +16,7 @@
 #include "roq/codec/fix/order_cancel_reject.hpp"
 #include "roq/codec/fix/security_definition.hpp"
 #include "roq/codec/fix/security_list.hpp"
+#include "roq/codec/fix/security_status.hpp"
 
 // outbound
 #include "roq/codec/fix/market_data_request.hpp"
@@ -27,6 +28,7 @@
 #include "roq/codec/fix/order_status_request.hpp"
 #include "roq/codec/fix/security_definition_request.hpp"
 #include "roq/codec/fix/security_list_request.hpp"
+#include "roq/codec/fix/security_status_request.hpp"
 
 namespace roq {
 namespace proxy {
@@ -38,6 +40,7 @@ struct Session {
     // market data
     virtual void operator()(Trace<codec::fix::SecurityListRequest> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<codec::fix::SecurityDefinitionRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::SecurityStatusRequest> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<codec::fix::MarketDataRequest> const &, std::string_view const &username) = 0;
     // order management
     virtual void operator()(Trace<codec::fix::OrderStatusRequest> const &, std::string_view const &username) = 0;
@@ -57,6 +60,7 @@ struct Session {
   // market data
   virtual void operator()(Trace<codec::fix::SecurityList> const &) = 0;
   virtual void operator()(Trace<codec::fix::SecurityDefinition> const &) = 0;
+  virtual void operator()(Trace<codec::fix::SecurityStatus> const &) = 0;
   virtual void operator()(Trace<codec::fix::MarketDataRequestReject> const &) = 0;
   virtual void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &) = 0;
   virtual void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &) = 0;

@@ -81,6 +81,10 @@ void Controller::operator()(Trace<codec::fix::SecurityDefinition> const &event, 
   dispatch_to_client(event, username);
 }
 
+void Controller::operator()(Trace<codec::fix::SecurityStatus> const &event, std::string_view const &username) {
+  dispatch_to_client(event, username);
+}
+
 void Controller::operator()(Trace<codec::fix::MarketDataRequestReject> const &event, std::string_view const &username) {
   dispatch_to_client(event, username);
 }
@@ -111,6 +115,10 @@ void Controller::operator()(Trace<codec::fix::SecurityListRequest> const &event,
 
 void Controller::operator()(
     Trace<codec::fix::SecurityDefinitionRequest> const &event, std::string_view const &username) {
+  dispatch_to_server(event, username);
+}
+
+void Controller::operator()(Trace<codec::fix::SecurityStatusRequest> const &event, std::string_view const &username) {
   dispatch_to_server(event, username);
 }
 

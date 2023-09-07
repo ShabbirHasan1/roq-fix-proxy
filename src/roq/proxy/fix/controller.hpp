@@ -45,6 +45,7 @@ struct Controller final : public io::sys::Signal::Handler,
   // - market data
   void operator()(Trace<codec::fix::SecurityList> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::SecurityDefinition> const &, std::string_view const &username) override;
+  void operator()(Trace<codec::fix::SecurityStatus> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::MarketDataRequestReject> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &, std::string_view const &username) override;
@@ -56,6 +57,7 @@ struct Controller final : public io::sys::Signal::Handler,
   // - market data
   void operator()(Trace<codec::fix::SecurityListRequest> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::SecurityDefinitionRequest> const &, std::string_view const &username) override;
+  void operator()(Trace<codec::fix::SecurityStatusRequest> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::MarketDataRequest> const &, std::string_view const &username) override;
   // - order management
   void operator()(Trace<codec::fix::OrderStatusRequest> const &, std::string_view const &username) override;

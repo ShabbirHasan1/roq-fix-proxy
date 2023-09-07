@@ -106,6 +106,10 @@ void Session::operator()(Trace<codec::fix::SecurityDefinitionRequest> const &eve
   send(event);
 }
 
+void Session::operator()(Trace<codec::fix::SecurityStatusRequest> const &event) {
+  send(event);
+}
+
 void Session::operator()(Trace<codec::fix::OrderStatusRequest> const &event) {
   send(event);
 }
@@ -263,6 +267,11 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
       dispatch(event, security_definition);
       break;
     }
+    case SECURITY_STATUS: {
+      auto security_status = codec::fix::SecurityStatus::create(message, decode_buffer_);
+      dispatch(event, security_status);
+      break;
+    }
     case MARKET_DATA_REQUEST_REJECT: {
       auto market_data_request_reject = codec::fix::MarketDataRequestReject::create(message, decode_buffer_);
       dispatch(event, market_data_request_reject);
@@ -357,7 +366,7 @@ void Session::operator()(Trace<codec::fix::SecurityList> const &event, roq::fix:
       for (auto &item : security_list.no_related_sym) {
         if (shared_.include(item.symbol)) {
           exchange_symbols_[item.security_exchange].emplace(item.symbol);
-          // send_security_definition_request(item.security_exchange, item.symbol);
+          // XXX FIXME send_security_definition_request(item.security_exchange, item.symbol);
           if (enable_market_data_)  // XXX FIXME TEST
             send_market_data_request(item.security_exchange, item.symbol);
         }
@@ -379,12 +388,19 @@ void Session::operator()(Trace<codec::fix::SecurityDefinition> const &event, roq
     case DISCONNECTED:
     case LOGON_SENT:
     case GET_SECURITY_LIST:
+      // XXX FIXME we might want to cache security definitions because of e.g. tick-size
       assert(false);
       break;
     case READY:
       handler_(event, username_);
       break;
   }
+}
+
+void Session::operator()(Trace<codec::fix::SecurityStatus> const &event, roq::fix::Header const &) {
+  auto &[trace_info, security_status] = event;
+  log::debug("security_status={}, trace_info={}"sv, security_status, trace_info);
+  handler_(event, username_);
 }
 
 void Session::operator()(Trace<codec::fix::MarketDataRequestReject> const &event, roq::fix::Header const &) {
