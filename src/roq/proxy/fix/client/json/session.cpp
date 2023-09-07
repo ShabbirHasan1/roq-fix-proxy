@@ -143,6 +143,10 @@ void Session::operator()(Trace<codec::fix::SecurityList> const &) {
   log::fatal("not implemented"sv);
 }
 
+void Session::operator()(Trace<codec::fix::SecurityDefinition> const &) {
+  log::fatal("not implemented"sv);
+}
+
 void Session::operator()(Trace<codec::fix::MarketDataRequestReject> const &) {
   log::fatal("not implemented"sv);
 }

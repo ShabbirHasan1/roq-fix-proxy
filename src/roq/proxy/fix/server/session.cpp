@@ -15,12 +15,6 @@
 
 #include "roq/fix/reader.hpp"
 
-#include "roq/codec/fix/market_data_request.hpp"
-#include "roq/codec/fix/new_order_single.hpp"
-#include "roq/codec/fix/order_cancel_request.hpp"
-#include "roq/codec/fix/security_definition_request.hpp"
-#include "roq/codec/fix/security_list_request.hpp"
-
 using namespace std::literals;
 
 namespace roq {
@@ -105,6 +99,10 @@ void Session::operator()(Trace<codec::fix::MarketDataRequest> const &event) {
 }
 
 void Session::operator()(Trace<codec::fix::SecurityListRequest> const &event) {
+  send(event);
+}
+
+void Session::operator()(Trace<codec::fix::SecurityDefinitionRequest> const &event) {
   send(event);
 }
 
@@ -359,7 +357,7 @@ void Session::operator()(Trace<codec::fix::SecurityList> const &event, roq::fix:
       for (auto &item : security_list.no_related_sym) {
         if (shared_.include(item.symbol)) {
           exchange_symbols_[item.security_exchange].emplace(item.symbol);
-          send_security_definition_request(item.security_exchange, item.symbol);
+          // send_security_definition_request(item.security_exchange, item.symbol);
           if (enable_market_data_)  // XXX FIXME TEST
             send_market_data_request(item.security_exchange, item.symbol);
         }
@@ -376,7 +374,17 @@ void Session::operator()(Trace<codec::fix::SecurityList> const &event, roq::fix:
 void Session::operator()(Trace<codec::fix::SecurityDefinition> const &event, roq::fix::Header const &) {
   auto &[trace_info, security_definition] = event;
   log::debug("security_definition={}, trace_info={}"sv, security_definition, trace_info);
-  handler_(event);
+  switch (state_) {
+    using enum State;
+    case DISCONNECTED:
+    case LOGON_SENT:
+    case GET_SECURITY_LIST:
+      assert(false);
+      break;
+    case READY:
+      handler_(event, username_);
+      break;
+  }
 }
 
 void Session::operator()(Trace<codec::fix::MarketDataRequestReject> const &event, roq::fix::Header const &) {

@@ -41,22 +41,23 @@ struct Controller final : public io::sys::Signal::Handler,
   void operator()(io::sys::Timer::Event const &) override;
 
   // server::Session::Handler
-  void operator()(Trace<codec::fix::SecurityDefinition> const &) override;
-  // ...
   void operator()(Trace<codec::fix::BusinessMessageReject> const &, std::string_view const &username) override;
-  // ...
+  // - market data
   void operator()(Trace<codec::fix::SecurityList> const &, std::string_view const &username) override;
+  void operator()(Trace<codec::fix::SecurityDefinition> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::MarketDataRequestReject> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &, std::string_view const &username) override;
-  // ...
+  // - order management
   void operator()(Trace<codec::fix::OrderCancelReject> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::ExecutionReport> const &, std::string_view const &username) override;
 
   // client::Session::Handler
+  // - market data
   void operator()(Trace<codec::fix::SecurityListRequest> const &, std::string_view const &username) override;
+  void operator()(Trace<codec::fix::SecurityDefinitionRequest> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::MarketDataRequest> const &, std::string_view const &username) override;
-  // ...
+  // - order management
   void operator()(Trace<codec::fix::OrderStatusRequest> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::NewOrderSingle> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &, std::string_view const &username) override;

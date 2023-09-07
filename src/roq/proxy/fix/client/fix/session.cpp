@@ -95,6 +95,12 @@ void Session::operator()(Trace<codec::fix::SecurityList> const &event) {
     send<2>(security_list);
 }
 
+void Session::operator()(Trace<codec::fix::SecurityDefinition> const &event) {
+  auto &[trace_info, security_definition] = event;
+  if (ready())
+    send<2>(security_definition);
+}
+
 void Session::operator()(Trace<codec::fix::MarketDataRequestReject> const &event) {
   auto &[trace_info, market_data_request_reject] = event;
   if (ready())
@@ -490,11 +496,18 @@ void Session::operator()(Trace<codec::fix::SecurityListRequest> const &event, ro
   }
 }
 
-void Session::operator()(Trace<codec::fix::SecurityDefinitionRequest> const &, roq::fix::Header const &header) {
-  send_business_message_reject(
-      header,
-      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
-      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
+void Session::operator()(Trace<codec::fix::SecurityDefinitionRequest> const &event, roq::fix::Header const &header) {
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
+      break;
+    case READY:
+      handler_(event, username_);
+      break;
+    case ZOMBIE:
+      break;
+  }
 }
 
 void Session::operator()(Trace<codec::fix::SecurityStatusRequest> const &, roq::fix::Header const &header) {

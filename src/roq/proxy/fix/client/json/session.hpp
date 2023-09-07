@@ -36,6 +36,7 @@ struct Session final : public client::Session, public web::rest::Server::Handler
 
   void operator()(Trace<codec::fix::BusinessMessageReject> const &) override;
   void operator()(Trace<codec::fix::SecurityList> const &) override;
+  void operator()(Trace<codec::fix::SecurityDefinition> const &) override;
   void operator()(Trace<codec::fix::MarketDataRequestReject> const &) override;
   void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &) override;
   void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &) override;

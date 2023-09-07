@@ -62,16 +62,22 @@ void Controller::operator()(io::sys::Timer::Event const &event) {
 
 // server::Session::Handler
 
+/*
 void Controller::operator()(Trace<codec::fix::SecurityDefinition> const &event) {
   auto &[trace_info, security_definition] = event;
   shared_.symbols.emplace(security_definition.symbol);  // XXX TODO cache reference data
 }
+*/
 
 void Controller::operator()(Trace<codec::fix::BusinessMessageReject> const &event, std::string_view const &username) {
   dispatch_to_client(event, username);
 }
 
 void Controller::operator()(Trace<codec::fix::SecurityList> const &event, std::string_view const &username) {
+  dispatch_to_client(event, username);
+}
+
+void Controller::operator()(Trace<codec::fix::SecurityDefinition> const &event, std::string_view const &username) {
   dispatch_to_client(event, username);
 }
 
@@ -100,6 +106,11 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event, std
 // client::Session::Handler
 
 void Controller::operator()(Trace<codec::fix::SecurityListRequest> const &event, std::string_view const &username) {
+  dispatch_to_server(event, username);
+}
+
+void Controller::operator()(
+    Trace<codec::fix::SecurityDefinitionRequest> const &event, std::string_view const &username) {
   dispatch_to_server(event, username);
 }
 
