@@ -100,6 +100,7 @@ R parse_users(auto &node) {
       for (auto [key, value] : table) {
         if (value.is_table()) {
           auto user = parse_user(value);
+          result.emplace(key, std::move(user));
         } else {
           log::fatal(R"(Unexpected: "users.{}" must be a table)"sv, key.str());
         }
@@ -112,6 +113,8 @@ R parse_users(auto &node) {
   } else {
     log::fatal(R"(Unexpected: did not find the "users" table)"sv);
   }
+  for (auto &[_, item] : result)
+    log::debug("user={}"sv, item);
   return result;
 }
 }  // namespace

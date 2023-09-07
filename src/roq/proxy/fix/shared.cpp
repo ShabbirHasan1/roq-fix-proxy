@@ -16,6 +16,17 @@ namespace fix {
 
 namespace {
 template <typename R>
+auto create_username_to_password(auto &config) {
+  using result_type = std::remove_cvref<R>::type;
+  result_type result;
+  for (auto &[_, user] : config.users) {
+    log::debug(R"(username="{}" ==> password="{}")"sv, user.username, user.password);
+    result.emplace(user.username, user.password);
+  }
+  return result;
+}
+
+template <typename R>
 auto create_regex_symbols(auto &config) {
   using result_type = std::remove_cvref<R>::type;
   result_type result;
@@ -30,7 +41,8 @@ auto create_regex_symbols(auto &config) {
 // === IMPLEMENTATION ===
 
 Shared::Shared(Settings const &settings, Config const &config)
-    : settings{settings}, regex_symbols_{create_regex_symbols<decltype(regex_symbols_)>(config)} {
+    : settings{settings}, username_to_password_{create_username_to_password<decltype(username_to_password_)>(config)},
+      regex_symbols_{create_regex_symbols<decltype(regex_symbols_)>(config)} {
 }
 
 bool Shared::include(std::string_view const &symbol) const {
@@ -41,10 +53,13 @@ bool Shared::include(std::string_view const &symbol) const {
 }
 
 std::string_view Shared::session_logon_helper(
-    uint64_t session_id, std::string_view const &username, [[maybe_unused]] std::string_view const &password) {
-  // XXX TODO validate password
-  auto iter = username_to_session_.find(username);
-  if (iter != std::end(username_to_session_))
+    uint64_t session_id, std::string_view const &username, std::string_view const &password) {
+  log::debug(R"(username="{}" ==> password="{}")"sv, username, password);
+  auto iter_1 = username_to_password_.find(username);
+  if (iter_1 == std::end(username_to_password_) || password != (*iter_1).second)
+    return Error::INVALID_PASSWORD;
+  auto iter_2 = username_to_session_.find(username);
+  if (iter_2 != std::end(username_to_session_))
     return Error::ALREADY_LOGGED_ON;
   log::info(R"(Adding session_id={}, username="{}")"sv, session_id, username);
   auto res_1 = username_to_session_.try_emplace(username, session_id);

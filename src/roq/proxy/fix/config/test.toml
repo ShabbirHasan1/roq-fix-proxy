@@ -11,8 +11,8 @@ symbols = [
 
 [users.c1]
 component = "test"
-username = "c1"
-password = "p1"
+username = "trader"
+password = "secret"
 accounts = "A1"
 strategy_id = 1
 

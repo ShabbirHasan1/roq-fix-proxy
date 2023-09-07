@@ -78,8 +78,11 @@ struct fmt::formatter<roq::proxy::fix::Config> {
     return fmt::format_to(
         context.out(),
         R"({{)"
-        R"(symbols=[{}])"
+        R"(symbols=[{}], )"
+        R"(users=[{}])"
         R"(}})"_cf,
-        fmt::join(value.symbols, ", "sv));
+        fmt::join(value.symbols, ", "sv),
+        "TODO"sv);
+    // fmt::join(value.users, ", "sv));
   }
 };
