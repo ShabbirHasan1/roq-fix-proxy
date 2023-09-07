@@ -8,6 +8,8 @@
 #include <fmt/compile.h>
 #include <fmt/format.h>
 
+#include <ranges>
+
 #include <string>
 #include <string_view>
 
@@ -82,7 +84,6 @@ struct fmt::formatter<roq::proxy::fix::Config> {
         R"(users=[{}])"
         R"(}})"_cf,
         fmt::join(value.symbols, ", "sv),
-        "TODO"sv);
-    // fmt::join(value.users, ", "sv));
+        fmt::join(std::ranges::views::transform(value.users, [this](auto &item) { return item.second; }), ","sv));
   }
 };

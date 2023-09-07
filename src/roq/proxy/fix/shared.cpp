@@ -19,10 +19,8 @@ template <typename R>
 auto create_username_to_password(auto &config) {
   using result_type = std::remove_cvref<R>::type;
   result_type result;
-  for (auto &[_, user] : config.users) {
-    log::debug(R"(username="{}" ==> password="{}")"sv, user.username, user.password);
+  for (auto &[_, user] : config.users)
     result.emplace(user.username, user.password);
-  }
   return result;
 }
 
@@ -54,7 +52,6 @@ bool Shared::include(std::string_view const &symbol) const {
 
 std::string_view Shared::session_logon_helper(
     uint64_t session_id, std::string_view const &username, std::string_view const &password) {
-  log::debug(R"(username="{}" ==> password="{}")"sv, username, password);
   auto iter_1 = username_to_password_.find(username);
   if (iter_1 == std::end(username_to_password_) || password != (*iter_1).second)
     return Error::INVALID_PASSWORD;

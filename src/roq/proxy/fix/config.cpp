@@ -113,8 +113,6 @@ R parse_users(auto &node) {
   } else {
     log::fatal(R"(Unexpected: did not find the "users" table)"sv);
   }
-  for (auto &[_, item] : result)
-    log::debug("user={}"sv, item);
   return result;
 }
 }  // namespace
