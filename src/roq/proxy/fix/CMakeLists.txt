@@ -23,7 +23,6 @@ target_link_libraries(
           ${TARGET_NAME}-client-fix
           ${TARGET_NAME}-client-json
           ${TARGET_NAME}-client
-          ${PROJECT_NAME}-third_party-re2
           roq-fix-codec::roq-fix-codec
           roq-fix::roq-fix
           roq-web::roq-web
@@ -35,7 +34,6 @@ target_link_libraries(
           roq-api::roq-api
           tomlplusplus::tomlplusplus
           fmt::fmt
-          re2::re2
           ${RT_LIBRARIES})
 
 if(ROQ_BUILD_TYPE STREQUAL "Release")
