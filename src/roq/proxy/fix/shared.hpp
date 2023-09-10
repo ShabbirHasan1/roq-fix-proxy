@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "roq/utils/regex/regular_expression.hpp"
+#include "roq/utils/regex/pattern.hpp"
 
 #include "roq/proxy/fix/config.hpp"
 #include "roq/proxy/fix/settings.hpp"
@@ -85,7 +85,7 @@ struct Shared final {
   absl::flat_hash_set<uint64_t> sessions_to_remove_;
 
  private:
-  std::vector<utils::regex::RegularExpression> const regex_symbols_;
+  std::vector<std::unique_ptr<utils::regex::Pattern>> const regex_symbols_;
 };
 
 }  // namespace fix
