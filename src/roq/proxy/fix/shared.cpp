@@ -29,7 +29,7 @@ auto create_regex_symbols(auto &config) {
   using result_type = std::remove_cvref<R>::type;
   result_type result;
   for (auto &symbol : config.symbols) {
-    third_party::re2::RegularExpression regular_expression{symbol};
+    utils::regex::RegularExpression regular_expression{symbol};
     result.emplace_back(std::move(regular_expression));
   }
   return result;

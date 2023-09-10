@@ -8,10 +8,9 @@
 #include <string>
 #include <vector>
 
+#include "roq/utils/regex/regular_expression.hpp"
+
 #include "roq/proxy/fix/config.hpp"
-
-#include "roq/third_party/re2/regular_expression.hpp"
-
 #include "roq/proxy/fix/settings.hpp"
 
 namespace roq {
@@ -86,7 +85,7 @@ struct Shared final {
   absl::flat_hash_set<uint64_t> sessions_to_remove_;
 
  private:
-  std::vector<third_party::re2::RegularExpression> const regex_symbols_;
+  std::vector<utils::regex::RegularExpression> const regex_symbols_;
 };
 
 }  // namespace fix

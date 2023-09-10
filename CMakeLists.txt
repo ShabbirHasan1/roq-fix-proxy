@@ -55,6 +55,7 @@ find_package(roq-fix REQUIRED)
 find_package(roq-flags REQUIRED)
 find_package(roq-io REQUIRED)
 find_package(roq-logging REQUIRED)
+find_package(roq-utils REQUIRED)
 find_package(roq-web REQUIRED)
 find_package(tomlplusplus REQUIRED)
 
