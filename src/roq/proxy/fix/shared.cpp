@@ -90,6 +90,10 @@ void Shared::session_remove_helper(uint64_t session_id) {
   session_to_username_.erase(iter);
 }
 
+std::string Shared::create_request_id() {
+  return fmt::format("proxy-{}"sv, ++next_request_id_);
+}
+
 }  // namespace fix
 }  // namespace proxy
 }  // namespace roq

@@ -200,8 +200,22 @@ void Session::operator()(io::net::tcp::Connection::Disconnected const &) {
 // utilities
 
 void Session::make_zombie() {
-  if (state_ == State::ZOMBIE)
-    return;
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON:
+      break;
+    case READY: {
+      TraceInfo trace_info;
+      auto disconnect = Session::Disconnect{
+          .session_id = session_id_,
+      };
+      Trace event{trace_info, disconnect};
+      handler_(event, username_);
+      break;
+    }
+    case ZOMBIE:
+      return;
+  }
   state_ = State::ZOMBIE;
   shared_.session_remove(session_id_);
 }
@@ -537,7 +551,7 @@ void Session::operator()(Trace<codec::fix::MarketDataRequest> const &event, roq:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
-      handler_(event, username_);
+      handler_(event, username_, session_id_);
       break;
     case ZOMBIE:
       break;

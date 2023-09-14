@@ -73,6 +73,8 @@ struct Shared final {
     return true;
   }
 
+  std::string create_request_id();
+
  protected:
   std::string_view session_logon_helper(
       uint64_t session_id, std::string_view const &username, std::string_view const &password);
@@ -86,6 +88,8 @@ struct Shared final {
 
  private:
   std::vector<std::unique_ptr<utils::regex::Pattern>> const regex_symbols_;
+
+  uint32_t next_request_id_ = {};
 };
 
 }  // namespace fix

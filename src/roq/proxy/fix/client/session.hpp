@@ -36,12 +36,17 @@ namespace fix {
 namespace client {
 
 struct Session {
+  struct Disconnect final {
+    uint64_t session_id = {};
+  };
   struct Handler {
+    virtual void operator()(Trace<Disconnect> const &, std::string_view const &username) = 0;
     // market data
     virtual void operator()(Trace<codec::fix::SecurityListRequest> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<codec::fix::SecurityDefinitionRequest> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<codec::fix::SecurityStatusRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<codec::fix::MarketDataRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(
+        Trace<codec::fix::MarketDataRequest> const &, std::string_view const &username, uint64_t session_id) = 0;
     // order management
     virtual void operator()(Trace<codec::fix::OrderStatusRequest> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<codec::fix::NewOrderSingle> const &, std::string_view const &username) = 0;
