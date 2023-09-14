@@ -96,9 +96,9 @@ struct Controller final : public io::sys::Signal::Handler,
   // server subscription mappings
   struct {
     // server subscription id => {session id, client subscription id}
-    absl::flat_hash_map<std::string, std::pair<uint64_t, std::string>> server_to_session;
+    absl::flat_hash_map<std::string, std::pair<uint64_t, std::string>> server_to_client;
     // session id => client subscription id => server subscription id
-    absl::flat_hash_map<uint64_t, absl::flat_hash_map<std::string, std::string>> session_to_server;
+    absl::flat_hash_map<uint64_t, absl::flat_hash_map<std::string, std::string>> client_to_server;
   } subscriptions_;
 };
 

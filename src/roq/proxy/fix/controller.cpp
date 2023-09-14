@@ -131,8 +131,8 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event, std
 
 void Controller::operator()(Trace<client::Session::Disconnect> const &event, std::string_view const &username) {
   auto &[trace_info, disconnect] = event;
-  auto iter = subscriptions_.session_to_server.find(disconnect.session_id);
-  if (iter != std::end(subscriptions_.session_to_server)) {
+  auto iter = subscriptions_.client_to_server.find(disconnect.session_id);
+  if (iter != std::end(subscriptions_.client_to_server)) {
     for (auto &[_, server_md_req_id] : (*iter).second) {
       auto market_data_request = codec::fix::MarketDataRequest{
           .md_req_id = server_md_req_id,
@@ -148,7 +148,7 @@ void Controller::operator()(Trace<client::Session::Disconnect> const &event, std
       };
       Trace event_2{trace_info, market_data_request};
       dispatch_to_server(event_2, username);
-      subscriptions_.server_to_session.erase(server_md_req_id);
+      subscriptions_.server_to_client.erase(server_md_req_id);
     }
   }
 }
@@ -169,7 +169,7 @@ void Controller::operator()(Trace<codec::fix::SecurityStatusRequest> const &even
 void Controller::operator()(
     Trace<codec::fix::MarketDataRequest> const &event, std::string_view const &username, uint64_t session_id) {
   auto &[trace_info, market_data_request] = event;
-  auto &tmp = subscriptions_.session_to_server[session_id];
+  auto &tmp = subscriptions_.client_to_server[session_id];
   auto iter = tmp.find(market_data_request.md_req_id);
   if (iter == std::end(tmp)) {
     auto request_id = shared_.create_request_id();
@@ -177,8 +177,8 @@ void Controller::operator()(
     market_data_request_2.md_req_id = request_id;
     Trace event_2{trace_info, market_data_request_2};
     dispatch_to_server(event_2, username);
-    subscriptions_.session_to_server[session_id][market_data_request.md_req_id] = market_data_request_2.md_req_id;
-    subscriptions_.server_to_session[market_data_request_2.md_req_id] =
+    subscriptions_.client_to_server[session_id][market_data_request.md_req_id] = market_data_request_2.md_req_id;
+    subscriptions_.server_to_client[market_data_request_2.md_req_id] =
         std::make_pair(session_id, market_data_request.md_req_id);
   } else {
     // XXX TODO reject
@@ -243,8 +243,8 @@ void Controller::dispatch_to_client(Trace<T> const &event, std::string_view cons
 
 template <typename Callback>
 bool Controller::find_server_subscription(std::string_view const &md_req_id, Callback callback) {
-  auto iter = subscriptions_.server_to_session.find(md_req_id);
-  if (iter == std::end(subscriptions_.server_to_session))
+  auto iter = subscriptions_.server_to_client.find(md_req_id);
+  if (iter == std::end(subscriptions_.server_to_client))
     return false;
   auto &[session_id, client_md_req_id] = (*iter).second;
   callback(session_id, client_md_req_id);
