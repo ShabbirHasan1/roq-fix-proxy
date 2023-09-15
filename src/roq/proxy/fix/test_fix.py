@@ -62,7 +62,7 @@ def new_order_single_request():
     msg.append_pair(56, TARGET_COMP_ID)
     msg.append_pair(11, "clordid1")
     msg.append_pair(55, SYMBOL)
-    #msg.append_pair(207, EXCHANGE)
+    msg.append_pair(207, EXCHANGE)
     msg.append_pair(54, "1")  # buy
     msg.append_pair(40, "2")  # limit
     msg.append_pair(38, 1.0)  # quantity
