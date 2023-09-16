@@ -56,7 +56,7 @@ struct Controller final : public io::sys::Signal::Handler,
   void operator()(Trace<codec::fix::ExecutionReport> const &, std::string_view const &username) override;
 
   // client::Session::Handler
-  void operator()(Trace<client::Session::Disconnect> const &, std::string_view const &username);
+  void operator()(Trace<client::Session::Disconnect> const &, std::string_view const &username) override;
   // - market data
   void operator()(Trace<codec::fix::SecurityListRequest> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::SecurityDefinitionRequest> const &, std::string_view const &username) override;

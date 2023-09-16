@@ -84,6 +84,6 @@ struct fmt::formatter<roq::proxy::fix::Config> {
         R"(users=[{}])"
         R"(}})"_cf,
         fmt::join(value.symbols, ", "sv),
-        fmt::join(std::ranges::views::transform(value.users, [this](auto &item) { return item.second; }), ","sv));
+        fmt::join(std::ranges::views::transform(value.users, [](auto &item) { return item.second; }), ","sv));
   }
 };
