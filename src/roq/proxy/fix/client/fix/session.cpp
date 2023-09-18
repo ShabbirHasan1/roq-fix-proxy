@@ -183,6 +183,19 @@ bool Session::zombie() const {
   return state_ == State::ZOMBIE;
 }
 
+void Session::force_disconnect() {
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON:
+    case WAITING_USER_RESPONSE:
+    case READY:
+      close();
+      break;
+    case ZOMBIE:
+      break;
+  }
+}
+
 void Session::close() {
   if (state_ != State::ZOMBIE) {
     (*connection_).close();
@@ -245,7 +258,7 @@ void Session::make_zombie() {
     case WAITING_USER_RESPONSE:
     case READY: {
       TraceInfo trace_info;
-      auto disconnect = Session::Disconnect{
+      auto disconnect = Session::Disconnected{
           .session_id = session_id_,
       };
       Trace event{trace_info, disconnect};

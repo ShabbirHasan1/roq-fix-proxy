@@ -60,7 +60,12 @@ namespace server {
 // note! supports both rest and websocket
 
 struct Session final : public io::net::ConnectionManager::Handler {
+  struct Ready final {};
+  struct Disconnected final {};
   struct Handler {
+    virtual void operator()(Trace<Ready> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<Disconnected> const &, std::string_view const &username) = 0;
+    //
     virtual void operator()(Trace<codec::fix::BusinessMessageReject> const &, std::string_view const &username) = 0;
     // user management
     virtual void operator()(Trace<codec::fix::UserResponse> const &, std::string_view const &username) = 0;

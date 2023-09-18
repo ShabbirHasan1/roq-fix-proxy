@@ -38,11 +38,11 @@ namespace fix {
 namespace client {
 
 struct Session {
-  struct Disconnect final {
+  struct Disconnected final {
     uint64_t session_id = {};
   };
   struct Handler {
-    virtual void operator()(Trace<Disconnect> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<Disconnected> const &, std::string_view const &username) = 0;
     // user management
     virtual void operator()(
         Trace<codec::fix::UserRequest> const &, std::string_view const &username, uint64_t session_id) = 0;
@@ -64,6 +64,8 @@ struct Session {
   virtual ~Session() = default;
 
   virtual bool ready() const = 0;
+
+  virtual void force_disconnect() = 0;
 
   virtual void operator()(Event<Stop> const &) = 0;
   virtual void operator()(Event<Timer> const &) = 0;

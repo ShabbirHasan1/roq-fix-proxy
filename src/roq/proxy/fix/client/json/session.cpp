@@ -192,6 +192,10 @@ bool Session::zombie() const {
   return state_ == State::ZOMBIE;
 }
 
+void Session::force_disconnect() {
+  // XXX TODO make_zombie();
+}
+
 void Session::close() {
   state_ = State::ZOMBIE;
   (*server_).close();

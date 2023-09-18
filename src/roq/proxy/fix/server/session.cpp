@@ -156,6 +156,10 @@ void Session::operator()(io::net::ConnectionManager::Connected const &) {
 
 void Session::operator()(io::net::ConnectionManager::Disconnected const &) {
   log::debug("Disconnected"sv);
+  TraceInfo trace_info;
+  Disconnected disconnected;
+  Trace event{trace_info, disconnected};
+  handler_(event, username_);
   outbound_ = {};
   inbound_ = {};
   next_heartbeat_ = {};
@@ -338,6 +342,9 @@ void Session::operator()(Trace<codec::fix::Logon> const &event, roq::fix::Header
   auto &[trace_info, logon] = event;
   log::debug("logon={}, trace_info={}"sv, logon, trace_info);
   assert(state_ == State::LOGON_SENT);
+  Ready ready;
+  Trace event_2{trace_info, ready};
+  handler_(event_2, username_);
   download_security_list();
 }
 

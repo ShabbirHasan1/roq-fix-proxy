@@ -40,6 +40,12 @@ struct Manager final : public fix::Listener::Handler, public json::Listener::Han
   }
 
   template <typename Callback>
+  void get_all_sessions(Callback callback) {
+    for (auto &[_, session] : sessions_)
+      callback(*session);
+  }
+
+  template <typename Callback>
   bool find(uint64_t session_id, Callback callback) {
     auto iter = sessions_.find(session_id);
     if (iter == std::end(sessions_))

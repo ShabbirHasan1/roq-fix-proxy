@@ -64,12 +64,14 @@ void Controller::operator()(io::sys::Timer::Event const &event) {
 
 // server::Session::Handler
 
-/*
-void Controller::operator()(Trace<codec::fix::SecurityDefinition> const &event) {
-  auto &[trace_info, security_definition] = event;
-  shared_.symbols.emplace(security_definition.symbol);  // XXX TODO cache reference data
+void Controller::operator()(Trace<server::Session::Ready> const &, std::string_view const &username) {
+  ready_ = true;
 }
-*/
+
+void Controller::operator()(Trace<server::Session::Disconnected> const &, std::string_view const &username) {
+  ready_ = false;
+  client_manager_.get_all_sessions([&](auto &session) { session.force_disconnect(); });
+}
 
 void Controller::operator()(Trace<codec::fix::BusinessMessageReject> const &event, std::string_view const &username) {
   dispatch_to_client(event, username);
@@ -176,26 +178,28 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event, std
 
 // client::Session::Handler
 
-void Controller::operator()(Trace<client::Session::Disconnect> const &event, std::string_view const &username) {
+void Controller::operator()(Trace<client::Session::Disconnected> const &event, std::string_view const &username) {
   auto &[trace_info, disconnect] = event;
   // market data
   auto iter_1 = subscriptions_.market_data.client_to_server.find(disconnect.session_id);
   if (iter_1 != std::end(subscriptions_.market_data.client_to_server)) {
     for (auto &[_, server_md_req_id] : (*iter_1).second) {
-      auto market_data_request = codec::fix::MarketDataRequest{
-          .md_req_id = server_md_req_id,
-          .subscription_request_type = roq::fix::SubscriptionRequestType::UNSUBSCRIBE,
-          .market_depth = {},
-          .md_update_type = {},
-          .aggregated_book = {},
-          .no_md_entry_types = {},
-          .no_related_sym = {},
-          .no_trading_sessions = {},
-          .custom_type = {},
-          .custom_value = {},
-      };
-      Trace event_2{trace_info, market_data_request};
-      dispatch_to_server(event_2, username);
+      if (ready()) {
+        auto market_data_request = codec::fix::MarketDataRequest{
+            .md_req_id = server_md_req_id,
+            .subscription_request_type = roq::fix::SubscriptionRequestType::UNSUBSCRIBE,
+            .market_depth = {},
+            .md_update_type = {},
+            .aggregated_book = {},
+            .no_md_entry_types = {},
+            .no_related_sym = {},
+            .no_trading_sessions = {},
+            .custom_type = {},
+            .custom_value = {},
+        };
+        Trace event_2{trace_info, market_data_request};
+        dispatch_to_server(event_2, username);
+      }
       subscriptions_.market_data.server_to_client.erase(server_md_req_id);
     }
     subscriptions_.market_data.client_to_server.erase(iter_1);
@@ -205,23 +209,26 @@ void Controller::operator()(Trace<client::Session::Disconnect> const &event, std
   // user
   auto iter_2 = subscriptions_.user.session_to_username.find(disconnect.session_id);
   if (iter_2 != std::end(subscriptions_.user.session_to_username)) {
-    auto user_request_id = shared_.create_request_id();
-    auto user_request = codec::fix::UserRequest{
-        .user_request_id = user_request_id,
-        .user_request_type = roq::fix::UserRequestType::LOG_OFF_USER,
-        .username = (*iter_2).second,
-        .password = {},
-        .new_password = {},
-    };
-    Trace event_2{trace_info, user_request};
-    dispatch_to_server(event_2, username);
-    subscriptions_.user.server_to_client.try_emplace(user_request.user_request_id, disconnect.session_id);
-    subscriptions_.user.client_to_server.try_emplace(disconnect.session_id, user_request.user_request_id);
+    auto &username_2 = (*iter_2).second;
+    if (ready()) {
+      auto user_request_id = shared_.create_request_id();
+      auto user_request = codec::fix::UserRequest{
+          .user_request_id = user_request_id,
+          .user_request_type = roq::fix::UserRequestType::LOG_OFF_USER,
+          .username = username_2,
+          .password = {},
+          .new_password = {},
+      };
+      Trace event_2{trace_info, user_request};
+      dispatch_to_server(event_2, username);
+      subscriptions_.user.server_to_client.try_emplace(user_request.user_request_id, disconnect.session_id);
+      subscriptions_.user.client_to_server.try_emplace(disconnect.session_id, user_request.user_request_id);
+    }
     // note! there are two scenarios
     // we can't send ==> fix-bridge is disconnected so it doesn't matter
     // we get a response => fix-bridge was connect and we expect it to do the right thing
     // therefore: release immediately to allow the client to reconnect
-    log::debug(R"(USER REMOVE username="{}" <==> session_id={})"sv, user_request.username, disconnect.session_id);
+    log::debug(R"(USER REMOVE username="{}" <==> session_id={})"sv, username_2, disconnect.session_id);
     subscriptions_.user.username_to_session.erase((*iter_2).second);
     subscriptions_.user.session_to_username.erase(iter_2);
   } else {

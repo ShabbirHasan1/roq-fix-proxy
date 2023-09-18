@@ -36,6 +36,8 @@ struct Controller final : public io::sys::Signal::Handler,
   void run();
 
  protected:
+  bool ready() const { return ready_; }
+
   // io::sys::Signal::Handler
   void operator()(io::sys::Signal::Event const &) override;
 
@@ -43,6 +45,9 @@ struct Controller final : public io::sys::Signal::Handler,
   void operator()(io::sys::Timer::Event const &) override;
 
   // server::Session::Handler
+  void operator()(Trace<server::Session::Ready> const &, std::string_view const &username) override;
+  void operator()(Trace<server::Session::Disconnected> const &, std::string_view const &username) override;
+  //
   void operator()(Trace<codec::fix::BusinessMessageReject> const &, std::string_view const &username) override;
   // - user
   void operator()(Trace<codec::fix::UserResponse> const &, std::string_view const &username) override;
@@ -58,7 +63,7 @@ struct Controller final : public io::sys::Signal::Handler,
   void operator()(Trace<codec::fix::ExecutionReport> const &, std::string_view const &username) override;
 
   // client::Session::Handler
-  void operator()(Trace<client::Session::Disconnect> const &, std::string_view const &username) override;
+  void operator()(Trace<client::Session::Disconnected> const &, std::string_view const &username) override;
   // - user management
   void operator()(
       Trace<codec::fix::UserRequest> const &, std::string_view const &username, uint64_t session_id) override;
@@ -102,8 +107,10 @@ struct Controller final : public io::sys::Signal::Handler,
   Shared shared_;
   server::Manager server_manager_;
   client::Manager client_manager_;
+  bool ready_ = {};
   // server subscription mappings
   struct {
+    // XXX TODO review if we have leaks when never receive a response
     struct {
       // state:
       absl::flat_hash_map<std::string, uint64_t> username_to_session;

@@ -69,6 +69,8 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   bool ready() const override;
   bool zombie() const;
 
+  void force_disconnect() override;
+
   void close();
 
   // io::net::tcp::Connection::Handler

@@ -49,6 +49,8 @@ struct Session final : public client::Session, public web::rest::Server::Handler
   bool ready() const override;
   bool zombie() const;
 
+  void force_disconnect() override;
+
   void close();
 
   // web::rest::Server::Handler
