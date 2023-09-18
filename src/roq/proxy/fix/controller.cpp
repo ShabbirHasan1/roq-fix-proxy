@@ -89,11 +89,7 @@ void Controller::operator()(
             case UNKNOWN:
               break;
             case LOGGED_IN:
-              if (session.ready()) {
-                user_add(user_response.username, session_id);
-              } else {
-                // note! the disconnect should have sent log out
-              }
+              user_add(user_response.username, session_id);
               break;
             case NOT_LOGGED_IN:
               user_remove(user_response.username, session.ready());
