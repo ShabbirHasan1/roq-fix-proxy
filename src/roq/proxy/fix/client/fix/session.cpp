@@ -6,6 +6,8 @@
 
 #include "roq/utils/chrono.hpp"  // hh_mm_ss
 
+#include "roq/oms/exceptions.hpp"
+
 using namespace std::literals;
 
 namespace roq {
@@ -27,6 +29,7 @@ auto const ERROR_UNEXPECTED_MSG_TYPE = "UNEXPECTED MSG_TYPE"sv;
 auto const ERROR_UNKNOWN_TARGET_COMP_ID = "UNKNOWN TARGET_COMP_ID"sv;
 auto const ERROR_UNSUPPORTED_MSG_TYPE = "UNSUPPORTED MSG_TYPE"sv;
 auto const ERROR_UNSUPPORTED_PARTY_IDS = "UNSUPPORTED PARTY_IDS"sv;
+auto const ERROR_CREATE_ROUTE_TIMEOUT = "CREATE_ROUTE_TIMEOUT"sv;
 }  // namespace
 
 // === HELPERS ===
@@ -59,6 +62,16 @@ void Session::operator()(Event<Timer> const &event) {
         close();
       }
       break;
+    case WAITING_USER_RESPONSE: {
+      assert(user_response_timeout_.count());
+      if (user_response_timeout_ < event.value.now) {
+        auto logout = codec::fix::Logout{
+            .text = ERROR_CREATE_ROUTE_TIMEOUT,
+        };
+        send_and_close<2>(logout);
+      }
+      break;
+    }
     case READY:
       if (next_heartbeat_ < event.value.now) {
         next_heartbeat_ = event.value.now + shared_.settings.client.heartbeat_freq;
@@ -87,6 +100,31 @@ void Session::operator()(Trace<codec::fix::BusinessMessageReject> const &event) 
   auto &[trace_info, business_message_reject] = event;
   if (ready())
     send<2>(business_message_reject);
+}
+
+void Session::operator()(Trace<codec::fix::UserResponse> const &event) {
+  auto &[trace_info, user_response] = event;
+  user_response_timeout_ = {};
+  if (user_response.user_status == roq::fix::UserStatus::LOGGED_IN) {
+    if (state_ == State::WAITING_USER_RESPONSE) {
+      auto heart_bt_int = std::chrono::duration_cast<std::chrono::seconds>(shared_.settings.client.heartbeat_freq);
+      auto response = codec::fix::Logon{
+          .encrypt_method = roq::fix::EncryptMethod::NONE,
+          .heart_bt_int = static_cast<uint16_t>(heart_bt_int.count()),
+          .reset_seq_num_flag = {},
+          .next_expected_msg_seq_num = {},
+          .username = {},
+          .password = {},
+      };
+      log::debug("logon={}"sv, response);
+      send<2>(response);
+      state_ = State::READY;
+    } else {
+      log::fatal("Unexpected"sv);
+    }
+  } else {
+    make_zombie();
+  }
 }
 
 void Session::operator()(Trace<codec::fix::SecurityList> const &event) {
@@ -204,6 +242,7 @@ void Session::make_zombie() {
     using enum State;
     case WAITING_LOGON:
       break;
+    case WAITING_USER_RESPONSE:
     case READY: {
       TraceInfo trace_info;
       auto disconnect = Session::Disconnect{
@@ -230,7 +269,13 @@ void Session::send_and_close(T const &event) {
 
 template <std::size_t level, typename T>
 void Session::send(T const &event) {
-  assert(state_ == State::READY);
+  auto can_send = [&]() {
+    if constexpr (std::is_same<T, codec::fix::Logon>::value) {
+      return state_ == State::WAITING_USER_RESPONSE;
+    }
+    return state_ == State::READY;
+  };
+  assert(can_send());
   auto sending_time = clock::get_realtime();
   send<level>(event, sending_time);
 }
@@ -278,13 +323,7 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
   auto &[trace_info, message] = event;
   switch (message.header.msg_type) {
     using enum roq::fix::MsgType;
-    // session
-    case LOGON:
-      dispatch<codec::fix::Logon>(event);
-      break;
-    case LOGOUT:
-      dispatch<codec::fix::Logout>(event);
-      break;
+    // - session
     case TEST_REQUEST:
       dispatch<codec::fix::TestRequest>(event);
       break;
@@ -297,12 +336,17 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
     case HEARTBEAT:
       dispatch<codec::fix::Heartbeat>(event);
       break;
-      // business
-      // - trading session
+      // - authentication
+    case LOGON:
+      dispatch<codec::fix::Logon>(event);
+      break;
+    case LOGOUT:
+      dispatch<codec::fix::Logout>(event);
+      break;
+      // - market data
     case TRADING_SESSION_STATUS_REQUEST:
       dispatch<codec::fix::TradingSessionStatusRequest>(event);
       break;
-      // - market data
     case SECURITY_LIST_REQUEST:
       dispatch<codec::fix::SecurityListRequest>(event);
       break;
@@ -356,83 +400,6 @@ void Session::dispatch(Trace<roq::fix::Message> const &event, Args &&...args) {
   (*this)(event_2, message.header);
 }
 
-// session
-
-void Session::operator()(Trace<codec::fix::Logon> const &event, roq::fix::Header const &header) {
-  auto &logon = event.value;
-  switch (state_) {
-    using enum State;
-    case WAITING_LOGON: {
-      comp_id_ = header.sender_comp_id;
-      if (header.target_comp_id != shared_.settings.client.comp_id) {
-        log::error(
-            R"(Unexpected target_comp_id="{}" (expected: "{}"))"sv,
-            header.target_comp_id,
-            shared_.settings.client.comp_id);
-        send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_UNKNOWN_TARGET_COMP_ID);
-      } else {
-        auto success = [&]() {
-          state_ = State::READY;
-          username_ = logon.username;
-          // XXX EXPERIMENTAL
-          strategy_id_ = "123"sv;
-          party_ = {
-              .party_id = strategy_id_,
-              .party_id_source = roq::fix::PartyIDSource::PROPRIETARY_CUSTOM_CODE,
-              .party_role = roq::fix::PartyRole::CLIENT_ID,
-          };
-          auto heart_bt_int = std::chrono::duration_cast<std::chrono::seconds>(shared_.settings.client.heartbeat_freq);
-          auto response = codec::fix::Logon{
-              .encrypt_method = roq::fix::EncryptMethod::NONE,
-              .heart_bt_int = static_cast<uint16_t>(heart_bt_int.count()),
-              .reset_seq_num_flag = {},
-              .next_expected_msg_seq_num = {},
-              .username = {},
-              .password = {},
-          };
-          send<2>(response);
-        };
-        auto failure = [&](auto &reason) {
-          log::error("Invalid logon (reason: {})"sv, reason);
-          send_reject(header, roq::fix::SessionRejectReason::OTHER, reason);
-        };
-        shared_.session_logon(session_id_, logon.username, logon.password, success, failure);
-      }
-      break;
-    }
-    case READY:
-      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_UNEXPECTED_LOGON);
-      break;
-    case ZOMBIE:
-      break;
-  }
-}
-
-void Session::operator()(Trace<codec::fix::Logout> const &event, roq::fix::Header const &header) {
-  auto &[trace_info, logout] = event;
-  log::info<1>("logout={}"sv, logout);
-  switch (state_) {
-    using enum State;
-    case WAITING_LOGON:
-      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
-      break;
-    case READY: {
-      auto success = [&]() {
-        username_.clear();
-        auto response = codec::fix::Logout{
-            .text = ERROR_GOODBYE,
-        };
-        send_and_close<2>(response);
-      };
-      auto failure = [&](auto &reason) { send_reject(header, roq::fix::SessionRejectReason::OTHER, reason); };
-      shared_.session_logout(session_id_, success, failure);
-      break;
-    }
-    case ZOMBIE:
-      break;
-  }
-}
-
 void Session::operator()(Trace<codec::fix::TestRequest> const &event, roq::fix::Header const &header) {
   auto &[trace_info, test_request] = event;
   log::info<1>("test_request={}"sv, test_request);
@@ -441,6 +408,7 @@ void Session::operator()(Trace<codec::fix::TestRequest> const &event, roq::fix::
     case WAITING_LOGON:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
+    case WAITING_USER_RESPONSE:
     case READY: {
       auto heartbeat = codec::fix::Heartbeat{
           .test_req_id = test_request.test_req_id,
@@ -459,6 +427,7 @@ void Session::operator()(Trace<codec::fix::ResendRequest> const &event, roq::fix
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
+    case WAITING_USER_RESPONSE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
@@ -483,6 +452,7 @@ void Session::operator()(Trace<codec::fix::Heartbeat> const &event, roq::fix::He
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
+    case WAITING_USER_RESPONSE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
@@ -495,6 +465,97 @@ void Session::operator()(Trace<codec::fix::Heartbeat> const &event, roq::fix::He
 
 // business
 
+// session
+
+void Session::operator()(Trace<codec::fix::Logon> const &event, roq::fix::Header const &header) {
+  auto &[trace_info, logon] = event;
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON: {
+      comp_id_ = header.sender_comp_id;
+      if (header.target_comp_id != shared_.settings.client.comp_id) {
+        log::error(
+            R"(Unexpected target_comp_id="{}" (expected: "{}"))"sv,
+            header.target_comp_id,
+            shared_.settings.client.comp_id);
+        send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_UNKNOWN_TARGET_COMP_ID);
+      } else {
+        auto success = [&](auto strategy_id) {
+          state_ = State::READY;
+          username_ = logon.username;
+          party_id_ = fmt::format("{}"sv, strategy_id);
+          try {
+            auto user_request_id = shared_.create_request_id();
+            auto user_request = codec::fix::UserRequest{
+                .user_request_id = user_request_id,
+                .user_request_type = roq::fix::UserRequestType::LOG_ON_USER,
+                .username = party_id_,
+                .password = {},
+                .new_password = {},
+            };
+            Trace event_2{trace_info, user_request};
+            handler_(event_2, username_, session_id_);
+            state_ = State::WAITING_USER_RESPONSE;
+            auto now = clock::get_system();
+            user_response_timeout_ = now + shared_.settings.server.request_timeout;
+          } catch (oms::Exception &e) {
+            send_reject(header, roq::fix::SessionRejectReason::OTHER, e.what());
+          }
+        };
+        auto failure = [&](auto &reason) {
+          log::error("Invalid logon (reason: {})"sv, reason);
+          send_reject(header, roq::fix::SessionRejectReason::OTHER, reason);
+        };
+        shared_.session_logon(session_id_, logon.username, logon.password, success, failure);
+      }
+      break;
+    }
+    case WAITING_USER_RESPONSE:
+    case READY:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_UNEXPECTED_LOGON);
+      break;
+    case ZOMBIE:
+      break;
+  }
+}
+
+void Session::operator()(Trace<codec::fix::Logout> const &event, roq::fix::Header const &header) {
+  auto &[trace_info, logout] = event;
+  log::info<1>("logout={}"sv, logout);
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON:
+    case WAITING_USER_RESPONSE:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
+      break;
+    case READY: {
+      assert(!std::empty(party_id_));
+      auto user_request_id = shared_.create_request_id();
+      auto user_request = codec::fix::UserRequest{
+          .user_request_id = user_request_id,
+          .user_request_type = roq::fix::UserRequestType::LOG_OFF_USER,
+          .username = party_id_,
+          .password = {},
+          .new_password = {},
+      };
+      Trace event_2{trace_info, user_request};
+      handler_(event_2, username_, session_id_);
+      auto success = [&]() {
+        username_.clear();
+        auto response = codec::fix::Logout{
+            .text = ERROR_GOODBYE,
+        };
+        send_and_close<2>(response);
+      };
+      auto failure = [&](auto &reason) { send_reject(header, roq::fix::SessionRejectReason::OTHER, reason); };
+      shared_.session_logout(session_id_, success, failure);
+      break;
+    }
+    case ZOMBIE:
+      break;
+  }
+}
+
 void Session::operator()(Trace<codec::fix::TradingSessionStatusRequest> const &, roq::fix::Header const &header) {
   send_business_message_reject(
       header,
@@ -506,6 +567,7 @@ void Session::operator()(Trace<codec::fix::SecurityListRequest> const &event, ro
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
+    case WAITING_USER_RESPONSE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
@@ -520,6 +582,7 @@ void Session::operator()(Trace<codec::fix::SecurityDefinitionRequest> const &eve
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
+    case WAITING_USER_RESPONSE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
@@ -534,6 +597,7 @@ void Session::operator()(Trace<codec::fix::SecurityStatusRequest> const &event, 
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
+    case WAITING_USER_RESPONSE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
@@ -548,6 +612,7 @@ void Session::operator()(Trace<codec::fix::MarketDataRequest> const &event, roq:
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
+    case WAITING_USER_RESPONSE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
@@ -576,6 +641,7 @@ void Session::operator()(Trace<codec::fix::NewOrderSingle> const &event, roq::fi
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
+    case WAITING_USER_RESPONSE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
@@ -593,6 +659,7 @@ void Session::operator()(Trace<codec::fix::OrderCancelRequest> const &event, roq
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
+    case WAITING_USER_RESPONSE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
@@ -610,6 +677,7 @@ void Session::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &eve
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
+    case WAITING_USER_RESPONSE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
@@ -672,11 +740,16 @@ void Session::send_business_message_reject(
 
 template <typename T, typename Callback>
 bool Session::add_party_ids(Trace<T> const &event, Callback callback) const {
-  assert(!std::empty(party_.party_id));
+  assert(!std::empty(party_id_));
   auto &[trace_info, value] = event;
   if (std::empty(value.no_party_ids)) {
+    auto party = codec::fix::Party{
+        .party_id = party_id_,
+        .party_id_source = roq::fix::PartyIDSource::PROPRIETARY_CUSTOM_CODE,
+        .party_role = roq::fix::PartyRole::CLIENT_ID,
+    };
     auto value_2 = value;
-    value_2.no_party_ids = {&party_, 1};
+    value_2.no_party_ids = {&party, 1};
     Trace event_2{trace_info, value_2};
     callback(event_2);
     return true;

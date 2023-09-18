@@ -94,6 +94,10 @@ bool Session::ready() const {
   return state_ == State::READY;
 }
 
+void Session::operator()(Trace<codec::fix::UserRequest> const &event) {
+  send(event);
+}
+
 void Session::operator()(Trace<codec::fix::MarketDataRequest> const &event) {
   send(event);
 }
@@ -222,6 +226,7 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
   auto &header = message.header;
   switch (header.msg_type) {
     using enum roq::fix::MsgType;
+    // session
     case REJECT: {
       auto reject = codec::fix::Reject::create(message);
       dispatch(event, reject);
@@ -252,11 +257,19 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
       dispatch(event, test_request);
       break;
     }
+      // business
     case BUSINESS_MESSAGE_REJECT: {
       auto business_message_reject = codec::fix::BusinessMessageReject::create(message);
       dispatch(event, business_message_reject);
       break;
     }
+      // user management
+    case USER_RESPONSE: {
+      auto user_response = codec::fix::UserResponse::create(message);
+      dispatch(event, user_response);
+      break;
+    }
+      // market data
     case SECURITY_LIST: {
       auto security_list = codec::fix::SecurityList::create(message, decode_buffer_);
       dispatch(event, security_list);
@@ -288,6 +301,7 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
       dispatch(event, market_data_incremental_refresh);
       break;
     }
+      // order management
     case ORDER_CANCEL_REJECT: {
       auto order_cancel_reject = codec::fix::OrderCancelReject::create(message, decode_buffer_);
       dispatch(event, order_cancel_reject);
@@ -418,6 +432,12 @@ void Session::operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const 
 void Session::operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &event, roq::fix::Header const &) {
   auto &[trace_info, market_data_incremental_refresh] = event;
   log::debug<1>("market_data_incremental_refresh={}, trace_info={}"sv, market_data_incremental_refresh, trace_info);
+  handler_(event, username_);
+}
+
+void Session::operator()(Trace<codec::fix::UserResponse> const &event, roq::fix::Header const &) {
+  auto &[trace_info, user_response] = event;
+  log::debug("user_response={}, trace_info={}"sv, user_response, trace_info);
   handler_(event, username_);
 }
 

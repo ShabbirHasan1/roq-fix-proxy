@@ -51,6 +51,14 @@
       "description": "ping freq (seconds)"
     },
     {
+      "name": "request_timeout",
+      "type": "std::chrono::nanoseconds",
+      "validator": "roq::flags::validators::TimePeriod",
+      "required": true,
+      "default": "500ms",
+      "description": "request tiemout"
+    },
+    {
       "name": "debug",
       "type": "bool",
       "default": false,

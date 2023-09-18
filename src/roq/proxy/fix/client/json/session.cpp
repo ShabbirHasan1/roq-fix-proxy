@@ -139,6 +139,9 @@ void Session::operator()(Trace<codec::fix::BusinessMessageReject> const &event) 
       client::json::BusinessMessageReject{business_message_reject});
 }
 
+void Session::operator()(Trace<codec::fix::UserResponse> const &) {
+}
+
 void Session::operator()(Trace<codec::fix::SecurityList> const &) {
   log::fatal("not implemented"sv);
 }
@@ -361,7 +364,7 @@ void Session::logon(TraceInfo const &, auto const &params, auto const &id) {
   assert(state_ == State::WAITING_LOGON);
   auto username = get<std::string_view>(params, "username"sv);
   auto password = get<std::string_view>(params, "password"sv);
-  auto success = [&]() {
+  auto success = [&]([[maybe_unused]] auto strategy_id) {
     state_ = State::READY;
     username_ = username;
     send_result(SUCCESS, id);

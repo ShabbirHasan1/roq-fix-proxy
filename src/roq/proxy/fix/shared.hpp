@@ -37,9 +37,10 @@ struct Shared final {
       std::string_view const &password,
       Success success,
       Failure failure) {
-    auto result = session_logon_helper(session_id, username, password);
+    uint32_t strategy_id = {};
+    auto result = session_logon_helper(session_id, username, password, strategy_id);
     if (std::empty(result))
-      success();
+      success(strategy_id);
     else
       failure(result);
   }
@@ -77,7 +78,7 @@ struct Shared final {
 
  protected:
   std::string_view session_logon_helper(
-      uint64_t session_id, std::string_view const &username, std::string_view const &password);
+      uint64_t session_id, std::string_view const &username, std::string_view const &password, uint32_t &strategy_id);
   std::string_view session_logout_helper(uint64_t session_id);
   void session_remove_helper(uint64_t session_id);
 

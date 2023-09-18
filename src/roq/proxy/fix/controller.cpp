@@ -5,6 +5,8 @@
 #include "roq/event.hpp"
 #include "roq/timer.hpp"
 
+#include "roq/oms/exceptions.hpp"
+
 #include "roq/logging.hpp"
 
 using namespace std::literals;
@@ -73,6 +75,55 @@ void Controller::operator()(Trace<codec::fix::BusinessMessageReject> const &even
   dispatch_to_client(event, username);
 }
 
+void Controller::operator()(
+    Trace<codec::fix::UserResponse> const &event, [[maybe_unused]] std::string_view const &username) {
+  auto &user_response = event.value;
+  auto iter = subscriptions_.user.server_to_client.find(user_response.user_request_id);
+  if (iter != std::end(subscriptions_.user.server_to_client)) {
+    auto session_id = (*iter).second;
+    if (client_manager_.find(session_id, [&](auto &session) {
+          switch (user_response.user_status) {
+            using enum roq::fix::UserStatus;
+            case UNDEFINED:
+              break;
+            case UNKNOWN:
+              break;
+            case LOGGED_IN:
+              if (session.ready()) {
+                user_add(user_response.username, session_id);
+              } else {
+                // note! the disconnect should have sent log out
+              }
+              break;
+            case NOT_LOGGED_IN:
+              user_remove(user_response.username, session.ready());
+              break;
+            case USER_NOT_RECOGNISED:
+              break;
+            case PASSWORD_INCORRECT:
+              break;
+            case PASSWORD_CHANGED:
+              break;
+            case OTHER:
+              break;
+            case FORCED_USER_LOGOUT_BY_EXCHANGE:
+              break;
+            case SESSION_SHUTDOWN_WARNING:
+              break;
+          }
+          subscriptions_.user.client_to_server.erase(session_id);
+          subscriptions_.user.server_to_client.erase(iter);
+          session(event);
+        })) {
+    } else {
+      // note! clean up whatever the response
+      user_remove(user_response.username, false);
+    }
+  } else {
+    log::fatal("Unexpected"sv);
+  }
+}
+
 void Controller::operator()(Trace<codec::fix::SecurityList> const &event, std::string_view const &username) {
   dispatch_to_client(event, username);
 }
@@ -131,9 +182,10 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event, std
 
 void Controller::operator()(Trace<client::Session::Disconnect> const &event, std::string_view const &username) {
   auto &[trace_info, disconnect] = event;
-  auto iter = subscriptions_.client_to_server.find(disconnect.session_id);
-  if (iter != std::end(subscriptions_.client_to_server)) {
-    for (auto &[_, server_md_req_id] : (*iter).second) {
+  // market data
+  auto iter_1 = subscriptions_.market_data.client_to_server.find(disconnect.session_id);
+  if (iter_1 != std::end(subscriptions_.market_data.client_to_server)) {
+    for (auto &[_, server_md_req_id] : (*iter_1).second) {
       auto market_data_request = codec::fix::MarketDataRequest{
           .md_req_id = server_md_req_id,
           .subscription_request_type = roq::fix::SubscriptionRequestType::UNSUBSCRIBE,
@@ -148,8 +200,52 @@ void Controller::operator()(Trace<client::Session::Disconnect> const &event, std
       };
       Trace event_2{trace_info, market_data_request};
       dispatch_to_server(event_2, username);
-      subscriptions_.server_to_client.erase(server_md_req_id);
+      subscriptions_.market_data.server_to_client.erase(server_md_req_id);
     }
+    subscriptions_.market_data.client_to_server.erase(iter_1);
+  } else {
+    log::debug("no market data subscriptions associated with session_id={}"sv, disconnect.session_id);
+  }
+  // user
+  auto iter_2 = subscriptions_.user.session_to_username.find(disconnect.session_id);
+  if (iter_2 != std::end(subscriptions_.user.session_to_username)) {
+    auto user_request_id = shared_.create_request_id();
+    auto user_request = codec::fix::UserRequest{
+        .user_request_id = user_request_id,
+        .user_request_type = roq::fix::UserRequestType::LOG_OFF_USER,
+        .username = (*iter_2).second,
+        .password = {},
+        .new_password = {},
+    };
+    Trace event_2{trace_info, user_request};
+    dispatch_to_server(event_2, username);
+    subscriptions_.user.server_to_client.try_emplace(user_request.user_request_id, disconnect.session_id);
+    subscriptions_.user.client_to_server.try_emplace(disconnect.session_id, user_request.user_request_id);
+    // note! there are two scenarios
+    // we can't send ==> fix-bridge is disconnected so it doesn't matter
+    // we get a response => fix-bridge was connect and we expect it to do the right thing
+    // therefore: release immediately to allow the client to reconnect
+    log::debug(R"(USER REMOVE username="{}" <==> session_id={})"sv, user_request.username, disconnect.session_id);
+    subscriptions_.user.username_to_session.erase((*iter_2).second);
+    subscriptions_.user.session_to_username.erase(iter_2);
+  } else {
+    log::debug("no user associated with session_id={}"sv, disconnect.session_id);
+  }
+}
+
+void Controller::operator()(
+    Trace<codec::fix::UserRequest> const &event, std::string_view const &username, uint64_t session_id) {
+  auto &user_request = event.value;
+  if (user_is_locked(user_request.username))
+    throw oms::Rejected{Origin::CLIENT, Error::UNKNOWN, "locked"sv};
+  auto &tmp = subscriptions_.user.client_to_server[session_id];
+  if (std::empty(tmp)) {
+    tmp = user_request.user_request_id;
+    auto res = subscriptions_.user.server_to_client.try_emplace(user_request.user_request_id, session_id).second;
+    assert(res);
+    dispatch_to_server(event, username);
+  } else {
+    log::fatal("Unexpected"sv);
   }
 }
 
@@ -169,7 +265,7 @@ void Controller::operator()(Trace<codec::fix::SecurityStatusRequest> const &even
 void Controller::operator()(
     Trace<codec::fix::MarketDataRequest> const &event, std::string_view const &username, uint64_t session_id) {
   auto &[trace_info, market_data_request] = event;
-  auto &tmp = subscriptions_.client_to_server[session_id];
+  auto &tmp = subscriptions_.market_data.client_to_server[session_id];
   auto iter = tmp.find(market_data_request.md_req_id);
   if (iter == std::end(tmp)) {
     auto request_id = shared_.create_request_id();
@@ -177,8 +273,9 @@ void Controller::operator()(
     market_data_request_2.md_req_id = request_id;
     Trace event_2{trace_info, market_data_request_2};
     dispatch_to_server(event_2, username);
-    subscriptions_.client_to_server[session_id][market_data_request.md_req_id] = market_data_request_2.md_req_id;
-    subscriptions_.server_to_client[market_data_request_2.md_req_id] =
+    subscriptions_.market_data.client_to_server[session_id][market_data_request.md_req_id] =
+        market_data_request_2.md_req_id;
+    subscriptions_.market_data.server_to_client[market_data_request_2.md_req_id] =
         std::make_pair(session_id, market_data_request.md_req_id);
   } else {
     // XXX TODO reject
@@ -243,12 +340,40 @@ void Controller::dispatch_to_client(Trace<T> const &event, std::string_view cons
 
 template <typename Callback>
 bool Controller::find_server_subscription(std::string_view const &md_req_id, Callback callback) {
-  auto iter = subscriptions_.server_to_client.find(md_req_id);
-  if (iter == std::end(subscriptions_.server_to_client))
+  auto iter = subscriptions_.market_data.server_to_client.find(md_req_id);
+  if (iter == std::end(subscriptions_.market_data.server_to_client))
     return false;
   auto &[session_id, client_md_req_id] = (*iter).second;
   callback(session_id, client_md_req_id);
   return true;
+}
+
+void Controller::user_add(std::string_view const &username, uint64_t session_id) {
+  log::debug(R"(USER ADD username="{}" <==> session_id={})"sv, username, session_id);
+  auto res_1 = subscriptions_.user.username_to_session.try_emplace(username, session_id).second;
+  if (!res_1)
+    log::fatal("Unexpected"sv);
+  auto res_2 = subscriptions_.user.session_to_username.try_emplace(session_id, username).second;
+  if (!res_2)
+    log::fatal("Unexpected"sv);
+}
+
+void Controller::user_remove(std::string_view const &username, bool ready) {
+  auto iter = subscriptions_.user.username_to_session.find(username);
+  if (iter != std::end(subscriptions_.user.username_to_session)) {
+    auto session_id = (*iter).second;
+    log::debug(R"(USER REMOVE username="{}" <==> session_id={})"sv, username, session_id);
+    subscriptions_.user.session_to_username.erase(session_id);
+    subscriptions_.user.username_to_session.erase(iter);
+  } else if (ready) {
+    // note! disconnect doesn't wait before cleaning up the resources
+    log::fatal(R"(Unexpected: username="{}")"sv, username);
+  }
+}
+
+bool Controller::user_is_locked(std::string_view const &username) const {
+  auto iter = subscriptions_.user.username_to_session.find(username);
+  return iter != std::end(subscriptions_.user.username_to_session);
 }
 
 }  // namespace fix

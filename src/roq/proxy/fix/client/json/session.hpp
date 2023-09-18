@@ -35,6 +35,7 @@ struct Session final : public client::Session, public web::rest::Server::Handler
   void operator()(Event<Timer> const &) override;
 
   void operator()(Trace<codec::fix::BusinessMessageReject> const &) override;
+  void operator()(Trace<codec::fix::UserResponse> const &) override;
   void operator()(Trace<codec::fix::SecurityList> const &) override;
   void operator()(Trace<codec::fix::SecurityDefinition> const &) override;
   void operator()(Trace<codec::fix::SecurityStatus> const &) override;
@@ -45,7 +46,7 @@ struct Session final : public client::Session, public web::rest::Server::Handler
   void operator()(Trace<codec::fix::ExecutionReport> const &) override;
 
  protected:
-  bool ready() const;
+  bool ready() const override;
   bool zombie() const;
 
   void close();

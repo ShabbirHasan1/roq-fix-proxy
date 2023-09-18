@@ -52,17 +52,21 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   void operator()(Event<Timer> const &) override;
 
   void operator()(Trace<codec::fix::BusinessMessageReject> const &) override;
+  // user management
+  void operator()(Trace<codec::fix::UserResponse> const &) override;
+  // market data
   void operator()(Trace<codec::fix::SecurityList> const &) override;
   void operator()(Trace<codec::fix::SecurityDefinition> const &) override;
   void operator()(Trace<codec::fix::SecurityStatus> const &) override;
   void operator()(Trace<codec::fix::MarketDataRequestReject> const &) override;
   void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &) override;
   void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &) override;
+  // order management
   void operator()(Trace<codec::fix::OrderCancelReject> const &) override;
   void operator()(Trace<codec::fix::ExecutionReport> const &) override;
 
  protected:
-  bool ready() const;
+  bool ready() const override;
   bool zombie() const;
 
   void close();
@@ -92,12 +96,13 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   template <typename T, typename... Args>
   void dispatch(Trace<roq::fix::Message> const &, Args &&...);
 
-  void operator()(Trace<codec::fix::Logon> const &, roq::fix::Header const &);
-  void operator()(Trace<codec::fix::Logout> const &, roq::fix::Header const &);
   void operator()(Trace<codec::fix::TestRequest> const &, roq::fix::Header const &);
   void operator()(Trace<codec::fix::ResendRequest> const &, roq::fix::Header const &);
   void operator()(Trace<codec::fix::Reject> const &, roq::fix::Header const &);
   void operator()(Trace<codec::fix::Heartbeat> const &, roq::fix::Header const &);
+
+  void operator()(Trace<codec::fix::Logon> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::Logout> const &, roq::fix::Header const &);
 
   void operator()(Trace<codec::fix::TradingSessionStatusRequest> const &, roq::fix::Header const &);
 
@@ -132,7 +137,7 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   Shared &shared_;
   io::Buffer buffer_;
   std::chrono::nanoseconds const logon_timeout_;
-  enum class State { WAITING_LOGON, READY, ZOMBIE } state_ = {};
+  enum class State { WAITING_LOGON, WAITING_USER_RESPONSE, READY, ZOMBIE } state_ = {};
   struct {
     uint64_t msg_seq_num = {};
   } outbound_;
@@ -141,8 +146,8 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   } inbound_;
   std::string comp_id_;
   std::string username_;
-  std::string strategy_id_;
-  codec::fix::Party party_;
+  std::chrono::nanoseconds user_response_timeout_ = {};
+  std::string party_id_;
   std::chrono::nanoseconds next_heartbeat_ = {};
   bool waiting_for_heartbeat_ = {};
   // buffer

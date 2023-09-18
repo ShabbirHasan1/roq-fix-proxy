@@ -80,7 +80,7 @@ if __name__ == "__main__":
         s.sendall(logon_request())
         response = s.recv(4096)
         print(response)
-        if True:
+        if False:
             s.sendall(new_order_single_request())
         else:
             s.sendall(market_data_request())

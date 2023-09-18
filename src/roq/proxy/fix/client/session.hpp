@@ -17,6 +17,7 @@
 #include "roq/codec/fix/security_definition.hpp"
 #include "roq/codec/fix/security_list.hpp"
 #include "roq/codec/fix/security_status.hpp"
+#include "roq/codec/fix/user_request.hpp"
 
 // outbound
 #include "roq/codec/fix/market_data_request.hpp"
@@ -29,6 +30,7 @@
 #include "roq/codec/fix/security_definition_request.hpp"
 #include "roq/codec/fix/security_list_request.hpp"
 #include "roq/codec/fix/security_status_request.hpp"
+#include "roq/codec/fix/user_response.hpp"
 
 namespace roq {
 namespace proxy {
@@ -41,6 +43,9 @@ struct Session {
   };
   struct Handler {
     virtual void operator()(Trace<Disconnect> const &, std::string_view const &username) = 0;
+    // user management
+    virtual void operator()(
+        Trace<codec::fix::UserRequest> const &, std::string_view const &username, uint64_t session_id) = 0;
     // market data
     virtual void operator()(Trace<codec::fix::SecurityListRequest> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<codec::fix::SecurityDefinitionRequest> const &, std::string_view const &username) = 0;
@@ -58,10 +63,14 @@ struct Session {
 
   virtual ~Session() = default;
 
+  virtual bool ready() const = 0;
+
   virtual void operator()(Event<Stop> const &) = 0;
   virtual void operator()(Event<Timer> const &) = 0;
 
   virtual void operator()(Trace<codec::fix::BusinessMessageReject> const &) = 0;
+  // user management
+  virtual void operator()(Trace<codec::fix::UserResponse> const &) = 0;
   // market data
   virtual void operator()(Trace<codec::fix::SecurityList> const &) = 0;
   virtual void operator()(Trace<codec::fix::SecurityDefinition> const &) = 0;

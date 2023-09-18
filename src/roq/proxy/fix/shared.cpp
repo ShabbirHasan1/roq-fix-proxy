@@ -51,7 +51,7 @@ bool Shared::include(std::string_view const &symbol) const {
 }
 
 std::string_view Shared::session_logon_helper(
-    uint64_t session_id, std::string_view const &username, std::string_view const &password) {
+    uint64_t session_id, std::string_view const &username, std::string_view const &password, uint32_t &strategy_id) {
   auto iter_1 = username_to_password_.find(username);
   if (iter_1 == std::end(username_to_password_) || password != (*iter_1).second)
     return Error::INVALID_PASSWORD;
@@ -64,6 +64,7 @@ std::string_view Shared::session_logon_helper(
   auto &username_1 = (*res_1.first).first;
   auto res_2 = session_to_username_.try_emplace(session_id, username_1);
   assert(res_2.second);
+  strategy_id = 123;  // XXX TODO lookup
   return {};
 }
 

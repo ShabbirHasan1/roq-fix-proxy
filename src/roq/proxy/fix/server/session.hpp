@@ -21,7 +21,8 @@
 
 #include "roq/fix/message.hpp"
 
-// inbound
+#include "roq/codec/fix/business_message_reject.hpp"
+#include "roq/codec/fix/execution_report.hpp"
 #include "roq/codec/fix/heartbeat.hpp"
 #include "roq/codec/fix/logon.hpp"
 #include "roq/codec/fix/logout.hpp"
@@ -30,6 +31,7 @@
 #include "roq/codec/fix/market_data_request_reject.hpp"
 #include "roq/codec/fix/market_data_snapshot_full_refresh.hpp"
 #include "roq/codec/fix/new_order_single.hpp"
+#include "roq/codec/fix/order_cancel_reject.hpp"
 #include "roq/codec/fix/order_cancel_replace_request.hpp"
 #include "roq/codec/fix/order_cancel_request.hpp"
 #include "roq/codec/fix/order_mass_cancel_request.hpp"
@@ -44,11 +46,8 @@
 #include "roq/codec/fix/security_status.hpp"
 #include "roq/codec/fix/security_status_request.hpp"
 #include "roq/codec/fix/test_request.hpp"
-
-// outbound
-#include "roq/codec/fix/business_message_reject.hpp"
-#include "roq/codec/fix/execution_report.hpp"
-#include "roq/codec/fix/order_cancel_reject.hpp"
+#include "roq/codec/fix/user_request.hpp"
+#include "roq/codec/fix/user_response.hpp"
 
 #include "roq/proxy/fix/settings.hpp"
 #include "roq/proxy/fix/shared.hpp"
@@ -63,6 +62,8 @@ namespace server {
 struct Session final : public io::net::ConnectionManager::Handler {
   struct Handler {
     virtual void operator()(Trace<codec::fix::BusinessMessageReject> const &, std::string_view const &username) = 0;
+    // user management
+    virtual void operator()(Trace<codec::fix::UserResponse> const &, std::string_view const &username) = 0;
     // market data
     virtual void operator()(Trace<codec::fix::SecurityList> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<codec::fix::SecurityDefinition> const &, std::string_view const &username) = 0;
@@ -92,11 +93,14 @@ struct Session final : public io::net::ConnectionManager::Handler {
 
   bool ready() const;
 
+  // user management
+  void operator()(Trace<codec::fix::UserRequest> const &);
+  // market data
   void operator()(Trace<codec::fix::SecurityListRequest> const &);
   void operator()(Trace<codec::fix::SecurityDefinitionRequest> const &);
   void operator()(Trace<codec::fix::SecurityStatusRequest> const &);
   void operator()(Trace<codec::fix::MarketDataRequest> const &);
-  // ...
+  // order management
   void operator()(Trace<codec::fix::OrderStatusRequest> const &);
   void operator()(Trace<codec::fix::NewOrderSingle> const &);
   void operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &);
@@ -140,6 +144,8 @@ struct Session final : public io::net::ConnectionManager::Handler {
 
   void operator()(Trace<codec::fix::BusinessMessageReject> const &, roq::fix::Header const &);
 
+  // - market data
+
   void operator()(Trace<codec::fix::SecurityList> const &, roq::fix::Header const &);
   void operator()(Trace<codec::fix::SecurityDefinition> const &, roq::fix::Header const &);
   void operator()(Trace<codec::fix::SecurityStatus> const &, roq::fix::Header const &);
@@ -147,6 +153,12 @@ struct Session final : public io::net::ConnectionManager::Handler {
   void operator()(Trace<codec::fix::MarketDataRequestReject> const &, roq::fix::Header const &);
   void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &, roq::fix::Header const &);
   void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &, roq::fix::Header const &);
+
+  // - user management
+
+  void operator()(Trace<codec::fix::UserResponse> const &, roq::fix::Header const &);
+
+  // - order management
 
   void operator()(Trace<codec::fix::OrderCancelReject> const &, roq::fix::Header const &);
 

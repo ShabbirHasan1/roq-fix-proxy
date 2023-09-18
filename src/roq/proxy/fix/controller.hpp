@@ -44,6 +44,8 @@ struct Controller final : public io::sys::Signal::Handler,
 
   // server::Session::Handler
   void operator()(Trace<codec::fix::BusinessMessageReject> const &, std::string_view const &username) override;
+  // - user
+  void operator()(Trace<codec::fix::UserResponse> const &, std::string_view const &username) override;
   // - market data
   void operator()(Trace<codec::fix::SecurityList> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::SecurityDefinition> const &, std::string_view const &username) override;
@@ -57,6 +59,9 @@ struct Controller final : public io::sys::Signal::Handler,
 
   // client::Session::Handler
   void operator()(Trace<client::Session::Disconnect> const &, std::string_view const &username) override;
+  // - user management
+  void operator()(
+      Trace<codec::fix::UserRequest> const &, std::string_view const &username, uint64_t session_id) override;
   // - market data
   void operator()(Trace<codec::fix::SecurityListRequest> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::SecurityDefinitionRequest> const &, std::string_view const &username) override;
@@ -85,6 +90,10 @@ struct Controller final : public io::sys::Signal::Handler,
   template <typename Callback>
   bool find_server_subscription(std::string_view const &md_req_id, Callback callback);
 
+  void user_add(std::string_view const &username, uint64_t session_id);
+  void user_remove(std::string_view const &username, bool ready);
+  bool user_is_locked(std::string_view const &username) const;
+
  private:
   io::Context &context_;
   std::unique_ptr<io::sys::Signal> const terminate_;
@@ -95,10 +104,22 @@ struct Controller final : public io::sys::Signal::Handler,
   client::Manager client_manager_;
   // server subscription mappings
   struct {
-    // server subscription id => {session id, client subscription id}
-    absl::flat_hash_map<std::string, std::pair<uint64_t, std::string>> server_to_client;
-    // session id => client subscription id => server subscription id
-    absl::flat_hash_map<uint64_t, absl::flat_hash_map<std::string, std::string>> client_to_server;
+    struct {
+      // state:
+      absl::flat_hash_map<std::string, uint64_t> username_to_session;
+      absl::flat_hash_map<uint64_t, std::string> session_to_username;
+      // requests:
+      // user_request_id => session id
+      absl::flat_hash_map<std::string, uint64_t> server_to_client;
+      // session id => user_request_id
+      absl::flat_hash_map<uint64_t, std::string> client_to_server;
+    } user;
+    struct {
+      // server subscription id => {session id, client subscription id}
+      absl::flat_hash_map<std::string, std::pair<uint64_t, std::string>> server_to_client;
+      // session id => client subscription id => server subscription id
+      absl::flat_hash_map<uint64_t, absl::flat_hash_map<std::string, std::string>> client_to_server;
+    } market_data;
   } subscriptions_;
 };
 
