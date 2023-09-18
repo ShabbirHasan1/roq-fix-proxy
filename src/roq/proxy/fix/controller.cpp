@@ -345,7 +345,7 @@ bool Controller::find_server_subscription(std::string_view const &md_req_id, Cal
 }
 
 void Controller::user_add(std::string_view const &username, uint64_t session_id) {
-  log::debug(R"(USER ADD username="{}" <==> session_id={})"sv, username, session_id);
+  log::info(R"(DEBUG: USER ADD username="{}" <==> session_id={})"sv, username, session_id);
   auto res_1 = subscriptions_.user.username_to_session.try_emplace(username, session_id).second;
   if (!res_1)
     log::fatal("Unexpected"sv);
@@ -358,7 +358,7 @@ void Controller::user_remove(std::string_view const &username, bool ready) {
   auto iter = subscriptions_.user.username_to_session.find(username);
   if (iter != std::end(subscriptions_.user.username_to_session)) {
     auto session_id = (*iter).second;
-    log::debug(R"(USER REMOVE username="{}" <==> session_id={})"sv, username, session_id);
+    log::info(R"(DEBUG: USER REMOVE username="{}" <==> session_id={})"sv, username, session_id);
     subscriptions_.user.session_to_username.erase(session_id);
     subscriptions_.user.username_to_session.erase(iter);
   } else if (ready) {
