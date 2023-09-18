@@ -82,7 +82,7 @@ struct Shared final {
   std::string_view session_logout_helper(uint64_t session_id);
   void session_remove_helper(uint64_t session_id);
 
-  absl::flat_hash_map<std::string, std::string> username_to_password_;
+  absl::flat_hash_map<std::string, std::pair<std::string, uint32_t>> username_to_password_and_strategy_id_;
   absl::flat_hash_map<std::string, uint64_t> username_to_session_;
   absl::flat_hash_map<uint64_t, std::string> session_to_username_;
   absl::flat_hash_set<uint64_t> sessions_to_remove_;

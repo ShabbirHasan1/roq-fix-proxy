@@ -16,11 +16,11 @@ namespace fix {
 
 namespace {
 template <typename R>
-auto create_username_to_password(auto &config) {
+auto create_username_to_password_and_strategy_id(auto &config) {
   using result_type = std::remove_cvref<R>::type;
   result_type result;
   for (auto &[_, user] : config.users)
-    result.emplace(user.username, user.password);
+    result.try_emplace(user.username, user.password, user.strategy_id);
   return result;
 }
 
@@ -39,7 +39,9 @@ auto create_regex_symbols(auto &config) {
 // === IMPLEMENTATION ===
 
 Shared::Shared(Settings const &settings, Config const &config)
-    : settings{settings}, username_to_password_{create_username_to_password<decltype(username_to_password_)>(config)},
+    : settings{settings},
+      username_to_password_and_strategy_id_{
+          create_username_to_password_and_strategy_id<decltype(username_to_password_and_strategy_id_)>(config)},
       regex_symbols_{create_regex_symbols<decltype(regex_symbols_)>(config)} {
 }
 
@@ -52,8 +54,8 @@ bool Shared::include(std::string_view const &symbol) const {
 
 std::string_view Shared::session_logon_helper(
     uint64_t session_id, std::string_view const &username, std::string_view const &password, uint32_t &strategy_id) {
-  auto iter_1 = username_to_password_.find(username);
-  if (iter_1 == std::end(username_to_password_) || password != (*iter_1).second)
+  auto iter_1 = username_to_password_and_strategy_id_.find(username);
+  if (iter_1 == std::end(username_to_password_and_strategy_id_) || password != (*iter_1).second.first)
     return Error::INVALID_PASSWORD;
   auto iter_2 = username_to_session_.find(username);
   if (iter_2 != std::end(username_to_session_))
@@ -64,7 +66,7 @@ std::string_view Shared::session_logon_helper(
   auto &username_1 = (*res_1.first).first;
   auto res_2 = session_to_username_.try_emplace(session_id, username_1);
   assert(res_2.second);
-  strategy_id = 123;  // XXX TODO lookup
+  strategy_id = (*iter_1).second.second;
   return {};
 }
 
