@@ -282,6 +282,7 @@ void Session::send_and_close(T const &event) {
 
 template <std::size_t level, typename T>
 void Session::send(T const &event) {
+#ifndef NDEBUG
   auto can_send = [&]() {
     if constexpr (std::is_same<T, codec::fix::Logon>::value) {
       return state_ == State::WAITING_USER_RESPONSE;
@@ -289,6 +290,7 @@ void Session::send(T const &event) {
     return state_ == State::READY;
   };
   assert(can_send());
+#endif
   auto sending_time = clock::get_realtime();
   send<level>(event, sending_time);
 }
