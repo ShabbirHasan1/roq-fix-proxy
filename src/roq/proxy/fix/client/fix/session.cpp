@@ -638,18 +638,34 @@ void Session::operator()(Trace<codec::fix::MarketDataRequest> const &event, roq:
   }
 }
 
-void Session::operator()(Trace<codec::fix::OrderStatusRequest> const &, roq::fix::Header const &header) {
-  send_business_message_reject(
-      header,
-      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
-      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
+void Session::operator()(Trace<codec::fix::OrderStatusRequest> const &event, roq::fix::Header const &header) {
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON:
+    case WAITING_USER_RESPONSE:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
+      break;
+    case READY:
+      handler_(event, username_);
+      break;
+    case ZOMBIE:
+      break;
+  }
 }
 
-void Session::operator()(Trace<codec::fix::OrderMassStatusRequest> const &, roq::fix::Header const &header) {
-  send_business_message_reject(
-      header,
-      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
-      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
+void Session::operator()(Trace<codec::fix::OrderMassStatusRequest> const &event, roq::fix::Header const &header) {
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON:
+    case WAITING_USER_RESPONSE:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
+      break;
+    case READY:
+      handler_(event, username_);
+      break;
+    case ZOMBIE:
+      break;
+  }
 }
 
 void Session::operator()(Trace<codec::fix::NewOrderSingle> const &event, roq::fix::Header const &header) {
@@ -736,6 +752,7 @@ void Session::send_reject(
       .ref_msg_type = header.msg_type,
       .session_reject_reason = session_reject_reason,
   };
+  log::warn("reject={}"sv, response);
   send_and_close<2>(response);
 }
 
@@ -750,6 +767,7 @@ void Session::send_business_message_reject(
       .business_reject_reason = business_reject_reason,
       .text = text,
   };
+  log::warn("business_message_reject={}"sv, response);
   send<2>(response);
 }
 
