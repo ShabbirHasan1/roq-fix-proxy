@@ -483,7 +483,8 @@ void Session::operator()(Trace<codec::fix::Heartbeat> const &event, roq::fix::He
 // session
 
 void Session::operator()(Trace<codec::fix::Logon> const &event, roq::fix::Header const &header) {
-  auto &[trace_info, logon] = event;
+  auto &trace_info = event.trace_info;
+  auto &logon = event.value;
   switch (state_) {
     using enum State;
     case WAITING_LOGON: {

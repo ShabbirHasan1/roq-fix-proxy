@@ -135,7 +135,8 @@ void Controller::operator()(Trace<codec::fix::SecurityStatus> const &event, std:
 }
 
 void Controller::operator()(Trace<codec::fix::MarketDataRequestReject> const &event, std::string_view const &username) {
-  auto &[trace_info, market_data_reject] = event;
+  auto &trace_info = event.trace_info;
+  auto &market_data_reject = event.value;
   find_server_subscription(market_data_reject.md_req_id, [&]([[maybe_unused]] auto session_id, auto &client_md_req_id) {
     auto market_data_reject_2 = market_data_reject;
     market_data_reject_2.md_req_id = client_md_req_id;
@@ -146,7 +147,8 @@ void Controller::operator()(Trace<codec::fix::MarketDataRequestReject> const &ev
 
 void Controller::operator()(
     Trace<codec::fix::MarketDataSnapshotFullRefresh> const &event, std::string_view const &username) {
-  auto &[trace_info, market_data_snapshot_full_refresh] = event;
+  auto &trace_info = event.trace_info;
+  auto &market_data_snapshot_full_refresh = event.value;
   find_server_subscription(
       market_data_snapshot_full_refresh.md_req_id, [&]([[maybe_unused]] auto session_id, auto &client_md_req_id) {
         auto market_data_snapshot_full_refresh_2 = market_data_snapshot_full_refresh;
@@ -158,7 +160,8 @@ void Controller::operator()(
 
 void Controller::operator()(
     Trace<codec::fix::MarketDataIncrementalRefresh> const &event, std::string_view const &username) {
-  auto &[trace_info, market_data_incremental_refresh] = event;
+  auto &trace_info = event.trace_info;
+  auto &market_data_incremental_refresh = event.value;
   find_server_subscription(
       market_data_incremental_refresh.md_req_id, [&]([[maybe_unused]] auto session_id, auto &client_md_req_id) {
         auto market_data_incremental_refresh_2 = market_data_incremental_refresh;
