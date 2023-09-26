@@ -88,7 +88,7 @@ struct Shared final {
   absl::flat_hash_set<uint64_t> sessions_to_remove_;
 
  private:
-  std::vector<std::unique_ptr<utils::regex::Pattern>> const regex_symbols_;
+  std::vector<utils::regex::Pattern> const regex_symbols_;
 
   uint32_t next_request_id_ = {};
 };

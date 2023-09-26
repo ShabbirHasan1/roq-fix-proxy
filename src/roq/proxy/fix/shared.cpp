@@ -29,7 +29,7 @@ auto create_regex_symbols(auto &config) {
   using result_type = std::remove_cvref<R>::type;
   result_type result;
   for (auto &symbol : config.symbols) {
-    auto regex = utils::regex::Pattern::create(symbol);
+    utils::regex::Pattern regex{symbol};
     result.emplace_back(std::move(regex));
   }
   return result;
@@ -47,7 +47,7 @@ Shared::Shared(Settings const &settings, Config const &config)
 
 bool Shared::include(std::string_view const &symbol) const {
   for (auto &regex : regex_symbols_)
-    if ((*regex).match(symbol))
+    if (regex.match(symbol))
       return true;
   return false;
 }
