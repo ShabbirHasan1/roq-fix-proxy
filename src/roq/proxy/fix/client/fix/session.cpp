@@ -175,6 +175,18 @@ void Session::operator()(Trace<codec::fix::ExecutionReport> const &event) {
     send<2>(execution_report);
 }
 
+void Session::operator()(Trace<codec::fix::RequestForPositionsAck> const &event) {
+  auto &[trace_info, request_for_positions_ack] = event;
+  if (ready())
+    send<2>(request_for_positions_ack);
+}
+
+void Session::operator()(Trace<codec::fix::PositionReport> const &event) {
+  auto &[trace_info, position_report] = event;
+  if (ready())
+    send<2>(position_report);
+}
+
 bool Session::ready() const {
   return state_ == State::READY;
 }
@@ -737,11 +749,22 @@ void Session::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &, r
       ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<codec::fix::RequestForPositions> const &, roq::fix::Header const &header) {
-  send_business_message_reject(
-      header,
-      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
-      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
+void Session::operator()(Trace<codec::fix::RequestForPositions> const &event, roq::fix::Header const &header) {
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON:
+    case WAITING_USER_RESPONSE:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
+      break;
+    case READY:
+      if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, username_); })) {
+      } else {
+        send_business_message_reject(header, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
+      }
+      break;
+    case ZOMBIE:
+      break;
+  }
 }
 
 void Session::send_reject(

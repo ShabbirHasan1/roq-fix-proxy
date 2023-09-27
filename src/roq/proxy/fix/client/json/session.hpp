@@ -35,15 +35,21 @@ struct Session final : public client::Session, public web::rest::Server::Handler
   void operator()(Event<Timer> const &) override;
 
   void operator()(Trace<codec::fix::BusinessMessageReject> const &) override;
+  // user management
   void operator()(Trace<codec::fix::UserResponse> const &) override;
+  // market data
   void operator()(Trace<codec::fix::SecurityList> const &) override;
   void operator()(Trace<codec::fix::SecurityDefinition> const &) override;
   void operator()(Trace<codec::fix::SecurityStatus> const &) override;
   void operator()(Trace<codec::fix::MarketDataRequestReject> const &) override;
   void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &) override;
   void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &) override;
+  // order management
   void operator()(Trace<codec::fix::OrderCancelReject> const &) override;
   void operator()(Trace<codec::fix::ExecutionReport> const &) override;
+  // position management
+  void operator()(Trace<codec::fix::RequestForPositionsAck> const &) override;
+  void operator()(Trace<codec::fix::PositionReport> const &) override;
 
  protected:
   bool ready() const override;

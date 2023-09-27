@@ -141,6 +141,10 @@ void Session::operator()(Trace<codec::fix::OrderMassCancelRequest> const &event)
   send(event);
 }
 
+void Session::operator()(Trace<codec::fix::RequestForPositions> const &event) {
+  send(event);
+}
+
 void Session::operator()(Session::State state) {
   if (utils::update(state_, state))
     log::debug("state={}"sv, magic_enum::enum_name(state));
@@ -316,6 +320,17 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
       dispatch(event, execution_report);
       break;
     }
+      // position management
+    case REQUEST_FOR_POSITIONS_ACK: {
+      auto request_for_positions_ack = codec::fix::RequestForPositionsAck::create(message, decode_buffer_);
+      dispatch(event, request_for_positions_ack);
+      break;
+    }
+    case POSITION_REPORT: {
+      auto position_report = codec::fix::PositionReport::create(message, decode_buffer_);
+      dispatch(event, position_report);
+      break;
+    }
     default:
       log::warn("Unexpected msg_type={}"sv, header.msg_type);
   }
@@ -457,6 +472,18 @@ void Session::operator()(Trace<codec::fix::OrderCancelReject> const &event, roq:
 void Session::operator()(Trace<codec::fix::ExecutionReport> const &event, roq::fix::Header const &) {
   auto &[trace_info, execution_report] = event;
   log::debug("execution_report={}, trace_info={}"sv, execution_report, trace_info);
+  handler_(event, username_);
+}
+
+void Session::operator()(Trace<codec::fix::RequestForPositionsAck> const &event, roq::fix::Header const &) {
+  auto &[trace_info, request_for_positions_ack] = event;
+  log::debug("request_for_positions_ack={}, trace_info={}"sv, request_for_positions_ack, trace_info);
+  handler_(event, username_);
+}
+
+void Session::operator()(Trace<codec::fix::PositionReport> const &event, roq::fix::Header const &) {
+  auto &[trace_info, position_report] = event;
+  log::debug("position_report={}, trace_info={}"sv, position_report, trace_info);
   handler_(event, username_);
 }
 

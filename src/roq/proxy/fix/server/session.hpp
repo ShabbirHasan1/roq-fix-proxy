@@ -37,7 +37,10 @@
 #include "roq/codec/fix/order_mass_cancel_request.hpp"
 #include "roq/codec/fix/order_mass_status_request.hpp"
 #include "roq/codec/fix/order_status_request.hpp"
+#include "roq/codec/fix/position_report.hpp"
 #include "roq/codec/fix/reject.hpp"
+#include "roq/codec/fix/request_for_positions.hpp"
+#include "roq/codec/fix/request_for_positions_ack.hpp"
 #include "roq/codec/fix/resend_request.hpp"
 #include "roq/codec/fix/security_definition.hpp"
 #include "roq/codec/fix/security_definition_request.hpp"
@@ -81,6 +84,9 @@ struct Session final : public io::net::ConnectionManager::Handler {
     // order management
     virtual void operator()(Trace<codec::fix::OrderCancelReject> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<codec::fix::ExecutionReport> const &, std::string_view const &username) = 0;
+    // position management
+    virtual void operator()(Trace<codec::fix::RequestForPositionsAck> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::PositionReport> const &, std::string_view const &username) = 0;
   };
 
   Session(
@@ -112,6 +118,8 @@ struct Session final : public io::net::ConnectionManager::Handler {
   void operator()(Trace<codec::fix::OrderCancelRequest> const &);
   void operator()(Trace<codec::fix::OrderMassStatusRequest> const &);
   void operator()(Trace<codec::fix::OrderMassCancelRequest> const &);
+  // position management
+  void operator()(Trace<codec::fix::RequestForPositions> const &);
 
  private:
   enum class State;
@@ -168,6 +176,11 @@ struct Session final : public io::net::ConnectionManager::Handler {
   void operator()(Trace<codec::fix::OrderCancelReject> const &, roq::fix::Header const &);
 
   void operator()(Trace<codec::fix::ExecutionReport> const &, roq::fix::Header const &);
+
+  // - position management
+
+  void operator()(Trace<codec::fix::RequestForPositionsAck> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::PositionReport> const &, roq::fix::Header const &);
 
   // outbound
 

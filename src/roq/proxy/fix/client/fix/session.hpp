@@ -64,6 +64,9 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   // order management
   void operator()(Trace<codec::fix::OrderCancelReject> const &) override;
   void operator()(Trace<codec::fix::ExecutionReport> const &) override;
+  // position management
+  void operator()(Trace<codec::fix::RequestForPositionsAck> const &) override;
+  void operator()(Trace<codec::fix::PositionReport> const &) override;
 
  protected:
   bool ready() const override;

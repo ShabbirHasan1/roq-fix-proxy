@@ -184,6 +184,14 @@ void Session::operator()(Trace<codec::fix::ExecutionReport> const &event) {
       client::json::ExecutionReport{execution_report});
 }
 
+void Session::operator()(Trace<codec::fix::RequestForPositionsAck> const &) {
+  log::fatal("not implemented"sv);
+}
+
+void Session::operator()(Trace<codec::fix::PositionReport> const &) {
+  log::fatal("not implemented"sv);
+}
+
 bool Session::ready() const {
   return state_ == State::READY;
 }

@@ -179,6 +179,14 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event, std
   dispatch_to_client(event, username);
 }
 
+void Controller::operator()(Trace<codec::fix::RequestForPositionsAck> const &event, std::string_view const &username) {
+  dispatch_to_client(event, username);
+}
+
+void Controller::operator()(Trace<codec::fix::PositionReport> const &event, std::string_view const &username) {
+  dispatch_to_client(event, username);
+}
+
 // client::Session::Handler
 
 void Controller::operator()(Trace<client::Session::Disconnected> const &event, std::string_view const &username) {
@@ -310,6 +318,10 @@ void Controller::operator()(Trace<codec::fix::OrderMassStatusRequest> const &eve
 }
 
 void Controller::operator()(Trace<codec::fix::OrderMassCancelRequest> const &event, std::string_view const &username) {
+  dispatch_to_server(event, username);
+}
+
+void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event, std::string_view const &username) {
   dispatch_to_server(event, username);
 }
 
