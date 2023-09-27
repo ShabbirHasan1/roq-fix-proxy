@@ -5,6 +5,7 @@
 #include "roq/logging.hpp"
 
 #include "roq/utils/chrono.hpp"  // hh_mm_ss
+#include "roq/utils/update.hpp"
 
 #include "roq/oms/exceptions.hpp"
 
@@ -29,7 +30,7 @@ auto const ERROR_UNEXPECTED_MSG_TYPE = "UNEXPECTED MSG_TYPE"sv;
 auto const ERROR_UNKNOWN_TARGET_COMP_ID = "UNKNOWN TARGET_COMP_ID"sv;
 auto const ERROR_UNSUPPORTED_MSG_TYPE = "UNSUPPORTED MSG_TYPE"sv;
 auto const ERROR_UNSUPPORTED_PARTY_IDS = "UNSUPPORTED PARTY_IDS"sv;
-auto const ERROR_CREATE_ROUTE_TIMEOUT = "CREATE_ROUTE_TIMEOUT"sv;
+auto const ERROR_USER_RESPONSE_TIMEOUT = "USER_RESPONSE_TIMEOUT"sv;
 }  // namespace
 
 // === HELPERS ===
@@ -62,11 +63,11 @@ void Session::operator()(Event<Timer> const &event) {
         close();
       }
       break;
-    case WAITING_USER_RESPONSE: {
+    case WAITING_CREATE_ROUTE: {
       assert(user_response_timeout_.count());
       if (user_response_timeout_ < event.value.now) {
         auto logout = codec::fix::Logout{
-            .text = ERROR_CREATE_ROUTE_TIMEOUT,
+            .text = ERROR_USER_RESPONSE_TIMEOUT,
         };
         send_and_close<2>(logout);
       }
@@ -91,6 +92,17 @@ void Session::operator()(Event<Timer> const &event) {
         }
       }
       break;
+    case WAITING_REMOVE_ROUTE: {
+      assert(user_response_timeout_.count());
+      if (user_response_timeout_ < event.value.now) {
+        auto logout = codec::fix::Logout{
+            .text = ERROR_USER_RESPONSE_TIMEOUT,
+        };
+        send_and_close<2>(logout);
+        // XXX HANS release route
+      }
+      break;
+    }
     case ZOMBIE:
       break;
   }
@@ -105,25 +117,60 @@ void Session::operator()(Trace<codec::fix::BusinessMessageReject> const &event) 
 void Session::operator()(Trace<codec::fix::UserResponse> const &event) {
   auto &[trace_info, user_response] = event;
   user_response_timeout_ = {};
-  if (user_response.user_status == roq::fix::UserStatus::LOGGED_IN) {
-    if (state_ == State::WAITING_USER_RESPONSE) {
-      auto heart_bt_int = std::chrono::duration_cast<std::chrono::seconds>(shared_.settings.client.heartbeat_freq);
-      auto response = codec::fix::Logon{
-          .encrypt_method = roq::fix::EncryptMethod::NONE,
-          .heart_bt_int = static_cast<uint16_t>(heart_bt_int.count()),
-          .reset_seq_num_flag = {},
-          .next_expected_msg_seq_num = {},
-          .username = {},
-          .password = {},
-      };
-      log::debug("logon={}"sv, response);
-      send<2>(response);
-      state_ = State::READY;
-    } else {
-      log::fatal("Unexpected"sv);
-    }
-  } else {
-    make_zombie();
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON:
+      break;
+    case WAITING_CREATE_ROUTE:
+      switch (user_response.user_status) {
+        using enum roq::fix::UserStatus;
+        case LOGGED_IN: {
+          auto heart_bt_int = std::chrono::duration_cast<std::chrono::seconds>(shared_.settings.client.heartbeat_freq);
+          auto response = codec::fix::Logon{
+              .encrypt_method = roq::fix::EncryptMethod::NONE,
+              .heart_bt_int = static_cast<uint16_t>(heart_bt_int.count()),
+              .reset_seq_num_flag = {},
+              .next_expected_msg_seq_num = {},
+              .username = {},
+              .password = {},
+          };
+          log::debug("logon={}"sv, response);
+          send<2>(response);
+          (*this)(State::READY);
+          break;
+        }
+        default:
+          log::warn("user_response={}"sv, user_response);
+          make_zombie();
+      }
+      break;
+    case READY:
+      break;
+    case WAITING_REMOVE_ROUTE:
+      switch (user_response.user_status) {
+        using enum roq::fix::UserStatus;
+        case NOT_LOGGED_IN: {
+          auto success = [&]() {
+            username_.clear();
+            party_id_.clear();
+            auto response = codec::fix::Logout{
+                .text = ERROR_GOODBYE,
+            };
+            send_and_close<2>(response);
+          };
+          auto failure = [&](auto &reason) {
+            log::warn(R"(Unexpected: failed to release session, reason="{}")"sv, reason);
+            make_zombie();
+          };
+          shared_.session_logout(session_id_, success, failure);
+          break;
+        }
+        default:
+          log::warn("user_response={}"sv, user_response);
+          make_zombie();
+      }
+    case ZOMBIE:
+      break;
   }
 }
 
@@ -187,6 +234,11 @@ void Session::operator()(Trace<codec::fix::PositionReport> const &event) {
     send<2>(position_report);
 }
 
+void Session::operator()(State state) {
+  if (utils::update(state_, state))
+    log::info("DEBUG: session_id={}, state={}"sv, session_id_, magic_enum::enum_name(state_));
+}
+
 bool Session::ready() const {
   return state_ == State::READY;
 }
@@ -199,8 +251,9 @@ void Session::force_disconnect() {
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
-    case WAITING_USER_RESPONSE:
+    case WAITING_CREATE_ROUTE:
     case READY:
+    case WAITING_REMOVE_ROUTE:
       close();
       break;
     case ZOMBIE:
@@ -267,8 +320,9 @@ void Session::make_zombie() {
     using enum State;
     case WAITING_LOGON:
       break;
-    case WAITING_USER_RESPONSE:
-    case READY: {
+    case WAITING_CREATE_ROUTE:
+    case READY:
+    case WAITING_REMOVE_ROUTE: {
       TraceInfo trace_info;
       auto disconnect = Session::Disconnected{
           .session_id = session_id_,
@@ -280,7 +334,7 @@ void Session::make_zombie() {
     case ZOMBIE:
       return;
   }
-  state_ = State::ZOMBIE;
+  (*this)(State::ZOMBIE);
   shared_.session_remove(session_id_);
 }
 
@@ -297,7 +351,7 @@ void Session::send(T const &event) {
 #ifndef NDEBUG
   auto can_send = [&]() {
     if constexpr (std::is_same<T, codec::fix::Logon>::value) {
-      return state_ == State::WAITING_USER_RESPONSE;
+      return state_ == State::WAITING_CREATE_ROUTE;
     }
     return state_ == State::READY;
   };
@@ -435,7 +489,7 @@ void Session::operator()(Trace<codec::fix::TestRequest> const &event, roq::fix::
     case WAITING_LOGON:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case WAITING_USER_RESPONSE:
+    case WAITING_CREATE_ROUTE:
     case READY: {
       auto heartbeat = codec::fix::Heartbeat{
           .test_req_id = test_request.test_req_id,
@@ -443,6 +497,8 @@ void Session::operator()(Trace<codec::fix::TestRequest> const &event, roq::fix::
       send<4>(heartbeat);
       break;
     }
+    case WAITING_REMOVE_ROUTE:
+      break;
     case ZOMBIE:
       break;
   }
@@ -454,12 +510,15 @@ void Session::operator()(Trace<codec::fix::ResendRequest> const &event, roq::fix
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
-    case WAITING_USER_RESPONSE:
+    case WAITING_CREATE_ROUTE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
       send_business_message_reject(
           header, roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE, ERROR_UNSUPPORTED_MSG_TYPE);
+      break;
+    case WAITING_REMOVE_ROUTE:
+      make_zombie();
       break;
     case ZOMBIE:
       assert(false);
@@ -479,11 +538,13 @@ void Session::operator()(Trace<codec::fix::Heartbeat> const &event, roq::fix::He
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
-    case WAITING_USER_RESPONSE:
+    case WAITING_CREATE_ROUTE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
       waiting_for_heartbeat_ = false;
+      break;
+    case WAITING_REMOVE_ROUTE:
       break;
     case ZOMBIE:
       break;
@@ -509,7 +570,6 @@ void Session::operator()(Trace<codec::fix::Logon> const &event, roq::fix::Header
         send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_UNKNOWN_TARGET_COMP_ID);
       } else {
         auto success = [&](auto strategy_id) {
-          state_ = State::READY;
           username_ = logon.username;
           party_id_ = fmt::format("{}"sv, strategy_id);
           try {
@@ -523,7 +583,7 @@ void Session::operator()(Trace<codec::fix::Logon> const &event, roq::fix::Header
             };
             Trace event_2{trace_info, user_request};
             handler_(event_2, username_, session_id_);
-            state_ = State::WAITING_USER_RESPONSE;
+            (*this)(State::WAITING_CREATE_ROUTE);
             auto now = clock::get_system();
             user_response_timeout_ = now + shared_.settings.server.request_timeout;
           } catch (oms::Exception &e) {
@@ -538,9 +598,12 @@ void Session::operator()(Trace<codec::fix::Logon> const &event, roq::fix::Header
       }
       break;
     }
-    case WAITING_USER_RESPONSE:
+    case WAITING_CREATE_ROUTE:
     case READY:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_UNEXPECTED_LOGON);
+      break;
+    case WAITING_REMOVE_ROUTE:
+      make_zombie();
       break;
     case ZOMBIE:
       break;
@@ -553,7 +616,7 @@ void Session::operator()(Trace<codec::fix::Logout> const &event, roq::fix::Heade
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
-    case WAITING_USER_RESPONSE:
+    case WAITING_CREATE_ROUTE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY: {
@@ -568,17 +631,14 @@ void Session::operator()(Trace<codec::fix::Logout> const &event, roq::fix::Heade
       };
       Trace event_2{trace_info, user_request};
       handler_(event_2, username_, session_id_);
-      auto success = [&]() {
-        username_.clear();
-        auto response = codec::fix::Logout{
-            .text = ERROR_GOODBYE,
-        };
-        send_and_close<2>(response);
-      };
-      auto failure = [&](auto &reason) { send_reject(header, roq::fix::SessionRejectReason::OTHER, reason); };
-      shared_.session_logout(session_id_, success, failure);
+      (*this)(State::WAITING_REMOVE_ROUTE);
+      auto now = clock::get_system();
+      user_response_timeout_ = now + shared_.settings.server.request_timeout;
       break;
     }
+    case WAITING_REMOVE_ROUTE:
+      make_zombie();
+      break;
     case ZOMBIE:
       break;
   }
@@ -595,11 +655,14 @@ void Session::operator()(Trace<codec::fix::SecurityListRequest> const &event, ro
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
-    case WAITING_USER_RESPONSE:
+    case WAITING_CREATE_ROUTE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
       handler_(event, username_);
+      break;
+    case WAITING_REMOVE_ROUTE:
+      make_zombie();
       break;
     case ZOMBIE:
       break;
@@ -610,11 +673,14 @@ void Session::operator()(Trace<codec::fix::SecurityDefinitionRequest> const &eve
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
-    case WAITING_USER_RESPONSE:
+    case WAITING_CREATE_ROUTE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
       handler_(event, username_);
+      break;
+    case WAITING_REMOVE_ROUTE:
+      make_zombie();
       break;
     case ZOMBIE:
       break;
@@ -625,11 +691,14 @@ void Session::operator()(Trace<codec::fix::SecurityStatusRequest> const &event, 
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
-    case WAITING_USER_RESPONSE:
+    case WAITING_CREATE_ROUTE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
       handler_(event, username_);
+      break;
+    case WAITING_REMOVE_ROUTE:
+      make_zombie();
       break;
     case ZOMBIE:
       break;
@@ -640,11 +709,14 @@ void Session::operator()(Trace<codec::fix::MarketDataRequest> const &event, roq:
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
-    case WAITING_USER_RESPONSE:
+    case WAITING_CREATE_ROUTE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
       handler_(event, username_, session_id_);
+      break;
+    case WAITING_REMOVE_ROUTE:
+      make_zombie();
       break;
     case ZOMBIE:
       break;
@@ -655,11 +727,14 @@ void Session::operator()(Trace<codec::fix::OrderStatusRequest> const &event, roq
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
-    case WAITING_USER_RESPONSE:
+    case WAITING_CREATE_ROUTE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
       handler_(event, username_);
+      break;
+    case WAITING_REMOVE_ROUTE:
+      make_zombie();
       break;
     case ZOMBIE:
       break;
@@ -670,11 +745,14 @@ void Session::operator()(Trace<codec::fix::OrderMassStatusRequest> const &event,
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
-    case WAITING_USER_RESPONSE:
+    case WAITING_CREATE_ROUTE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
       handler_(event, username_);
+      break;
+    case WAITING_REMOVE_ROUTE:
+      make_zombie();
       break;
     case ZOMBIE:
       break;
@@ -685,7 +763,7 @@ void Session::operator()(Trace<codec::fix::NewOrderSingle> const &event, roq::fi
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
-    case WAITING_USER_RESPONSE:
+    case WAITING_CREATE_ROUTE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
@@ -693,6 +771,9 @@ void Session::operator()(Trace<codec::fix::NewOrderSingle> const &event, roq::fi
       } else {
         send_business_message_reject(header, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
       }
+      break;
+    case WAITING_REMOVE_ROUTE:
+      make_zombie();
       break;
     case ZOMBIE:
       break;
@@ -703,7 +784,7 @@ void Session::operator()(Trace<codec::fix::OrderCancelRequest> const &event, roq
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
-    case WAITING_USER_RESPONSE:
+    case WAITING_CREATE_ROUTE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
@@ -711,6 +792,9 @@ void Session::operator()(Trace<codec::fix::OrderCancelRequest> const &event, roq
       } else {
         send_business_message_reject(header, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
       }
+      break;
+    case WAITING_REMOVE_ROUTE:
+      make_zombie();
       break;
     case ZOMBIE:
       break;
@@ -721,7 +805,7 @@ void Session::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &eve
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
-    case WAITING_USER_RESPONSE:
+    case WAITING_CREATE_ROUTE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
@@ -729,6 +813,9 @@ void Session::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &eve
       } else {
         send_business_message_reject(header, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
       }
+      break;
+    case WAITING_REMOVE_ROUTE:
+      make_zombie();
       break;
     case ZOMBIE:
       break;
@@ -753,7 +840,7 @@ void Session::operator()(Trace<codec::fix::RequestForPositions> const &event, ro
   switch (state_) {
     using enum State;
     case WAITING_LOGON:
-    case WAITING_USER_RESPONSE:
+    case WAITING_CREATE_ROUTE:
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
@@ -761,6 +848,9 @@ void Session::operator()(Trace<codec::fix::RequestForPositions> const &event, ro
       } else {
         send_business_message_reject(header, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
       }
+      break;
+    case WAITING_REMOVE_ROUTE:
+      make_zombie();
       break;
     case ZOMBIE:
       break;

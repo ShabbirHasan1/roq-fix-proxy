@@ -86,28 +86,14 @@ void Controller::operator()(
     if (client_manager_.find(session_id, [&](auto &session) {
           switch (user_response.user_status) {
             using enum roq::fix::UserStatus;
-            case UNDEFINED:
-              break;
-            case UNKNOWN:
-              break;
             case LOGGED_IN:
               user_add(user_response.username, session_id);
               break;
             case NOT_LOGGED_IN:
               user_remove(user_response.username, session.ready());
               break;
-            case USER_NOT_RECOGNISED:
-              break;
-            case PASSWORD_INCORRECT:
-              break;
-            case PASSWORD_CHANGED:
-              break;
-            case OTHER:
-              break;
-            case FORCED_USER_LOGOUT_BY_EXCHANGE:
-              break;
-            case SESSION_SHUTDOWN_WARNING:
-              break;
+            default:
+              log::warn("Unexpected: user_response={}"sv, user_response);
           }
           subscriptions_.user.client_to_server.erase(session_id);
           subscriptions_.user.server_to_client.erase(iter);
@@ -250,8 +236,17 @@ void Controller::operator()(Trace<client::Session::Disconnected> const &event, s
 void Controller::operator()(
     Trace<codec::fix::UserRequest> const &event, std::string_view const &username, uint64_t session_id) {
   auto &user_request = event.value;
-  if (user_is_locked(user_request.username))
-    throw oms::Rejected{Origin::CLIENT, Error::UNKNOWN, "locked"sv};
+  switch (user_request.user_request_type) {
+    using enum roq::fix::UserRequestType;
+    case LOG_ON_USER:
+      if (user_is_locked(user_request.username))
+        throw oms::Rejected{Origin::CLIENT, Error::UNKNOWN, "locked"sv};
+      break;
+    case LOG_OFF_USER:
+      break;
+    default:
+      log::fatal("Unexpected: user_request={}"sv, user_request);
+  }
   auto &tmp = subscriptions_.user.client_to_server[session_id];
   if (std::empty(tmp)) {
     tmp = user_request.user_request_id;

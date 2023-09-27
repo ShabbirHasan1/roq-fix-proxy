@@ -32,6 +32,17 @@ def logon_request():
     return request
 
 
+def logout_request():
+    msg = simplefix.FixMessage()
+    msg.append_pair(8, FIX)
+    msg.append_pair(35, "5")
+    msg.append_pair(49, SENDER_COMP_ID)
+    msg.append_pair(56, TARGET_COMP_ID)
+    request = msg.encode()
+    print(request)
+    return request
+
+
 def market_data_request():
     msg = simplefix.FixMessage()
     msg.append_pair(8, FIX)
@@ -78,6 +89,9 @@ if __name__ == "__main__":
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
         s.connect("{}/run/fix-proxy.sock".format(home))
         s.sendall(logon_request())
+        response = s.recv(4096)
+        print(response)
+        s.sendall(logout_request())
         response = s.recv(4096)
         print(response)
         if False:

@@ -69,6 +69,16 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   void operator()(Trace<codec::fix::PositionReport> const &) override;
 
  protected:
+  enum class State {
+    WAITING_LOGON,
+    WAITING_CREATE_ROUTE,
+    READY,
+    WAITING_REMOVE_ROUTE,
+    ZOMBIE,
+  };
+
+  void operator()(State);
+
   bool ready() const override;
   bool zombie() const;
 
@@ -142,7 +152,7 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   Shared &shared_;
   io::Buffer buffer_;
   std::chrono::nanoseconds const logon_timeout_;
-  enum class State { WAITING_LOGON, WAITING_USER_RESPONSE, READY, ZOMBIE } state_ = {};
+  State state_ = {};
   struct {
     uint64_t msg_seq_num = {};
   } outbound_;
