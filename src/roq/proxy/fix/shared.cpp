@@ -52,14 +52,23 @@ bool Shared::include(std::string_view const &symbol) const {
   return false;
 }
 
+void Shared::session_remove(uint64_t session_id) {
+  sessions_to_remove_.emplace(session_id);
+  session_remove_helper(session_id);
+}
+
 std::string_view Shared::session_logon_helper(
     uint64_t session_id, std::string_view const &username, std::string_view const &password, uint32_t &strategy_id) {
   auto iter_1 = username_to_password_and_strategy_id_.find(username);
-  if (iter_1 == std::end(username_to_password_and_strategy_id_) || password != (*iter_1).second.first)
+  if (iter_1 == std::end(username_to_password_and_strategy_id_) || password != (*iter_1).second.first) {
+    log::warn("Invalid: password"sv);
     return Error::INVALID_PASSWORD;
+  }
   auto iter_2 = username_to_session_.find(username);
-  if (iter_2 != std::end(username_to_session_))
+  if (iter_2 != std::end(username_to_session_)) {
+    log::warn(R"(Invalid: user already logged on (check session_id={}, username="{}"))"sv, (*iter_2).second, username);
     return Error::ALREADY_LOGGED_ON;
+  }
   log::info(R"(Adding session_id={}, username="{}")"sv, session_id, username);
   auto res_1 = username_to_session_.try_emplace(username, session_id);
   assert(res_1.second);
@@ -83,14 +92,17 @@ std::string_view Shared::session_logout_helper(uint64_t session_id) {
 
 void Shared::session_remove_helper(uint64_t session_id) {
   auto iter = session_to_username_.find(session_id);
-  if (iter == std::end(session_to_username_)) {
-    log::info("Removing session_id={}..."sv, session_id);
-    return;
+  if (iter != std::end(session_to_username_)) {
+    auto &username = (*iter).second;
+    log::info(R"(Removing session_id={}, username="{}")"sv, session_id, username);
+    username_to_session_.erase((*iter).second);
+    session_to_username_.erase(iter);
   }
-  auto &username = (*iter).second;
-  log::info(R"(Removing session_id={}, username="{}")"sv, session_id, username);
-  username_to_session_.erase((*iter).second);
-  session_to_username_.erase(iter);
+}
+
+void Shared::session_cleanup_helper(uint64_t session_id) {
+  session_remove_helper(session_id);
+  log::info("Removing session_id={}..."sv, session_id);
 }
 
 std::string Shared::create_request_id() {

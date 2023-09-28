@@ -54,12 +54,12 @@ struct Shared final {
       failure(result);
   }
 
-  void session_remove(uint64_t session_id) { sessions_to_remove_.emplace(session_id); }
+  void session_remove(uint64_t session_id);
 
   template <typename Callback>
   void session_cleanup(Callback callback) {
     for (auto session_id : sessions_to_remove_) {
-      session_remove_helper(session_id);
+      session_cleanup_helper(session_id);
       callback(session_id);
     }
     sessions_to_remove_.clear();
@@ -81,6 +81,7 @@ struct Shared final {
       uint64_t session_id, std::string_view const &username, std::string_view const &password, uint32_t &strategy_id);
   std::string_view session_logout_helper(uint64_t session_id);
   void session_remove_helper(uint64_t session_id);
+  void session_cleanup_helper(uint64_t session_id);
 
   absl::flat_hash_map<std::string, std::pair<std::string, uint32_t>> username_to_password_and_strategy_id_;
   absl::flat_hash_map<std::string, uint64_t> username_to_session_;
