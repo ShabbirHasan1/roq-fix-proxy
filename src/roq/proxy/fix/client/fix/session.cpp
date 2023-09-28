@@ -151,8 +151,8 @@ void Session::operator()(Trace<codec::fix::UserResponse> const &event) {
         using enum roq::fix::UserStatus;
         case NOT_LOGGED_IN: {
           auto success = [&]() {
-            username_.clear();
-            party_id_.clear();
+            // username_.clear();
+            // party_id_.clear();
             auto response = codec::fix::Logout{
                 .text = ERROR_GOODBYE,
             };

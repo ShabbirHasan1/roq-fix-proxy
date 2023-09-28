@@ -334,7 +334,8 @@ template <typename T>
 void Controller::dispatch_to_server(Trace<T> const &event, std::string_view const &username) {
   if (server_manager_.find(username, [&](auto &session) { session(event); })) {
   } else {
-    log::fatal(R"(Unexpected: username="{}")"sv, username);  // note! should not be possible
+    // log::fatal(R"(Unexpected: username="{}")"sv, username);  // note! should not be possible
+    log::warn(R"(Unexpected: username="{}")"sv, username);  // note! should not be possible
   }
 }
 
