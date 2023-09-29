@@ -85,7 +85,6 @@ def new_order_single_request():
     return request
 
 
-# 8=FIX.4.4|9=96|35=AN|34=8|49=test|52=20230928-16:42:00.000|56=proxy|1=A1|207=deribit|581=1|710=pos_00002|724=0|10=10
 def request_for_positions_request():
     msg = simplefix.FixMessage()
     msg.append_pair(8, FIX)
@@ -101,6 +100,20 @@ def request_for_positions_request():
     print(request)
     return request
 
+def order_mass_status_request():
+    msg = simplefix.FixMessage()
+    msg.append_pair(8, FIX)
+    msg.append_pair(35, "AF")
+    msg.append_pair(49, SENDER_COMP_ID)
+    msg.append_pair(56, TARGET_COMP_ID)
+    msg.append_pair(1, ACCOUNT)
+    msg.append_pair(207, EXCHANGE)
+    msg.append_pair(55, SYMBOL)
+    msg.append_pair(584, "req1")
+    msg.append_pair(585, "1")  # Status for orders for a security
+    request = msg.encode()
+    print(request)
+    return request
 
 if __name__ == "__main__":
     home = os.getenv("HOME")
@@ -110,17 +123,21 @@ if __name__ == "__main__":
         s.sendall(logon_request())
         response = s.recv(4096)
         print(response)
-        # request for positions
-        s.sendall(request_for_positions_request())
+        # order mass status request
+        s.sendall(order_mass_status_request())
         response = s.recv(4096)
         print(response)
+        # request for positions
+        # s.sendall(request_for_positions_request())
+        # response = s.recv(4096)
+        # print(response)
         # s.sendall(logout_request())
         # response = s.recv(4096)
         # print(response)
-        if False:
-            s.sendall(new_order_single_request())
-        else:
-            s.sendall(market_data_request())
+        # if False:
+        #     s.sendall(new_order_single_request())
+        # else:
+        #     s.sendall(market_data_request())
         while True:
             response = s.recv(4096)
             if len(response) > 0:
