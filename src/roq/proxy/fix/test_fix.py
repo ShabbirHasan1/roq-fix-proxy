@@ -15,6 +15,7 @@ TARGET_COMP_ID = "proxy"
 USERNAME = "trader"
 PASSWORD = "secret"
 
+ACCOUNT = "A1"
 EXCHANGE = "deribit"
 SYMBOL = "BTC-PERPETUAL"
 
@@ -84,16 +85,38 @@ def new_order_single_request():
     return request
 
 
+# 8=FIX.4.4|9=96|35=AN|34=8|49=test|52=20230928-16:42:00.000|56=proxy|1=A1|207=deribit|581=1|710=pos_00002|724=0|10=10
+def request_for_positions_request():
+    msg = simplefix.FixMessage()
+    msg.append_pair(8, FIX)
+    msg.append_pair(35, "AN")
+    msg.append_pair(49, SENDER_COMP_ID)
+    msg.append_pair(56, TARGET_COMP_ID)
+    msg.append_pair(1, ACCOUNT)
+    msg.append_pair(207, EXCHANGE)
+    msg.append_pair(581, "1")
+    msg.append_pair(710, "pos_00002")
+    msg.append_pair(724, "0")
+    request = msg.encode()
+    print(request)
+    return request
+
+
 if __name__ == "__main__":
     home = os.getenv("HOME")
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
         s.connect("{}/run/fix-proxy.sock".format(home))
+        # logon
         s.sendall(logon_request())
         response = s.recv(4096)
         print(response)
-        s.sendall(logout_request())
+        # request for positions
+        s.sendall(request_for_positions_request())
         response = s.recv(4096)
         print(response)
+        # s.sendall(logout_request())
+        # response = s.recv(4096)
+        # print(response)
         if False:
             s.sendall(new_order_single_request())
         else:

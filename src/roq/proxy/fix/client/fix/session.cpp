@@ -402,6 +402,8 @@ void Session::check(roq::fix::Header const &header) {
 
 void Session::parse(Trace<roq::fix::Message> const &event) {
   auto &[trace_info, message] = event;
+  if (std::empty(comp_id_))
+    comp_id_ = message.header.sender_comp_id;
   switch (message.header.msg_type) {
     using enum roq::fix::MsgType;
     // - session
