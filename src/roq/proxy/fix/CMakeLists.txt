@@ -31,7 +31,7 @@ target_link_libraries(
           ${TARGET_NAME}-client-fix
           ${TARGET_NAME}-client-json
           ${TARGET_NAME}-client
-          roq-fix-codec::roq-fix-codec
+          roq-codec::roq-codec
           roq-fix::roq-fix
           roq-web::roq-web
           roq-io::roq-io
