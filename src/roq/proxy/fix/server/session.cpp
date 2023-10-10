@@ -138,6 +138,7 @@ void Session::operator()(Trace<codec::fix::OrderMassStatusRequest> const &event)
 }
 
 void Session::operator()(Trace<codec::fix::OrderMassCancelRequest> const &event) {
+  log::debug("order_cancel_request={}"sv, event.value);
   send(event);
 }
 
@@ -315,6 +316,11 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
       dispatch(event, order_cancel_reject);
       break;
     }
+    case ORDER_MASS_CANCEL_REPORT: {
+      auto order_mass_cancel_report = codec::fix::OrderMassCancelReport::create(message, decode_buffer_);
+      dispatch(event, order_mass_cancel_report);
+      break;
+    }
     case EXECUTION_REPORT: {
       auto execution_report = codec::fix::ExecutionReport::create(message, decode_buffer_);
       dispatch(event, execution_report);
@@ -466,6 +472,12 @@ void Session::operator()(Trace<codec::fix::UserResponse> const &event, roq::fix:
 void Session::operator()(Trace<codec::fix::OrderCancelReject> const &event, roq::fix::Header const &) {
   auto &[trace_info, order_cancel_reject] = event;
   log::debug("order_cancel_reject={}, trace_info={}"sv, order_cancel_reject, trace_info);
+  handler_(event, username_);
+}
+
+void Session::operator()(Trace<codec::fix::OrderMassCancelReport> const &event, roq::fix::Header const &) {
+  auto &[trace_info, order_mass_cancel_report] = event;
+  log::debug("order_mass_cancel_report={}, trace_info={}"sv, order_mass_cancel_report, trace_info);
   handler_(event, username_);
 }
 

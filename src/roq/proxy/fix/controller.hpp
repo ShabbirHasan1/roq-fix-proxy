@@ -60,6 +60,7 @@ struct Controller final : public io::sys::Signal::Handler,
   void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &, std::string_view const &username) override;
   // - order management
   void operator()(Trace<codec::fix::OrderCancelReject> const &, std::string_view const &username) override;
+  void operator()(Trace<codec::fix::OrderMassCancelReport> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::ExecutionReport> const &, std::string_view const &username) override;
   // - position management
   void operator()(Trace<codec::fix::RequestForPositionsAck> const &, std::string_view const &username) override;

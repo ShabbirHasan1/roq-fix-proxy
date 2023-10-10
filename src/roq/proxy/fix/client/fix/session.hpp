@@ -19,17 +19,6 @@
 #include "roq/codec/fix/test_request.hpp"
 
 // business
-#include "roq/codec/fix/market_data_request.hpp"
-#include "roq/codec/fix/new_order_single.hpp"
-#include "roq/codec/fix/order_cancel_replace_request.hpp"
-#include "roq/codec/fix/order_cancel_request.hpp"
-#include "roq/codec/fix/order_mass_cancel_request.hpp"
-#include "roq/codec/fix/order_mass_status_request.hpp"
-#include "roq/codec/fix/order_status_request.hpp"
-#include "roq/codec/fix/request_for_positions.hpp"
-#include "roq/codec/fix/security_definition_request.hpp"
-#include "roq/codec/fix/security_list_request.hpp"
-#include "roq/codec/fix/security_status_request.hpp"
 #include "roq/codec/fix/trade_capture_report_request.hpp"
 #include "roq/codec/fix/trading_session_status_request.hpp"
 
@@ -63,6 +52,7 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &) override;
   // order management
   void operator()(Trace<codec::fix::OrderCancelReject> const &) override;
+  void operator()(Trace<codec::fix::OrderMassCancelReport> const &) override;
   void operator()(Trace<codec::fix::ExecutionReport> const &) override;
   // position management
   void operator()(Trace<codec::fix::RequestForPositionsAck> const &) override;

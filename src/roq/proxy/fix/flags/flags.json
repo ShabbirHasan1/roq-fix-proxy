@@ -25,6 +25,12 @@
       "type": "bool",
       "default": false,
       "description": "enable market data auto-subscription?"
+    },
+    {
+      "name": "enable_order_mass_cancel",
+      "type": "bool",
+      "default": false,
+      "description": "enable order mass cancel?"
     }
   ]
 }

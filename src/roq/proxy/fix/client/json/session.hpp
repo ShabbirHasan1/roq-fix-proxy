@@ -46,6 +46,7 @@ struct Session final : public client::Session, public web::rest::Server::Handler
   void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &) override;
   // order management
   void operator()(Trace<codec::fix::OrderCancelReject> const &) override;
+  void operator()(Trace<codec::fix::OrderMassCancelReport> const &) override;
   void operator()(Trace<codec::fix::ExecutionReport> const &) override;
   // position management
   void operator()(Trace<codec::fix::RequestForPositionsAck> const &) override;

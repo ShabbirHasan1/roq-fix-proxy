@@ -216,6 +216,12 @@ void Session::operator()(Trace<codec::fix::OrderCancelReject> const &event) {
     send<2>(order_cancel_reject);
 }
 
+void Session::operator()(Trace<codec::fix::OrderMassCancelReport> const &event) {
+  auto &[trace_info, order_mass_cancel_report] = event;
+  if (ready())
+    send<2>(order_mass_cancel_report);
+}
+
 void Session::operator()(Trace<codec::fix::ExecutionReport> const &event) {
   auto &[trace_info, execution_report] = event;
   if (ready())
@@ -838,12 +844,30 @@ void Session::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &eve
 }
 
 void Session::operator()(Trace<codec::fix::OrderMassCancelRequest> const &event, roq::fix::Header const &header) {
-  auto &[trace_info, order_mass_cancel_request] = event;
-  send_business_message_reject(
-      header,
-      order_mass_cancel_request.cl_ord_id,
-      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
-      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON:
+    case WAITING_CREATE_ROUTE:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
+      break;
+    case READY:
+      if (shared_.settings.test.enable_order_mass_cancel) {
+        handler_(event, username_);  // !!! WARNING !!! this message doesn't have parties or account !!!
+      } else {
+        auto &[trace_info, order_mass_cancel_request] = event;
+        send_business_message_reject(
+            header,
+            order_mass_cancel_request.cl_ord_id,
+            roq::fix::BusinessRejectReason::OTHER,
+            ERROR_UNSUPPORTED_MSG_TYPE);
+      }
+      break;
+    case WAITING_REMOVE_ROUTE:
+      make_zombie();
+      break;
+    case ZOMBIE:
+      break;
+  }
 }
 
 void Session::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &event, roq::fix::Header const &header) {

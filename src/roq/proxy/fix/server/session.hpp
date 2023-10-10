@@ -34,6 +34,7 @@
 #include "roq/codec/fix/order_cancel_reject.hpp"
 #include "roq/codec/fix/order_cancel_replace_request.hpp"
 #include "roq/codec/fix/order_cancel_request.hpp"
+#include "roq/codec/fix/order_mass_cancel_report.hpp"
 #include "roq/codec/fix/order_mass_cancel_request.hpp"
 #include "roq/codec/fix/order_mass_status_request.hpp"
 #include "roq/codec/fix/order_status_request.hpp"
@@ -83,6 +84,7 @@ struct Session final : public io::net::ConnectionManager::Handler {
         Trace<codec::fix::MarketDataIncrementalRefresh> const &, std::string_view const &username) = 0;
     // order management
     virtual void operator()(Trace<codec::fix::OrderCancelReject> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::OrderMassCancelReport> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<codec::fix::ExecutionReport> const &, std::string_view const &username) = 0;
     // position management
     virtual void operator()(Trace<codec::fix::RequestForPositionsAck> const &, std::string_view const &username) = 0;
@@ -174,7 +176,7 @@ struct Session final : public io::net::ConnectionManager::Handler {
   // - order management
 
   void operator()(Trace<codec::fix::OrderCancelReject> const &, roq::fix::Header const &);
-
+  void operator()(Trace<codec::fix::OrderMassCancelReport> const &, roq::fix::Header const &);
   void operator()(Trace<codec::fix::ExecutionReport> const &, roq::fix::Header const &);
 
   // - position management

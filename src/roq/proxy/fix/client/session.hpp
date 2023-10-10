@@ -17,6 +17,7 @@
 #include "roq/codec/fix/order_cancel_reject.hpp"
 #include "roq/codec/fix/order_cancel_replace_request.hpp"
 #include "roq/codec/fix/order_cancel_request.hpp"
+#include "roq/codec/fix/order_mass_cancel_report.hpp"
 #include "roq/codec/fix/order_mass_cancel_request.hpp"
 #include "roq/codec/fix/order_mass_status_request.hpp"
 #include "roq/codec/fix/order_status_request.hpp"
@@ -84,6 +85,7 @@ struct Session {
   virtual void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &) = 0;
   // order management
   virtual void operator()(Trace<codec::fix::OrderCancelReject> const &) = 0;
+  virtual void operator()(Trace<codec::fix::OrderMassCancelReport> const &) = 0;
   virtual void operator()(Trace<codec::fix::ExecutionReport> const &) = 0;
   // position management
   virtual void operator()(Trace<codec::fix::RequestForPositionsAck> const &) = 0;

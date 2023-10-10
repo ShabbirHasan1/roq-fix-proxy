@@ -161,6 +161,10 @@ void Controller::operator()(Trace<codec::fix::OrderCancelReject> const &event, s
   dispatch_to_client(event, username);
 }
 
+void Controller::operator()(Trace<codec::fix::OrderMassCancelReport> const &event, std::string_view const &username) {
+  dispatch_to_client(event, username);
+}
+
 void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event, std::string_view const &username) {
   dispatch_to_client(event, username);
 }

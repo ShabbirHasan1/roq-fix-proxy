@@ -170,6 +170,10 @@ void Session::operator()(Trace<codec::fix::OrderCancelReject> const &) {
   // XXX TODO send notification
 }
 
+void Session::operator()(Trace<codec::fix::OrderMassCancelReport> const &) {
+  // XXX TODO send notification
+}
+
 void Session::operator()(Trace<codec::fix::ExecutionReport> const &event) {
   if (zombie())
     return;

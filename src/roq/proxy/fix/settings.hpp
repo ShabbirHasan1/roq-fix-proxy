@@ -31,6 +31,7 @@ struct Settings final {
 
   struct {
     bool enable_market_data = {};
+    bool enable_order_mass_cancel = {};
   } test;
 };
 
