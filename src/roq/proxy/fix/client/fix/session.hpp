@@ -140,7 +140,10 @@ struct Session final : public client::Session, public io::net::tcp::Connection::
   void send_reject(roq::fix::Header const &, roq::fix::SessionRejectReason, std::string_view const &text);
 
   void send_business_message_reject(
-      roq::fix::Header const &, roq::fix::BusinessRejectReason, std::string_view const &text);
+      roq::fix::Header const &,
+      std::string_view const &ref_id,
+      roq::fix::BusinessRejectReason,
+      std::string_view const &text);
 
   template <typename T, typename Callback>
   bool add_party_ids(Trace<T> const &, Callback) const;

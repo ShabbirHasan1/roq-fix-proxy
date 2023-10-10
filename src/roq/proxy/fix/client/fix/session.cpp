@@ -470,7 +470,10 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
     default:
       log::warn("Unexpected: msg_type={}"sv, message.header.msg_type);
       send_business_message_reject(
-          message.header, roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE, ERROR_UNEXPECTED_MSG_TYPE);
+          message.header,
+          std::string_view{},  // XXX the message could contain a ref_id field, but we don't know what we don't know...
+          roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
+          ERROR_UNEXPECTED_MSG_TYPE);
       break;
   };
 }
@@ -516,8 +519,7 @@ void Session::operator()(Trace<codec::fix::ResendRequest> const &event, roq::fix
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
-      send_business_message_reject(
-          header, roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE, ERROR_UNSUPPORTED_MSG_TYPE);
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_UNSUPPORTED_MSG_TYPE);
       break;
     case WAITING_REMOVE_ROUTE:
       make_zombie();
@@ -646,9 +648,11 @@ void Session::operator()(Trace<codec::fix::Logout> const &event, roq::fix::Heade
   }
 }
 
-void Session::operator()(Trace<codec::fix::TradingSessionStatusRequest> const &, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::TradingSessionStatusRequest> const &event, roq::fix::Header const &header) {
+  auto &[trace_info, trading_session_status_request] = event;
   send_business_message_reject(
       header,
+      trading_session_status_request.trad_ses_req_id,
       roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
       ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
@@ -771,7 +775,9 @@ void Session::operator()(Trace<codec::fix::NewOrderSingle> const &event, roq::fi
     case READY:
       if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, username_); })) {
       } else {
-        send_business_message_reject(header, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
+        auto &[trace_info, new_order_single] = event;
+        send_business_message_reject(
+            header, new_order_single.cl_ord_id, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
       }
       break;
     case WAITING_REMOVE_ROUTE:
@@ -792,7 +798,9 @@ void Session::operator()(Trace<codec::fix::OrderCancelRequest> const &event, roq
     case READY:
       if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, username_); })) {
       } else {
-        send_business_message_reject(header, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
+        auto &[trace_info, order_cancel_request] = event;
+        send_business_message_reject(
+            header, order_cancel_request.cl_ord_id, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
       }
       break;
     case WAITING_REMOVE_ROUTE:
@@ -813,7 +821,12 @@ void Session::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &eve
     case READY:
       if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, username_); })) {
       } else {
-        send_business_message_reject(header, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
+        auto &[trace_info, order_cancel_replace_request] = event;
+        send_business_message_reject(
+            header,
+            order_cancel_replace_request.cl_ord_id,
+            roq::fix::BusinessRejectReason::OTHER,
+            ERROR_UNSUPPORTED_PARTY_IDS);
       }
       break;
     case WAITING_REMOVE_ROUTE:
@@ -824,16 +837,20 @@ void Session::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &eve
   }
 }
 
-void Session::operator()(Trace<codec::fix::OrderMassCancelRequest> const &, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::OrderMassCancelRequest> const &event, roq::fix::Header const &header) {
+  auto &[trace_info, order_mass_cancel_request] = event;
   send_business_message_reject(
       header,
+      order_mass_cancel_request.cl_ord_id,
       roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
       ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
 
-void Session::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &, roq::fix::Header const &header) {
+void Session::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &event, roq::fix::Header const &header) {
+  auto &[trace_info, trade_capture_report_request] = event;
   send_business_message_reject(
       header,
+      trade_capture_report_request.trade_request_id,
       roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
       ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
 }
@@ -848,7 +865,12 @@ void Session::operator()(Trace<codec::fix::RequestForPositions> const &event, ro
     case READY:
       if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, username_); })) {
       } else {
-        send_business_message_reject(header, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
+        auto &[trace_info, request_for_positions] = event;
+        send_business_message_reject(
+            header,
+            request_for_positions.pos_req_id,
+            roq::fix::BusinessRejectReason::OTHER,
+            ERROR_UNSUPPORTED_PARTY_IDS);
       }
       break;
     case WAITING_REMOVE_ROUTE:
@@ -874,13 +896,14 @@ void Session::send_reject(
 
 void Session::send_business_message_reject(
     roq::fix::Header const &header,
+    std::string_view const &ref_id,
     roq::fix::BusinessRejectReason business_reject_reason,
     std::string_view const &text) {
   auto response = codec::fix::BusinessMessageReject{
       .ref_seq_num = header.msg_seq_num,
-      .ref_msg_type = header.msg_type,
-      .business_reject_ref_id = {},
-      .business_reject_reason = business_reject_reason,
+      .ref_msg_type = header.msg_type,                   // required
+      .business_reject_ref_id = ref_id,                  // required (sometimes)
+      .business_reject_reason = business_reject_reason,  // required
       .text = text,
   };
   log::warn("business_message_reject={}"sv, response);
