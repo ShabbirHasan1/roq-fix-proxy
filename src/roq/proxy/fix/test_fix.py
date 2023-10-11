@@ -100,6 +100,7 @@ def request_for_positions_request():
     print(request)
     return request
 
+
 def order_mass_status_request():
     msg = simplefix.FixMessage()
     msg.append_pair(8, FIX)
@@ -115,6 +116,23 @@ def order_mass_status_request():
     print(request)
     return request
 
+
+def order_mass_cancel_request():
+    msg = simplefix.FixMessage()
+    msg.append_pair(8, FIX)
+    msg.append_pair(35, "q")
+    msg.append_pair(49, SENDER_COMP_ID)
+    msg.append_pair(56, TARGET_COMP_ID)
+    msg.append_pair(207, EXCHANGE)
+    msg.append_pair(55, SYMBOL)
+    msg.append_pair(11, "req1")
+    msg.append_pair(530, "1")  # 1=security, 7=all orders
+    msg.append_pair(60, "19700101-23:59:59")
+    request = msg.encode()
+    print(request)
+    return request
+
+
 if __name__ == "__main__":
     home = os.getenv("HOME")
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
@@ -124,7 +142,7 @@ if __name__ == "__main__":
         response = s.recv(4096)
         print(response)
         # order mass status request
-        s.sendall(order_mass_status_request())
+        s.sendall(order_mass_cancel_request())
         response = s.recv(4096)
         print(response)
         # request for positions
