@@ -88,7 +88,6 @@ struct Session final : public client::Session, public web::rest::Server::Handler
   void order_cancel_request(TraceInfo const &, auto const &params, auto const &id);
   // -- many orders
   void order_mass_status_request(TraceInfo const &, auto const &params, auto const &id);
-  void order_mass_cancel_request(TraceInfo const &, auto const &params, auto const &id);
 
   // helpers
 

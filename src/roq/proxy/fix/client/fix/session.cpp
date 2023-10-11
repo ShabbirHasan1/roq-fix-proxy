@@ -851,8 +851,7 @@ void Session::operator()(Trace<codec::fix::OrderMassCancelRequest> const &event,
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
-      if (shared_.settings.test.enable_order_mass_cancel) {
-        handler_(event, username_);  // !!! WARNING !!! this message doesn't have parties or account !!!
+      if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, username_); })) {
       } else {
         auto &[trace_info, order_mass_cancel_request] = event;
         send_business_message_reject(

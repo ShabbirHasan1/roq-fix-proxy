@@ -363,8 +363,6 @@ void Session::process_jsonrpc(std::string_view const &method, auto const &params
           order_cancel_request(trace_info, params, id);
         else if (method == "order_mass_status_request"sv)
           order_mass_status_request(trace_info, params, id);
-        else if (method == "order_mass_cancel_request"sv)
-          order_mass_cancel_request(trace_info, params, id);
         else
           send_error(UNKNOWN_METHOD, id);
       } else {
@@ -489,20 +487,6 @@ void Session::order_mass_status_request(TraceInfo const &trace_info, auto const 
   };
   log::debug("order_mass_status_request={}"sv, order_mass_status_request);
   dispatch(trace_info, order_mass_status_request);
-  send_result(SUCCESS, id);
-}
-
-void Session::order_mass_cancel_request(TraceInfo const &trace_info, auto const &params, auto const &id) {
-  auto cl_ord_id = get<std::string_view>(params, "cl_ord_id"sv);
-  // note! FIX 4.4 doesn't support parties
-  auto order_mass_cancel_request = codec::fix::OrderMassCancelRequest{
-      .cl_ord_id = cl_ord_id,
-      .mass_cancel_request_type = roq::fix::MassCancelRequestType::CANCEL_ALL_ORDERS,
-      .trading_session_id = {},
-      .transact_time = {},
-  };
-  log::debug("order_mass_cancel_request={}"sv, order_mass_cancel_request);
-  dispatch(trace_info, order_mass_cancel_request);
   send_result(SUCCESS, id);
 }
 
