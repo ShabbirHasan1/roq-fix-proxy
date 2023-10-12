@@ -20,8 +20,7 @@ auto const GARBAGE_COLLECTION_FREQUENCY = 1s;
 // === IMPLEMENTATION ===
 
 Manager::Manager(Session::Handler &handler, Settings const &settings, io::Context &context, Shared &shared)
-    : handler_{handler}, fix_listener_{*this, settings, context}, json_listener_{*this, settings, context},
-      shared_{shared} {
+    : handler_{handler}, fix_listener_{*this, settings, context}, shared_{shared} {
 }
 
 void Manager::operator()(Event<Start> const &) {
@@ -36,7 +35,7 @@ void Manager::operator()(Event<Timer> const &event) {
   remove_zombies(event.value.now);
 }
 
-// json::Listener::Handler
+// fix::Listener::Handler
 
 void Manager::operator()(Factory &factory) {
   auto session_id = ++shared_.next_session_id;

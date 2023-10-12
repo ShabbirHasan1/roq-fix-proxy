@@ -8,6 +8,10 @@ All notable changes will be documented in this file.
 
 * Adding filter and parties to `OrderMassCancelRequest` and `OrderMassCancelReport` (#414)
 
+### Removed
+
+* JSON interface
+
 ## 0.9.7 &ndash; 2023-09-18
 
 ## 0.9.6 &ndash; 2023-07-22

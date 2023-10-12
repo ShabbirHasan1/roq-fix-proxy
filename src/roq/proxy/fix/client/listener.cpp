@@ -1,10 +1,10 @@
 /* Copyright (c) 2017-2023, Hans Erik Thrane */
 
-#include "roq/proxy/fix/client/json/listener.hpp"
+#include "roq/proxy/fix/client/listener.hpp"
 
 #include "roq/logging.hpp"
 
-#include "roq/proxy/fix/client/json/session.hpp"
+#include "roq/proxy/fix/client/session.hpp"
 
 using namespace std::literals;
 
@@ -12,15 +12,14 @@ namespace roq {
 namespace proxy {
 namespace fix {
 namespace client {
-namespace json {
 
 // === HELPERS ===
 
 namespace {
 auto create_listener(auto &handler, auto &settings, auto &context) {
-  if (std::empty(settings.client.json_listen_address))
+  if (std::empty(settings.client.listen_address))
     return std::unique_ptr<io::net::tcp::Listener>();
-  auto network_address = io::NetworkAddress{settings.client.json_listen_address};
+  auto network_address = io::NetworkAddress{settings.client.listen_address};
   log::debug("network_address={}"sv, network_address);
   return context.create_tcp_listener(handler, network_address);
 }
@@ -39,8 +38,7 @@ void Listener::operator()(io::net::tcp::Connection::Factory &factory) {
     Bridge(io::net::tcp::Connection::Factory &factory) : factory_{factory} {}
 
    protected:
-    std::unique_ptr<client::Session> create(
-        client::Session::Handler &handler, uint64_t session_id, Shared &shared) override {
+    std::unique_ptr<Session> create(Session::Handler &handler, uint64_t session_id, Shared &shared) override {
       return std::make_unique<Session>(handler, session_id, factory_, shared);
     }
 
@@ -50,7 +48,6 @@ void Listener::operator()(io::net::tcp::Connection::Factory &factory) {
   handler_(bridge);
 }
 
-}  // namespace json
 }  // namespace client
 }  // namespace fix
 }  // namespace proxy

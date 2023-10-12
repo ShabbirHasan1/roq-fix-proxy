@@ -15,7 +15,6 @@ namespace roq {
 namespace proxy {
 namespace fix {
 namespace client {
-namespace fix {
 
 struct Listener final : public io::net::tcp::Listener::Handler {
   struct Handler {
@@ -33,7 +32,6 @@ struct Listener final : public io::net::tcp::Listener::Handler {
   std::unique_ptr<io::net::tcp::Listener> const listener_;
 };
 
-}  // namespace fix
 }  // namespace client
 }  // namespace fix
 }  // namespace proxy

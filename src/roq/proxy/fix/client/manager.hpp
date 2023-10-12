@@ -18,16 +18,14 @@
 
 #include "roq/proxy/fix/client/session.hpp"
 
-#include "roq/proxy/fix/client/fix/listener.hpp"
-
-#include "roq/proxy/fix/client/json/listener.hpp"
+#include "roq/proxy/fix/client/listener.hpp"
 
 namespace roq {
 namespace proxy {
 namespace fix {
 namespace client {
 
-struct Manager final : public fix::Listener::Handler, public json::Listener::Handler {
+struct Manager final : public Listener::Handler {
   Manager(Session::Handler &, Settings const &, io::Context &, Shared &);
 
   void operator()(Event<Start> const &);
@@ -55,7 +53,7 @@ struct Manager final : public fix::Listener::Handler, public json::Listener::Han
   }
 
  protected:
-  // fix::Listener::Handler + json::Listener::Handler
+  // fix::Listener::Handler
   void operator()(Factory &) override;
 
   // utilities
@@ -64,8 +62,7 @@ struct Manager final : public fix::Listener::Handler, public json::Listener::Han
 
  private:
   Session::Handler &handler_;
-  fix::Listener fix_listener_;
-  json::Listener json_listener_;
+  Listener fix_listener_;
   Shared &shared_;
   absl::flat_hash_map<uint64_t, std::unique_ptr<Session>> sessions_;
   std::chrono::nanoseconds next_garbage_collection_ = {};

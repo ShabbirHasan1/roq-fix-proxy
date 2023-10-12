@@ -1,6 +1,6 @@
 /* Copyright (c) 2017-2023, Hans Erik Thrane */
 
-#include "roq/proxy/fix/client/fix/session.hpp"
+#include "roq/proxy/fix/client/session.hpp"
 
 #include "roq/logging.hpp"
 
@@ -15,7 +15,6 @@ namespace roq {
 namespace proxy {
 namespace fix {
 namespace client {
-namespace fix {
 
 // === CONSTANTS ===
 
@@ -44,8 +43,7 @@ auto create_logon_timeout(auto &settings) {
 
 // === IMPLEMENTATION ===
 
-Session::Session(
-    client::Session::Handler &handler, uint64_t session_id, io::net::tcp::Connection::Factory &factory, Shared &shared)
+Session::Session(Handler &handler, uint64_t session_id, io::net::tcp::Connection::Factory &factory, Shared &shared)
     : handler_{handler}, session_id_{session_id}, connection_{factory.create(*this)}, shared_{shared},
       logon_timeout_{create_logon_timeout(shared_.settings)}, decode_buffer_(shared.settings.client.decode_buffer_size),
       encode_buffer_(shared.settings.client.encode_buffer_size) {
@@ -952,7 +950,6 @@ bool Session::add_party_ids(Trace<T> const &event, Callback callback) const {
   return false;
 }
 
-}  // namespace fix
 }  // namespace client
 }  // namespace fix
 }  // namespace proxy

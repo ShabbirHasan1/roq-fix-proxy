@@ -28,8 +28,6 @@ target_link_libraries(
   ${TARGET_NAME}
   PRIVATE ${TARGET_NAME}-flags
           ${TARGET_NAME}-server
-          ${TARGET_NAME}-client-fix
-          ${TARGET_NAME}-client-json
           ${TARGET_NAME}-client
           roq-codec::roq-codec
           roq-fix::roq-fix
