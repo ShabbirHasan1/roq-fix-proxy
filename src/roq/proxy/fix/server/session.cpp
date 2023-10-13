@@ -535,7 +535,7 @@ void Session::send_logon() {
   auto heart_bt_int = static_cast<decltype(codec::fix::Logon::heart_bt_int)>(
       std::chrono::duration_cast<std::chrono::seconds>(ping_freq_).count());
   auto logon = codec::fix::Logon{
-      .encrypt_method = {},
+      .encrypt_method = roq::fix::EncryptMethod::NONE,
       .heart_bt_int = heart_bt_int,
       .reset_seq_num_flag = true,
       .next_expected_msg_seq_num = inbound_.msg_seq_num + 1,  // note!
