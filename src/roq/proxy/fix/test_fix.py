@@ -73,6 +73,7 @@ def new_order_single_request():
     msg.append_pair(49, SENDER_COMP_ID)
     msg.append_pair(56, TARGET_COMP_ID)
     msg.append_pair(11, "clordid1")
+    msg.append_pair(1, ACCOUNT)
     msg.append_pair(55, SYMBOL)
     msg.append_pair(207, EXCHANGE)
     msg.append_pair(54, "1")  # buy
@@ -152,10 +153,8 @@ if __name__ == "__main__":
         # s.sendall(logout_request())
         # response = s.recv(4096)
         # print(response)
-        # if False:
-        #     s.sendall(new_order_single_request())
-        # else:
-        #     s.sendall(market_data_request())
+        s.sendall(new_order_single_request())
+        # s.sendall(market_data_request())
         while True:
             response = s.recv(4096)
             if len(response) > 0:
