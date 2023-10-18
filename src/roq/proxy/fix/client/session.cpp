@@ -741,7 +741,13 @@ void Session::operator()(Trace<codec::fix::OrderStatusRequest> const &event, roq
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
-      handler_(event, username_);
+      if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, username_); })) {
+      } else {
+        auto &[trace_info, order_status_request] = event;
+        // XXX FIXME should be execution report
+        send_business_message_reject(
+            header, order_status_request.cl_ord_id, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
+      }
       break;
     case WAITING_REMOVE_ROUTE:
       make_zombie();
@@ -759,7 +765,16 @@ void Session::operator()(Trace<codec::fix::OrderMassStatusRequest> const &event,
       send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
     case READY:
-      handler_(event, username_);
+      if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, username_); })) {
+      } else {
+        auto &[trace_info, order_mass_status_request] = event;
+        // XXX FIXME should be execution report
+        send_business_message_reject(
+            header,
+            order_mass_status_request.mass_status_req_id,
+            roq::fix::BusinessRejectReason::OTHER,
+            ERROR_UNSUPPORTED_PARTY_IDS);
+      }
       break;
     case WAITING_REMOVE_ROUTE:
       make_zombie();
@@ -780,6 +795,7 @@ void Session::operator()(Trace<codec::fix::NewOrderSingle> const &event, roq::fi
       if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, username_); })) {
       } else {
         auto &[trace_info, new_order_single] = event;
+        // XXX FIXME should be execution report
         send_business_message_reject(
             header, new_order_single.cl_ord_id, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
       }
@@ -803,6 +819,7 @@ void Session::operator()(Trace<codec::fix::OrderCancelRequest> const &event, roq
       if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, username_); })) {
       } else {
         auto &[trace_info, order_cancel_request] = event;
+        // XXX FIXME should be execution report
         send_business_message_reject(
             header, order_cancel_request.cl_ord_id, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
       }
@@ -826,6 +843,7 @@ void Session::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &eve
       if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, username_); })) {
       } else {
         auto &[trace_info, order_cancel_replace_request] = event;
+        // XXX FIXME should be execution report
         send_business_message_reject(
             header,
             order_cancel_replace_request.cl_ord_id,

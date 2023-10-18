@@ -20,6 +20,10 @@ EXCHANGE = "deribit"
 SYMBOL = "BTC-PERPETUAL"
 
 
+def print_message(message):
+    print("{}".format(message.decode().replace(chr(1), "|")))
+
+
 def logon_request():
     msg = simplefix.FixMessage()
     msg.append_pair(8, FIX)
@@ -66,13 +70,13 @@ def market_data_request():
     return request
 
 
-def new_order_single_request():
+def new_order_single_request(cl_ord_id):
     msg = simplefix.FixMessage()
     msg.append_pair(8, FIX)
     msg.append_pair(35, "D")
     msg.append_pair(49, SENDER_COMP_ID)
     msg.append_pair(56, TARGET_COMP_ID)
-    msg.append_pair(11, "clordid1")
+    msg.append_pair(11, cl_ord_id)
     msg.append_pair(1, ACCOUNT)
     msg.append_pair(55, SYMBOL)
     msg.append_pair(207, EXCHANGE)
@@ -141,21 +145,22 @@ if __name__ == "__main__":
         # logon
         s.sendall(logon_request())
         response = s.recv(4096)
-        print(response)
+        print_message(response)
         # order mass status request
-        s.sendall(order_mass_cancel_request())
+        s.sendall(order_mass_status_request())
+        # s.sendall(order_mass_cancel_request())
         response = s.recv(4096)
-        print(response)
+        print_message(response)
         # request for positions
         # s.sendall(request_for_positions_request())
         # response = s.recv(4096)
-        # print(response)
+        # print_message(response)
         # s.sendall(logout_request())
         # response = s.recv(4096)
-        # print(response)
-        s.sendall(new_order_single_request())
+        # print_message(response)
+        # s.sendall(new_order_single_request('test-1'))
         # s.sendall(market_data_request())
         while True:
             response = s.recv(4096)
             if len(response) > 0:
-                print(response)
+                print_message(response)
