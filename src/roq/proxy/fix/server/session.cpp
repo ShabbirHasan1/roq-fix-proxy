@@ -146,6 +146,10 @@ void Session::operator()(Trace<codec::fix::RequestForPositions> const &event) {
   send(event);
 }
 
+void Session::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &event) {
+  send(event);
+}
+
 void Session::operator()(Session::State state) {
   if (utils::update(state_, state))
     log::debug("state={}"sv, magic_enum::enum_name(state));
@@ -337,6 +341,17 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
       dispatch(event, position_report);
       break;
     }
+      // trade capture
+    case TRADE_CAPTURE_REPORT_REQUEST_ACK: {
+      auto trade_capture_report_request_ack = codec::fix::TradeCaptureReportRequestAck::create(message, decode_buffer_);
+      dispatch(event, trade_capture_report_request_ack);
+      break;
+    }
+    case TRADE_CAPTURE_REPORT: {
+      auto trade_capture_report = codec::fix::TradeCaptureReport::create(message, decode_buffer_);
+      dispatch(event, trade_capture_report);
+      break;
+    }
     default:
       log::warn("Unexpected msg_type={}"sv, header.msg_type);
   }
@@ -496,6 +511,18 @@ void Session::operator()(Trace<codec::fix::RequestForPositionsAck> const &event,
 void Session::operator()(Trace<codec::fix::PositionReport> const &event, roq::fix::Header const &) {
   auto &[trace_info, position_report] = event;
   log::debug("position_report={}, trace_info={}"sv, position_report, trace_info);
+  handler_(event, username_);
+}
+
+void Session::operator()(Trace<codec::fix::TradeCaptureReportRequestAck> const &event, roq::fix::Header const &) {
+  auto &[trace_info, trade_capture_report_request_ack] = event;
+  log::debug("trade_capture_report_request_ack={}, trace_info={}"sv, trade_capture_report_request_ack, trace_info);
+  handler_(event, username_);
+}
+
+void Session::operator()(Trace<codec::fix::TradeCaptureReport> const &event, roq::fix::Header const &) {
+  auto &[trace_info, trade_capture_report] = event;
+  log::debug("trade_capture_report={}, trace_info={}"sv, trade_capture_report, trace_info);
   handler_(event, username_);
 }
 

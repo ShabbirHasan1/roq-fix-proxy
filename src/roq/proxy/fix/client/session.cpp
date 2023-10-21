@@ -238,6 +238,18 @@ void Session::operator()(Trace<codec::fix::PositionReport> const &event) {
     send<2>(position_report);
 }
 
+void Session::operator()(Trace<codec::fix::TradeCaptureReportRequestAck> const &event) {
+  auto &[trace_info, trade_capture_report_request_ack] = event;
+  if (ready())
+    send<2>(trade_capture_report_request_ack);
+}
+
+void Session::operator()(Trace<codec::fix::TradeCaptureReport> const &event) {
+  auto &[trace_info, trade_capture_report] = event;
+  if (ready())
+    send<2>(trade_capture_report);
+}
+
 void Session::operator()(State state) {
   if (utils::update(state_, state))
     log::info("DEBUG: session_id={}, state={}"sv, session_id_, magic_enum::enum_name(state_));
@@ -465,11 +477,13 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
     case ORDER_MASS_CANCEL_REQUEST:
       dispatch<codec::fix::OrderMassCancelRequest>(event, decode_buffer_);
       break;
-      // - trade capture reporting
-      dispatch<codec::fix::TradeCaptureReportRequest>(event, decode_buffer_);
-      break;
+      // - position management
     case REQUEST_FOR_POSITIONS:
       dispatch<codec::fix::RequestForPositions>(event, decode_buffer_);
+      break;
+      // - trade capture
+    case TRADE_CAPTURE_REPORT_REQUEST:
+      dispatch<codec::fix::TradeCaptureReportRequest>(event, decode_buffer_);
       break;
     default:
       log::warn("Unexpected: msg_type={}"sv, message.header.msg_type);
@@ -885,15 +899,6 @@ void Session::operator()(Trace<codec::fix::OrderMassCancelRequest> const &event,
   }
 }
 
-void Session::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &event, roq::fix::Header const &header) {
-  auto &[trace_info, trade_capture_report_request] = event;
-  send_business_message_reject(
-      header,
-      trade_capture_report_request.trade_request_id,
-      roq::fix::BusinessRejectReason::UNSUPPORTED_MESSAGE_TYPE,
-      ERROR_UNEXPECTED_MSG_TYPE);  // XXX TODO
-}
-
 void Session::operator()(Trace<codec::fix::RequestForPositions> const &event, roq::fix::Header const &header) {
   switch (state_) {
     using enum State;
@@ -910,6 +915,32 @@ void Session::operator()(Trace<codec::fix::RequestForPositions> const &event, ro
             request_for_positions.pos_req_id,
             roq::fix::BusinessRejectReason::OTHER,
             ERROR_UNSUPPORTED_PARTY_IDS);
+      }
+      break;
+    case WAITING_REMOVE_ROUTE:
+      make_zombie();
+      break;
+    case ZOMBIE:
+      break;
+  }
+}
+
+void Session::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &event, roq::fix::Header const &header) {
+  switch (state_) {
+    using enum State;
+    case WAITING_LOGON:
+    case WAITING_CREATE_ROUTE:
+      send_reject(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
+      break;
+    case READY:
+      if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, username_); })) {
+      } else {
+        auto &[trace_info, trade_capture_report_request] = event;
+        send_business_message_reject(
+            header,
+            trade_capture_report_request.cl_ord_id,
+            roq::fix::BusinessRejectReason::OTHER,
+            ERROR_UNSUPPORTED_MSG_TYPE);
       }
       break;
     case WAITING_REMOVE_ROUTE:

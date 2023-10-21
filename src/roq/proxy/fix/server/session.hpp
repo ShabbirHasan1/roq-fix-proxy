@@ -50,6 +50,9 @@
 #include "roq/codec/fix/security_status.hpp"
 #include "roq/codec/fix/security_status_request.hpp"
 #include "roq/codec/fix/test_request.hpp"
+#include "roq/codec/fix/trade_capture_report.hpp"
+#include "roq/codec/fix/trade_capture_report_request.hpp"
+#include "roq/codec/fix/trade_capture_report_request_ack.hpp"
 #include "roq/codec/fix/user_request.hpp"
 #include "roq/codec/fix/user_response.hpp"
 
@@ -89,6 +92,10 @@ struct Session final : public io::net::ConnectionManager::Handler {
     // position management
     virtual void operator()(Trace<codec::fix::RequestForPositionsAck> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<codec::fix::PositionReport> const &, std::string_view const &username) = 0;
+    // trade capture
+    virtual void operator()(
+        Trace<codec::fix::TradeCaptureReportRequestAck> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::TradeCaptureReport> const &, std::string_view const &username) = 0;
   };
 
   Session(
@@ -122,6 +129,8 @@ struct Session final : public io::net::ConnectionManager::Handler {
   void operator()(Trace<codec::fix::OrderMassCancelRequest> const &);
   // position management
   void operator()(Trace<codec::fix::RequestForPositions> const &);
+  // trade capture
+  void operator()(Trace<codec::fix::TradeCaptureReportRequest> const &);
 
  private:
   enum class State;
@@ -183,6 +192,11 @@ struct Session final : public io::net::ConnectionManager::Handler {
 
   void operator()(Trace<codec::fix::RequestForPositionsAck> const &, roq::fix::Header const &);
   void operator()(Trace<codec::fix::PositionReport> const &, roq::fix::Header const &);
+
+  // - trade capture
+
+  void operator()(Trace<codec::fix::TradeCaptureReportRequestAck> const &, roq::fix::Header const &);
+  void operator()(Trace<codec::fix::TradeCaptureReport> const &, roq::fix::Header const &);
 
   // outbound
 

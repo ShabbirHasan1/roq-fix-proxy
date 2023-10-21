@@ -44,7 +44,9 @@
 #include "roq/codec/fix/security_status.hpp"
 #include "roq/codec/fix/security_status_request.hpp"
 #include "roq/codec/fix/test_request.hpp"
+#include "roq/codec/fix/trade_capture_report.hpp"
 #include "roq/codec/fix/trade_capture_report_request.hpp"
+#include "roq/codec/fix/trade_capture_report_request_ack.hpp"
 #include "roq/codec/fix/trading_session_status_request.hpp"
 #include "roq/codec/fix/user_request.hpp"
 #include "roq/codec/fix/user_response.hpp"
@@ -80,6 +82,8 @@ struct Session final : public io::net::tcp::Connection::Handler {
     virtual void operator()(Trace<codec::fix::OrderMassCancelRequest> const &, std::string_view const &username) = 0;
     // position management
     virtual void operator()(Trace<codec::fix::RequestForPositions> const &, std::string_view const &username) = 0;
+    // trade capture
+    virtual void operator()(Trace<codec::fix::TradeCaptureReportRequest> const &, std::string_view const &username) = 0;
   };
 
   Session(Handler &, uint64_t session_id, io::net::tcp::Connection::Factory &, Shared &);
@@ -108,6 +112,9 @@ struct Session final : public io::net::tcp::Connection::Handler {
   // position management
   void operator()(Trace<codec::fix::RequestForPositionsAck> const &);
   void operator()(Trace<codec::fix::PositionReport> const &);
+  // trade capture
+  void operator()(Trace<codec::fix::TradeCaptureReportRequestAck> const &);
+  void operator()(Trace<codec::fix::TradeCaptureReport> const &);
 
  protected:
   enum class State {

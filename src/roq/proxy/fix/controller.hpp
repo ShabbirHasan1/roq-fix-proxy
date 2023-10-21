@@ -65,6 +65,9 @@ struct Controller final : public io::sys::Signal::Handler,
   // - position management
   void operator()(Trace<codec::fix::RequestForPositionsAck> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::PositionReport> const &, std::string_view const &username) override;
+  // - trade capture
+  void operator()(Trace<codec::fix::TradeCaptureReportRequestAck> const &, std::string_view const &username) override;
+  void operator()(Trace<codec::fix::TradeCaptureReport> const &, std::string_view const &username) override;
 
   // client::Session::Handler
   void operator()(Trace<client::Session::Disconnected> const &, std::string_view const &username) override;
@@ -86,6 +89,8 @@ struct Controller final : public io::sys::Signal::Handler,
   void operator()(Trace<codec::fix::OrderMassCancelRequest> const &, std::string_view const &username) override;
   // - position management
   void operator()(Trace<codec::fix::RequestForPositions> const &, std::string_view const &username) override;
+  // - trade capture
+  void operator()(Trace<codec::fix::TradeCaptureReportRequest> const &, std::string_view const &username) override;
 
   // utilities
 
