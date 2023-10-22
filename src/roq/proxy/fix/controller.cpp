@@ -21,6 +21,33 @@ namespace {
 auto const TIMER_FREQUENCY = 100ms;
 }
 
+// === HELPERS ===
+
+namespace {
+template <typename T>
+auto get_strategy_id(T &value) -> std::string_view {
+  using value_type = std::remove_cvref<T>::type;
+  auto const &party_ids = [&]() {
+    if constexpr (std::is_same<value_type, roq::codec::fix::TradeCaptureReport>::value) {
+      // assert(!std::empty(value.no_sides));
+      return value.no_sides[0].no_party_ids;
+    } else {
+      return value.no_party_ids;
+    }
+  }();
+  if (std::empty(party_ids))
+    return {};
+  if (std::size(party_ids) == 1)
+    for (auto &item : party_ids) {
+      if (!std::empty(item.party_id) && item.party_id_source == roq::fix::PartyIDSource::PROPRIETARY_CUSTOM_CODE &&
+          item.party_role == roq::fix::PartyRole::CLIENT_ID)
+        return item.party_id;
+    }
+  log::warn("Unexpected: party_ids=[{}]"sv, fmt::join(party_ids, ", "sv));
+  return {};
+}
+}  // namespace
+
 // === IMPLEMENTATION ===
 
 Controller::Controller(
@@ -359,6 +386,7 @@ void Controller::dispatch_to_server(Trace<T> const &event, std::string_view cons
 
 template <typename T>
 void Controller::dispatch_to_client(Trace<T> const &event, std::string_view const &username) {
+  // [[maybe_unused]] auto strategy_id = get_strategy_id(event.value);
   auto success = false;
   shared_.session_find(username, [&](auto session_id) {
     client_manager_.find(session_id, [&](auto &session) {
