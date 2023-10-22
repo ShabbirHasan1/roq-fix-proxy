@@ -137,20 +137,22 @@ def order_mass_cancel_request():
     print(request)
     return request
 
+
 def trade_capture_report_request():
     msg = simplefix.FixMessage()
     msg.append_pair(8, FIX)
     msg.append_pair(35, "AD")
     msg.append_pair(49, SENDER_COMP_ID)
     msg.append_pair(56, TARGET_COMP_ID)
-    msg.append_pair(207, EXCHANGE)
-    msg.append_pair(55, SYMBOL)
+    # msg.append_pair(207, EXCHANGE)
+    # msg.append_pair(55, SYMBOL)
     msg.append_pair(568, "req1")
     msg.append_pair(569, "0")  # 0=all trades
     msg.append_pair(263, "0")  # 0=snapshot
     request = msg.encode()
-    print(request)
+    print_message(request)
     return request
+
 
 if __name__ == "__main__":
     home = os.getenv("HOME")
