@@ -242,6 +242,7 @@ struct Session final : public io::net::ConnectionManager::Handler {
     uint64_t msg_seq_num = {};
   } outbound_;
   std::vector<std::byte> decode_buffer_;
+  std::vector<std::byte> decode_buffer_2_;
   std::vector<std::byte> encode_buffer_;
   // state
   enum class State {

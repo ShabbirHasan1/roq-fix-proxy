@@ -67,8 +67,8 @@ Session::Session(
       ping_freq_{settings.server.ping_freq}, debug_{settings.server.debug}, market_depth_{settings.server.market_depth},
       connection_factory_{create_connection_factory(settings, context, uri)},
       connection_manager_{create_connection_manager(*this, settings, *connection_factory_)},
-      decode_buffer_(settings.server.decode_buffer_size), encode_buffer_(settings.server.encode_buffer_size),
-      enable_market_data_{settings.test.enable_market_data} {
+      decode_buffer_(settings.server.decode_buffer_size), decode_buffer_2_(settings.server.decode_buffer_size),
+      encode_buffer_(settings.server.encode_buffer_size), enable_market_data_{settings.test.enable_market_data} {
 }
 
 void Session::operator()(Event<Start> const &) {
@@ -348,7 +348,7 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
       break;
     }
     case TRADE_CAPTURE_REPORT: {
-      auto trade_capture_report = codec::fix::TradeCaptureReport::create(message, decode_buffer_);
+      auto trade_capture_report = codec::fix::TradeCaptureReport::create(message, decode_buffer_, decode_buffer_2_);
       dispatch(event, trade_capture_report);
       break;
     }
