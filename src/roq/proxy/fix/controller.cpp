@@ -526,6 +526,7 @@ void Controller::operator()(Trace<codec::fix::RequestForPositionsAck> const &eve
     } else {
       remove = false;
       total_num_pos_reports_ = event.value.total_num_pos_reports;
+      log::warn("Awaiting {} position reports..."sv, total_num_pos_reports_);
     }
     auto position_report = event.value;
     position_report.pos_req_id = req_id;
@@ -545,6 +546,8 @@ void Controller::operator()(Trace<codec::fix::RequestForPositionsAck> const &eve
 void Controller::operator()(Trace<codec::fix::PositionReport> const &event) {
   if (total_num_pos_reports_)
     --total_num_pos_reports_;
+  if (!total_num_pos_reports_)
+    log::warn("... last position report!"sv);
   auto remove = true;
   auto dispatch = [&](auto session_id, auto &req_id, auto keep_alive) {
     auto failure = event.value.pos_req_result != roq::fix::PosReqResult::VALID;
@@ -1163,7 +1166,7 @@ void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event,
     using enum roq::fix::SubscriptionRequestType;
     case UNDEFINED:
     case UNKNOWN:
-      reject("INVALID"sv);
+      reject("UNKNOWN_SUBSCRIPTION_REQUEST_TYPE"sv);
       break;
     case SNAPSHOT:
       if (exists) {

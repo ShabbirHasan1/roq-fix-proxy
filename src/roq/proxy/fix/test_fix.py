@@ -98,9 +98,10 @@ def request_for_positions_request():
     msg.append_pair(56, TARGET_COMP_ID)
     msg.append_pair(1, ACCOUNT)
     msg.append_pair(207, EXCHANGE)
-    msg.append_pair(581, "1")
+    msg.append_pair(263, "0")  # snapshot
+    msg.append_pair(581, "1")  # account type
     msg.append_pair(710, "pos_00002")
-    msg.append_pair(724, "0")
+    msg.append_pair(724, "0")  # positoins
     request = msg.encode()
     print(request)
     return request
