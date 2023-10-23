@@ -165,7 +165,8 @@ if __name__ == "__main__":
         # order mass status request
         # s.sendall(order_mass_status_request())
         # s.sendall(order_mass_cancel_request())
-        s.sendall(trade_capture_report_request())
+        # s.sendall(trade_capture_report_request())
+        s.sendall(request_for_positions_request())
         response = s.recv(4096)
         print_message(response)
         # request for positions

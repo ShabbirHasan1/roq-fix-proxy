@@ -58,20 +58,20 @@ struct Controller final : public io::sys::Signal::Handler,
   void operator()(Trace<codec::fix::MarketDataRequestReject> const &) override;
   void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &) override;
   void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &) override;
-  // - order management
+  // - orders
   void operator()(Trace<codec::fix::OrderCancelReject> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::OrderMassCancelReport> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::ExecutionReport> const &) override;
-  // - position management
+  // - positions
   void operator()(Trace<codec::fix::RequestForPositionsAck> const &) override;
   void operator()(Trace<codec::fix::PositionReport> const &) override;
-  // - trade capture
+  // - trades
   void operator()(Trace<codec::fix::TradeCaptureReportRequestAck> const &) override;
   void operator()(Trace<codec::fix::TradeCaptureReport> const &) override;
 
   // client::Session::Handler
   void operator()(Trace<client::Session::Disconnected> const &, uint64_t session_id) override;
-  // - user management
+  // - user
   void operator()(Trace<codec::fix::UserRequest> const &, uint64_t session_id) override;
   // - security
   void operator()(Trace<codec::fix::SecurityListRequest> const &, uint64_t session_id) override;
@@ -79,16 +79,16 @@ struct Controller final : public io::sys::Signal::Handler,
   void operator()(Trace<codec::fix::SecurityStatusRequest> const &, uint64_t session_id) override;
   // - market data
   void operator()(Trace<codec::fix::MarketDataRequest> const &, uint64_t session_id) override;
-  // - order management
+  // - orders
   void operator()(Trace<codec::fix::OrderStatusRequest> const &, uint64_t session_id) override;
   void operator()(Trace<codec::fix::NewOrderSingle> const &, uint64_t session_id) override;
   void operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &, uint64_t session_id) override;
   void operator()(Trace<codec::fix::OrderCancelRequest> const &, uint64_t session_id) override;
   void operator()(Trace<codec::fix::OrderMassStatusRequest> const &, uint64_t session_id) override;
   void operator()(Trace<codec::fix::OrderMassCancelRequest> const &, uint64_t session_id) override;
-  // - position management
+  // - positions
   void operator()(Trace<codec::fix::RequestForPositions> const &, uint64_t session_id) override;
-  // - trade capture
+  // - trades
   void operator()(Trace<codec::fix::TradeCaptureReportRequest> const &, uint64_t session_id) override;
 
   // utilities
@@ -150,6 +150,8 @@ struct Controller final : public io::sys::Signal::Handler,
     Mapping pos_req_id;
     Mapping trade_request_id;
   } subscriptions_;
+  // WORK-AROUND
+  uint32_t total_num_pos_reports_ = {};
 };
 
 }  // namespace fix

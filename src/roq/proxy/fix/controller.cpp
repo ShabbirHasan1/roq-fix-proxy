@@ -515,13 +515,18 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
   }
 }
 
-// XXX HANS check if remove should be postponed to last position report
 void Controller::operator()(Trace<codec::fix::RequestForPositionsAck> const &event) {
   auto remove = true;
-  auto dispatch = [&](auto session_id, auto &req_id, auto keep_alive) {
+  auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
     auto failure = event.value.pos_req_result != roq::fix::PosReqResult::VALID ||
                    event.value.pos_req_status == roq::fix::PosReqStatus::REJECTED;
-    remove = failure || !keep_alive;
+    if (failure) {
+      remove = true;
+      total_num_pos_reports_ = {};
+    } else {
+      remove = false;
+      total_num_pos_reports_ = event.value.total_num_pos_reports;
+    }
     auto position_report = event.value;
     position_report.pos_req_id = req_id;
     Trace event_2{event.trace_info, position_report};
@@ -537,12 +542,17 @@ void Controller::operator()(Trace<codec::fix::RequestForPositionsAck> const &eve
   }
 }
 
-// XXX HANS ouch! ... here we need some counter (total_num_pos_reports)
 void Controller::operator()(Trace<codec::fix::PositionReport> const &event) {
+  if (total_num_pos_reports_)
+    --total_num_pos_reports_;
   auto remove = true;
   auto dispatch = [&](auto session_id, auto &req_id, auto keep_alive) {
     auto failure = event.value.pos_req_result != roq::fix::PosReqResult::VALID;
-    remove = failure || !keep_alive;
+    if (failure) {
+      remove = true;
+    } else if (!total_num_pos_reports_) {
+      remove = !keep_alive;
+    }
     auto position_report = event.value;
     position_report.pos_req_id = req_id;
     Trace event_2{event.trace_info, position_report};
@@ -1109,7 +1119,7 @@ void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event,
   auto &req_id = event.value.pos_req_id;
   assert(!std::empty(req_id));  // required
   auto &mapping = subscriptions_.pos_req_id;
-  auto reject = [&]() {
+  auto reject = [&](auto const &text) {
     auto &request_for_positions = event.value;
     auto request_id = shared_.create_request_id();
     auto request_for_positions_ack = codec::fix::RequestForPositionsAck{
@@ -1122,7 +1132,9 @@ void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event,
         .no_party_ids = request_for_positions.no_party_ids,                // required
         .account = request_for_positions.account,                          // required
         .account_type = request_for_positions.account_type,                // required
+        .text = text,
     };
+    log::debug("request_for_positions_ack={}"sv, request_for_positions_ack);
     Trace event_2{event.trace_info, request_for_positions_ack};
     dispatch_to_client(event_2, session_id);
   };
@@ -1151,18 +1163,18 @@ void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event,
     using enum roq::fix::SubscriptionRequestType;
     case UNDEFINED:
     case UNKNOWN:
-      reject();
+      reject("INVALID"sv);
       break;
     case SNAPSHOT:
       if (exists) {
-        reject();
+        reject("DUPLICATED_POS_REQ_ID"sv);
       } else {
         dispatch(false);
       }
       break;
     case SNAPSHOT_UPDATES:
       if (exists) {
-        reject();
+        reject("DUPLICATED_POS_REQ_ID"sv);
       } else {
         dispatch(true);
       }
@@ -1171,7 +1183,7 @@ void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event,
       if (exists) {
         dispatch(false);
       } else {
-        reject();
+        reject("UNKNOWN_POS_REQ_ID"sv);
       }
       break;
   }

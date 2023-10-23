@@ -62,7 +62,7 @@ struct Session final : public io::net::tcp::Connection::Handler {
   struct Disconnected final {};
   struct Handler {
     virtual void operator()(Trace<Disconnected> const &, uint64_t session_id) = 0;
-    // user management
+    // user
     virtual void operator()(Trace<codec::fix::UserRequest> const &, uint64_t session_id) = 0;
     // security
     virtual void operator()(Trace<codec::fix::SecurityListRequest> const &, uint64_t session_id) = 0;
@@ -70,16 +70,16 @@ struct Session final : public io::net::tcp::Connection::Handler {
     virtual void operator()(Trace<codec::fix::SecurityStatusRequest> const &, uint64_t session_id) = 0;
     // market data
     virtual void operator()(Trace<codec::fix::MarketDataRequest> const &, uint64_t session_id) = 0;
-    // order management
+    // orders
     virtual void operator()(Trace<codec::fix::OrderStatusRequest> const &, uint64_t session_id) = 0;
     virtual void operator()(Trace<codec::fix::NewOrderSingle> const &, uint64_t session_id) = 0;
     virtual void operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &, uint64_t session_id) = 0;
     virtual void operator()(Trace<codec::fix::OrderCancelRequest> const &, uint64_t session_id) = 0;
     virtual void operator()(Trace<codec::fix::OrderMassStatusRequest> const &, uint64_t session_id) = 0;
     virtual void operator()(Trace<codec::fix::OrderMassCancelRequest> const &, uint64_t session_id) = 0;
-    // position management
+    // positions
     virtual void operator()(Trace<codec::fix::RequestForPositions> const &, uint64_t session_id) = 0;
-    // trade capture
+    // trades
     virtual void operator()(Trace<codec::fix::TradeCaptureReportRequest> const &, uint64_t session_id) = 0;
   };
 
@@ -93,23 +93,24 @@ struct Session final : public io::net::tcp::Connection::Handler {
   void operator()(Event<Timer> const &);
 
   void operator()(Trace<codec::fix::BusinessMessageReject> const &);
-  // user management
+  // user
   void operator()(Trace<codec::fix::UserResponse> const &);
-  // market data
+  // security
   void operator()(Trace<codec::fix::SecurityList> const &);
   void operator()(Trace<codec::fix::SecurityDefinition> const &);
   void operator()(Trace<codec::fix::SecurityStatus> const &);
+  // market data
   void operator()(Trace<codec::fix::MarketDataRequestReject> const &);
   void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &);
   void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &);
-  // order management
+  // orders
   void operator()(Trace<codec::fix::OrderCancelReject> const &);
   void operator()(Trace<codec::fix::OrderMassCancelReport> const &);
   void operator()(Trace<codec::fix::ExecutionReport> const &);
-  // position management
+  // positions
   void operator()(Trace<codec::fix::RequestForPositionsAck> const &);
   void operator()(Trace<codec::fix::PositionReport> const &);
-  // trade capture
+  // trades
   void operator()(Trace<codec::fix::TradeCaptureReportRequestAck> const &);
   void operator()(Trace<codec::fix::TradeCaptureReport> const &);
 

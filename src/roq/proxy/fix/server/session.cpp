@@ -270,13 +270,13 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
       dispatch(event, business_message_reject);
       break;
     }
-      // user management
+      // user
     case USER_RESPONSE: {
       auto user_response = codec::fix::UserResponse::create(message);
       dispatch(event, user_response);
       break;
     }
-      // market data
+      // security
     case SECURITY_LIST: {
       auto security_list = codec::fix::SecurityList::create(message, decode_buffer_);
       dispatch(event, security_list);
@@ -292,6 +292,7 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
       dispatch(event, security_status);
       break;
     }
+      // market data
     case MARKET_DATA_REQUEST_REJECT: {
       auto market_data_request_reject = codec::fix::MarketDataRequestReject::create(message, decode_buffer_);
       dispatch(event, market_data_request_reject);
@@ -308,7 +309,7 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
       dispatch(event, market_data_incremental_refresh);
       break;
     }
-      // order management
+      // orders
     case ORDER_CANCEL_REJECT: {
       auto order_cancel_reject = codec::fix::OrderCancelReject::create(message, decode_buffer_);
       dispatch(event, order_cancel_reject);
@@ -324,7 +325,7 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
       dispatch(event, execution_report);
       break;
     }
-      // position management
+      // positions
     case REQUEST_FOR_POSITIONS_ACK: {
       auto request_for_positions_ack = codec::fix::RequestForPositionsAck::create(message, decode_buffer_);
       dispatch(event, request_for_positions_ack);
@@ -335,7 +336,7 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
       dispatch(event, position_report);
       break;
     }
-      // trade capture
+      // trades
     case TRADE_CAPTURE_REPORT_REQUEST_ACK: {
       auto trade_capture_report_request_ack = codec::fix::TradeCaptureReportRequestAck::create(message, decode_buffer_);
       dispatch(event, trade_capture_report_request_ack);
