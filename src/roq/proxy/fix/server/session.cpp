@@ -55,14 +55,8 @@ auto create_connection_manager(auto &handler, auto &settings, auto &connection_f
 // === IMPLEMENTATION ===
 
 Session::Session(
-    Handler &handler,
-    Settings const &settings,
-    io::Context &context,
-    Shared &shared,
-    io::web::URI const &uri,
-    std::string_view const &username,
-    std::string_view const &password)
-    : handler_{handler}, shared_{shared}, username_{username}, password_{password},
+    Handler &handler, Settings const &settings, io::Context &context, Shared &shared, io::web::URI const &uri)
+    : handler_{handler}, shared_{shared}, username_{settings.server.username}, password_{settings.server.password},
       sender_comp_id_{settings.server.sender_comp_id}, target_comp_id_{settings.server.target_comp_id},
       ping_freq_{settings.server.ping_freq}, debug_{settings.server.debug}, market_depth_{settings.server.market_depth},
       connection_factory_{create_connection_factory(settings, context, uri)},
@@ -168,7 +162,7 @@ void Session::operator()(io::net::ConnectionManager::Disconnected const &) {
   TraceInfo trace_info;
   Disconnected disconnected;
   Trace event{trace_info, disconnected};
-  handler_(event, username_);
+  handler_(event);
   outbound_ = {};
   inbound_ = {};
   next_heartbeat_ = {};
@@ -380,7 +374,7 @@ void Session::operator()(Trace<codec::fix::Logon> const &event, roq::fix::Header
   assert(state_ == State::LOGON_SENT);
   Ready ready;
   Trace event_2{trace_info, ready};
-  handler_(event_2, username_);
+  handler_(event_2);
   download_security_list();
 }
 
@@ -400,14 +394,13 @@ void Session::operator()(Trace<codec::fix::Heartbeat> const &event, roq::fix::He
 
 void Session::operator()(Trace<codec::fix::TestRequest> const &event, roq::fix::Header const &) {
   auto &[trace_info, test_request] = event;
-  log::debug("test_request={}, trace_info={}"sv, test_request, trace_info);
   send_heartbeat(test_request.test_req_id);
 }
 
 void Session::operator()(Trace<codec::fix::BusinessMessageReject> const &event, roq::fix::Header const &) {
   auto &[trace_info, business_message_reject] = event;
   log::debug("business_message_reject={}, trace_info={}"sv, business_message_reject, trace_info);
-  handler_(event, username_);
+  handler_(event);
 }
 
 void Session::operator()(Trace<codec::fix::SecurityList> const &event, roq::fix::Header const &) {
@@ -432,7 +425,7 @@ void Session::operator()(Trace<codec::fix::SecurityList> const &event, roq::fix:
       break;
     }
     case READY:
-      handler_(event, username_);
+      handler_(event);
       break;
   }
 }
@@ -449,7 +442,7 @@ void Session::operator()(Trace<codec::fix::SecurityDefinition> const &event, roq
       assert(false);
       break;
     case READY:
-      handler_(event, username_);
+      handler_(event);
       break;
   }
 }
@@ -457,31 +450,31 @@ void Session::operator()(Trace<codec::fix::SecurityDefinition> const &event, roq
 void Session::operator()(Trace<codec::fix::SecurityStatus> const &event, roq::fix::Header const &) {
   auto &[trace_info, security_status] = event;
   log::debug("security_status={}, trace_info={}"sv, security_status, trace_info);
-  handler_(event, username_);
+  handler_(event);
 }
 
 void Session::operator()(Trace<codec::fix::MarketDataRequestReject> const &event, roq::fix::Header const &) {
   auto &[trace_info, market_data_request_reject] = event;
   log::debug("market_data_request_reject={}, trace_info={}"sv, market_data_request_reject, trace_info);
-  handler_(event, username_);
+  handler_(event);
 }
 
 void Session::operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &event, roq::fix::Header const &) {
   auto &[trace_info, market_data_snapshot_full_refresh] = event;
   log::debug<1>("market_data_snapshot_full_refresh={}, trace_info={}"sv, market_data_snapshot_full_refresh, trace_info);
-  handler_(event, username_);
+  handler_(event);
 }
 
 void Session::operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &event, roq::fix::Header const &) {
   auto &[trace_info, market_data_incremental_refresh] = event;
   log::debug<1>("market_data_incremental_refresh={}, trace_info={}"sv, market_data_incremental_refresh, trace_info);
-  handler_(event, username_);
+  handler_(event);
 }
 
 void Session::operator()(Trace<codec::fix::UserResponse> const &event, roq::fix::Header const &) {
   auto &[trace_info, user_response] = event;
   log::debug("user_response={}, trace_info={}"sv, user_response, trace_info);
-  handler_(event, username_);
+  handler_(event);
 }
 
 void Session::operator()(Trace<codec::fix::OrderCancelReject> const &event, roq::fix::Header const &) {
@@ -499,31 +492,31 @@ void Session::operator()(Trace<codec::fix::OrderMassCancelReport> const &event, 
 void Session::operator()(Trace<codec::fix::ExecutionReport> const &event, roq::fix::Header const &) {
   auto &[trace_info, execution_report] = event;
   log::debug("execution_report={}, trace_info={}"sv, execution_report, trace_info);
-  handler_(event, username_);
+  handler_(event);
 }
 
 void Session::operator()(Trace<codec::fix::RequestForPositionsAck> const &event, roq::fix::Header const &) {
   auto &[trace_info, request_for_positions_ack] = event;
   log::debug("request_for_positions_ack={}, trace_info={}"sv, request_for_positions_ack, trace_info);
-  handler_(event, username_);
+  handler_(event);
 }
 
 void Session::operator()(Trace<codec::fix::PositionReport> const &event, roq::fix::Header const &) {
   auto &[trace_info, position_report] = event;
   log::debug("position_report={}, trace_info={}"sv, position_report, trace_info);
-  handler_(event, username_);
+  handler_(event);
 }
 
 void Session::operator()(Trace<codec::fix::TradeCaptureReportRequestAck> const &event, roq::fix::Header const &) {
   auto &[trace_info, trade_capture_report_request_ack] = event;
   log::debug("trade_capture_report_request_ack={}, trace_info={}"sv, trade_capture_report_request_ack, trace_info);
-  handler_(event, username_);
+  handler_(event);
 }
 
 void Session::operator()(Trace<codec::fix::TradeCaptureReport> const &event, roq::fix::Header const &) {
   auto &[trace_info, trade_capture_report] = event;
   log::debug("trade_capture_report={}, trace_info={}"sv, trade_capture_report, trace_info);
-  handler_(event, username_);
+  handler_(event);
 }
 
 // outbound

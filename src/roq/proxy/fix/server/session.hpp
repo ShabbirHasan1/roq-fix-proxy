@@ -70,42 +70,33 @@ struct Session final : public io::net::ConnectionManager::Handler {
   struct Ready final {};
   struct Disconnected final {};
   struct Handler {
-    virtual void operator()(Trace<Ready> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<Disconnected> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<Ready> const &) = 0;
+    virtual void operator()(Trace<Disconnected> const &) = 0;
     //
-    virtual void operator()(Trace<codec::fix::BusinessMessageReject> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::BusinessMessageReject> const &) = 0;
     // user management
-    virtual void operator()(Trace<codec::fix::UserResponse> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::UserResponse> const &) = 0;
+    // security
+    virtual void operator()(Trace<codec::fix::SecurityList> const &) = 0;
+    virtual void operator()(Trace<codec::fix::SecurityDefinition> const &) = 0;
+    virtual void operator()(Trace<codec::fix::SecurityStatus> const &) = 0;
     // market data
-    virtual void operator()(Trace<codec::fix::SecurityList> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<codec::fix::SecurityDefinition> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<codec::fix::SecurityStatus> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<codec::fix::MarketDataRequestReject> const &, std::string_view const &username) = 0;
-    virtual void operator()(
-        Trace<codec::fix::MarketDataSnapshotFullRefresh> const &, std::string_view const &username) = 0;
-    virtual void operator()(
-        Trace<codec::fix::MarketDataIncrementalRefresh> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::MarketDataRequestReject> const &) = 0;
+    virtual void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &) = 0;
+    virtual void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &) = 0;
     // order management
     virtual void operator()(Trace<codec::fix::OrderCancelReject> const &, std::string_view const &username) = 0;
     virtual void operator()(Trace<codec::fix::OrderMassCancelReport> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<codec::fix::ExecutionReport> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::ExecutionReport> const &) = 0;
     // position management
-    virtual void operator()(Trace<codec::fix::RequestForPositionsAck> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<codec::fix::PositionReport> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::RequestForPositionsAck> const &) = 0;
+    virtual void operator()(Trace<codec::fix::PositionReport> const &) = 0;
     // trade capture
-    virtual void operator()(
-        Trace<codec::fix::TradeCaptureReportRequestAck> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<codec::fix::TradeCaptureReport> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::TradeCaptureReportRequestAck> const &) = 0;
+    virtual void operator()(Trace<codec::fix::TradeCaptureReport> const &) = 0;
   };
 
-  Session(
-      Handler &,
-      Settings const &,
-      io::Context &,
-      Shared &,
-      io::web::URI const &,
-      std::string_view const &username,
-      std::string_view const &password);
+  Session(Handler &, Settings const &, io::Context &, Shared &, io::web::URI const &);
 
   void operator()(Event<Start> const &);
   void operator()(Event<Stop> const &);

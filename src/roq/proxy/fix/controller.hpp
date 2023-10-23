@@ -17,7 +17,6 @@
 #include "roq/proxy/fix/settings.hpp"
 #include "roq/proxy/fix/shared.hpp"
 
-#include "roq/proxy/fix/server/manager.hpp"
 #include "roq/proxy/fix/server/session.hpp"
 
 #include "roq/proxy/fix/client/manager.hpp"
@@ -45,52 +44,52 @@ struct Controller final : public io::sys::Signal::Handler,
   void operator()(io::sys::Timer::Event const &) override;
 
   // server::Session::Handler
-  void operator()(Trace<server::Session::Ready> const &, std::string_view const &username) override;
-  void operator()(Trace<server::Session::Disconnected> const &, std::string_view const &username) override;
+  void operator()(Trace<server::Session::Ready> const &) override;
+  void operator()(Trace<server::Session::Disconnected> const &) override;
   //
-  void operator()(Trace<codec::fix::BusinessMessageReject> const &, std::string_view const &username) override;
+  void operator()(Trace<codec::fix::BusinessMessageReject> const &) override;
   // - user
-  void operator()(Trace<codec::fix::UserResponse> const &, std::string_view const &username) override;
+  void operator()(Trace<codec::fix::UserResponse> const &) override;
+  // - security
+  void operator()(Trace<codec::fix::SecurityList> const &) override;
+  void operator()(Trace<codec::fix::SecurityDefinition> const &) override;
+  void operator()(Trace<codec::fix::SecurityStatus> const &) override;
   // - market data
-  void operator()(Trace<codec::fix::SecurityList> const &, std::string_view const &username) override;
-  void operator()(Trace<codec::fix::SecurityDefinition> const &, std::string_view const &username) override;
-  void operator()(Trace<codec::fix::SecurityStatus> const &, std::string_view const &username) override;
-  void operator()(Trace<codec::fix::MarketDataRequestReject> const &, std::string_view const &username) override;
-  void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &, std::string_view const &username) override;
-  void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &, std::string_view const &username) override;
+  void operator()(Trace<codec::fix::MarketDataRequestReject> const &) override;
+  void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &) override;
+  void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &) override;
   // - order management
   void operator()(Trace<codec::fix::OrderCancelReject> const &, std::string_view const &username) override;
   void operator()(Trace<codec::fix::OrderMassCancelReport> const &, std::string_view const &username) override;
-  void operator()(Trace<codec::fix::ExecutionReport> const &, std::string_view const &username) override;
+  void operator()(Trace<codec::fix::ExecutionReport> const &) override;
   // - position management
-  void operator()(Trace<codec::fix::RequestForPositionsAck> const &, std::string_view const &username) override;
-  void operator()(Trace<codec::fix::PositionReport> const &, std::string_view const &username) override;
+  void operator()(Trace<codec::fix::RequestForPositionsAck> const &) override;
+  void operator()(Trace<codec::fix::PositionReport> const &) override;
   // - trade capture
-  void operator()(Trace<codec::fix::TradeCaptureReportRequestAck> const &, std::string_view const &username) override;
-  void operator()(Trace<codec::fix::TradeCaptureReport> const &, std::string_view const &username) override;
+  void operator()(Trace<codec::fix::TradeCaptureReportRequestAck> const &) override;
+  void operator()(Trace<codec::fix::TradeCaptureReport> const &) override;
 
   // client::Session::Handler
-  void operator()(Trace<client::Session::Disconnected> const &, std::string_view const &username) override;
+  void operator()(Trace<client::Session::Disconnected> const &, uint64_t session_id) override;
   // - user management
-  void operator()(
-      Trace<codec::fix::UserRequest> const &, std::string_view const &username, uint64_t session_id) override;
+  void operator()(Trace<codec::fix::UserRequest> const &, uint64_t session_id) override;
+  // - security
+  void operator()(Trace<codec::fix::SecurityListRequest> const &, uint64_t session_id) override;
+  void operator()(Trace<codec::fix::SecurityDefinitionRequest> const &, uint64_t session_id) override;
+  void operator()(Trace<codec::fix::SecurityStatusRequest> const &, uint64_t session_id) override;
   // - market data
-  void operator()(Trace<codec::fix::SecurityListRequest> const &, std::string_view const &username) override;
-  void operator()(Trace<codec::fix::SecurityDefinitionRequest> const &, std::string_view const &username) override;
-  void operator()(Trace<codec::fix::SecurityStatusRequest> const &, std::string_view const &username) override;
-  void operator()(
-      Trace<codec::fix::MarketDataRequest> const &, std::string_view const &username, uint64_t session_id) override;
+  void operator()(Trace<codec::fix::MarketDataRequest> const &, uint64_t session_id) override;
   // - order management
-  void operator()(Trace<codec::fix::OrderStatusRequest> const &, std::string_view const &username) override;
-  void operator()(Trace<codec::fix::NewOrderSingle> const &, std::string_view const &username) override;
-  void operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &, std::string_view const &username) override;
-  void operator()(Trace<codec::fix::OrderCancelRequest> const &, std::string_view const &username) override;
-  void operator()(Trace<codec::fix::OrderMassStatusRequest> const &, std::string_view const &username) override;
-  void operator()(Trace<codec::fix::OrderMassCancelRequest> const &, std::string_view const &username) override;
+  void operator()(Trace<codec::fix::OrderStatusRequest> const &, uint64_t session_id) override;
+  void operator()(Trace<codec::fix::NewOrderSingle> const &, uint64_t session_id) override;
+  void operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &, uint64_t session_id) override;
+  void operator()(Trace<codec::fix::OrderCancelRequest> const &, uint64_t session_id) override;
+  void operator()(Trace<codec::fix::OrderMassStatusRequest> const &, uint64_t session_id) override;
+  void operator()(Trace<codec::fix::OrderMassCancelRequest> const &, uint64_t session_id) override;
   // - position management
-  void operator()(Trace<codec::fix::RequestForPositions> const &, std::string_view const &username) override;
+  void operator()(Trace<codec::fix::RequestForPositions> const &, uint64_t session_id) override;
   // - trade capture
-  void operator()(Trace<codec::fix::TradeCaptureReportRequest> const &, std::string_view const &username) override;
+  void operator()(Trace<codec::fix::TradeCaptureReportRequest> const &, uint64_t session_id) override;
 
   // utilities
 
@@ -98,13 +97,21 @@ struct Controller final : public io::sys::Signal::Handler,
   void dispatch(Args &&...);
 
   template <typename T>
-  void dispatch_to_server(Trace<T> const &, std::string_view const &username);
+  void dispatch_to_server(Trace<T> const &);
 
   template <typename T>
   void dispatch_to_client(Trace<T> const &, std::string_view const &username);
 
+  template <typename T>
+  bool dispatch_to_client(Trace<T> const &, uint64_t session_id);
+
+  template <typename T>
+  void broadcast(Trace<T> const &, std::string_view const &client_id);
+
   template <typename Callback>
-  bool find_server_subscription(std::string_view const &md_req_id, Callback callback);
+  bool find_req_id(auto &mapping, std::string_view const &req_id, Callback callback);
+
+  void remove_req_id(auto &mapping, std::string_view const &req_id);
 
   void user_add(std::string_view const &username, uint64_t session_id);
   void user_remove(std::string_view const &username, bool ready);
@@ -116,28 +123,32 @@ struct Controller final : public io::sys::Signal::Handler,
   std::unique_ptr<io::sys::Signal> const interrupt_;
   std::unique_ptr<io::sys::Timer> const timer_;
   Shared shared_;
-  server::Manager server_manager_;
+  server::Session server_session_;
   client::Manager client_manager_;
   bool ready_ = {};
-  // server subscription mappings
+  // req_id mappings
   struct {
-    // XXX TODO review if we have leaks when never receive a response
     struct {
-      // state:
-      absl::flat_hash_map<std::string, uint64_t> username_to_session;
-      absl::flat_hash_map<uint64_t, std::string> session_to_username;
-      // requests:
-      // user_request_id => session id
+      absl::flat_hash_map<std::string, uint64_t> client_to_session;
+      absl::flat_hash_map<uint64_t, std::string> session_to_client;
+      // user_request_id => session_id
       absl::flat_hash_map<std::string, uint64_t> server_to_client;
-      // session id => user_request_id
+      // session_id => user_request_id
       absl::flat_hash_map<uint64_t, std::string> client_to_server;
     } user;
-    struct {
-      // server subscription id => {session id, client subscription id}
-      absl::flat_hash_map<std::string, std::pair<uint64_t, std::string>> server_to_client;
-      // session id => client subscription id => server subscription id
+    struct Mapping final {
+      // server_req_id => {session_id, client_req_id, keep_alive}
+      absl::flat_hash_map<std::string, std::tuple<uint64_t, std::string, bool>> server_to_client;
+      // session_id => client_req_id => server_req_id
       absl::flat_hash_map<uint64_t, absl::flat_hash_map<std::string, std::string>> client_to_server;
-    } market_data;
+    };
+    Mapping security_req_id;
+    Mapping security_status_req_id;
+    Mapping md_req_id;
+    Mapping ord_status_req_id;
+    Mapping mass_status_req_id;
+    Mapping pos_req_id;
+    Mapping trade_request_id;
   } subscriptions_;
 };
 

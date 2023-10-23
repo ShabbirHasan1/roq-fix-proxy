@@ -59,31 +59,28 @@ namespace fix {
 namespace client {
 
 struct Session final : public io::net::tcp::Connection::Handler {
-  struct Disconnected final {
-    uint64_t session_id = {};
-  };
+  struct Disconnected final {};
   struct Handler {
-    virtual void operator()(Trace<Disconnected> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<Disconnected> const &, uint64_t session_id) = 0;
     // user management
-    virtual void operator()(
-        Trace<codec::fix::UserRequest> const &, std::string_view const &username, uint64_t session_id) = 0;
+    virtual void operator()(Trace<codec::fix::UserRequest> const &, uint64_t session_id) = 0;
+    // security
+    virtual void operator()(Trace<codec::fix::SecurityListRequest> const &, uint64_t session_id) = 0;
+    virtual void operator()(Trace<codec::fix::SecurityDefinitionRequest> const &, uint64_t session_id) = 0;
+    virtual void operator()(Trace<codec::fix::SecurityStatusRequest> const &, uint64_t session_id) = 0;
     // market data
-    virtual void operator()(Trace<codec::fix::SecurityListRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<codec::fix::SecurityDefinitionRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<codec::fix::SecurityStatusRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(
-        Trace<codec::fix::MarketDataRequest> const &, std::string_view const &username, uint64_t session_id) = 0;
+    virtual void operator()(Trace<codec::fix::MarketDataRequest> const &, uint64_t session_id) = 0;
     // order management
-    virtual void operator()(Trace<codec::fix::OrderStatusRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<codec::fix::NewOrderSingle> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<codec::fix::OrderCancelRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<codec::fix::OrderMassStatusRequest> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<codec::fix::OrderMassCancelRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::OrderStatusRequest> const &, uint64_t session_id) = 0;
+    virtual void operator()(Trace<codec::fix::NewOrderSingle> const &, uint64_t session_id) = 0;
+    virtual void operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &, uint64_t session_id) = 0;
+    virtual void operator()(Trace<codec::fix::OrderCancelRequest> const &, uint64_t session_id) = 0;
+    virtual void operator()(Trace<codec::fix::OrderMassStatusRequest> const &, uint64_t session_id) = 0;
+    virtual void operator()(Trace<codec::fix::OrderMassCancelRequest> const &, uint64_t session_id) = 0;
     // position management
-    virtual void operator()(Trace<codec::fix::RequestForPositions> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::RequestForPositions> const &, uint64_t session_id) = 0;
     // trade capture
-    virtual void operator()(Trace<codec::fix::TradeCaptureReportRequest> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::TradeCaptureReportRequest> const &, uint64_t session_id) = 0;
   };
 
   Session(Handler &, uint64_t session_id, io::net::tcp::Connection::Factory &, Shared &);
@@ -182,7 +179,7 @@ struct Session final : public io::net::tcp::Connection::Handler {
 
   void operator()(Trace<codec::fix::RequestForPositions> const &, roq::fix::Header const &);
 
-  void send_reject(roq::fix::Header const &, roq::fix::SessionRejectReason, std::string_view const &text);
+  void send_reject_and_close(roq::fix::Header const &, roq::fix::SessionRejectReason, std::string_view const &text);
 
   void send_business_message_reject(
       roq::fix::Header const &,
