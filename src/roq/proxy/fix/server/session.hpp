@@ -85,8 +85,8 @@ struct Session final : public io::net::ConnectionManager::Handler {
     virtual void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &) = 0;
     virtual void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &) = 0;
     // orders
-    virtual void operator()(Trace<codec::fix::OrderCancelReject> const &, std::string_view const &username) = 0;
-    virtual void operator()(Trace<codec::fix::OrderMassCancelReport> const &, std::string_view const &username) = 0;
+    virtual void operator()(Trace<codec::fix::OrderCancelReject> const &) = 0;
+    virtual void operator()(Trace<codec::fix::OrderMassCancelReport> const &) = 0;
     virtual void operator()(Trace<codec::fix::ExecutionReport> const &) = 0;
     // positions
     virtual void operator()(Trace<codec::fix::RequestForPositionsAck> const &) = 0;

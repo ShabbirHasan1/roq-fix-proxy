@@ -4,6 +4,8 @@
 
 #include "roq/logging.hpp"
 
+#include "roq/clock.hpp"
+
 #include "roq/proxy/fix/error.hpp"
 
 using namespace std::literals;
@@ -33,6 +35,10 @@ auto create_regex_symbols(auto &config) {
     result.emplace_back(std::move(regex));
   }
   return result;
+}
+
+auto create_next_request_id() {
+  return static_cast<uint64_t>(clock::get_realtime().count());
 }
 }  // namespace
 
@@ -107,6 +113,10 @@ void Shared::session_cleanup_helper(uint64_t session_id) {
 
 std::string Shared::create_request_id() {
   return fmt::format("proxy-{}"sv, ++next_request_id_);
+}
+
+std::string Shared::create_request_id(std::string_view const &postfix) {
+  return fmt::format("proxy-{}:{}"sv, ++next_request_id_, postfix);
 }
 
 }  // namespace fix

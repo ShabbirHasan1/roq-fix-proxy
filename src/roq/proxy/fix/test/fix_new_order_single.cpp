@@ -21,6 +21,7 @@ TEST_CASE("fix_new_order_single", "[fix_new_order_single]") {
   std::vector<std::byte> buffer(4096);
   auto new_order_single = NewOrderSingle{
       .cl_ord_id = "123"sv,
+      .secondary_cl_ord_id = {},
       .no_party_ids = {},
       .account = "A1",
       .handl_inst = {},

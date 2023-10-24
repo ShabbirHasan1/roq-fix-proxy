@@ -59,8 +59,8 @@ struct Controller final : public io::sys::Signal::Handler,
   void operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> const &) override;
   void operator()(Trace<codec::fix::MarketDataIncrementalRefresh> const &) override;
   // - orders
-  void operator()(Trace<codec::fix::OrderCancelReject> const &, std::string_view const &username) override;
-  void operator()(Trace<codec::fix::OrderMassCancelReport> const &, std::string_view const &username) override;
+  void operator()(Trace<codec::fix::OrderCancelReject> const &) override;
+  void operator()(Trace<codec::fix::OrderMassCancelReport> const &) override;
   void operator()(Trace<codec::fix::ExecutionReport> const &) override;
   // - positions
   void operator()(Trace<codec::fix::RequestForPositionsAck> const &) override;
@@ -113,6 +113,13 @@ struct Controller final : public io::sys::Signal::Handler,
 
   void remove_req_id(auto &mapping, std::string_view const &req_id);
 
+  template <typename Callback>
+  void clear_req_ids(auto &mapping, uint64_t session_id, Callback);
+
+  inline void clear_req_ids(auto &mapping, uint64_t session_id) {
+    clear_req_ids(mapping, session_id, []([[maybe_unused]] auto &req_id) {});
+  }
+
   void user_add(std::string_view const &username, uint64_t session_id);
   void user_remove(std::string_view const &username, bool ready);
   bool user_is_locked(std::string_view const &username) const;
@@ -149,6 +156,8 @@ struct Controller final : public io::sys::Signal::Handler,
     Mapping mass_status_req_id;
     Mapping pos_req_id;
     Mapping trade_request_id;
+    Mapping cl_ord_id;
+    Mapping mass_cancel_cl_ord_id;
   } subscriptions_;
   // WORK-AROUND
   uint32_t total_num_pos_reports_ = {};

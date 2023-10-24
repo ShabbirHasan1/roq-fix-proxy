@@ -481,13 +481,13 @@ void Session::operator()(Trace<codec::fix::UserResponse> const &event, roq::fix:
 void Session::operator()(Trace<codec::fix::OrderCancelReject> const &event, roq::fix::Header const &) {
   auto &[trace_info, order_cancel_reject] = event;
   log::debug("order_cancel_reject={}, trace_info={}"sv, order_cancel_reject, trace_info);
-  handler_(event, username_);
+  handler_(event);
 }
 
 void Session::operator()(Trace<codec::fix::OrderMassCancelReport> const &event, roq::fix::Header const &) {
   auto &[trace_info, order_mass_cancel_report] = event;
   log::debug("order_mass_cancel_report={}, trace_info={}"sv, order_mass_cancel_report, trace_info);
-  handler_(event, username_);
+  handler_(event);
 }
 
 void Session::operator()(Trace<codec::fix::ExecutionReport> const &event, roq::fix::Header const &) {

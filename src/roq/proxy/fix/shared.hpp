@@ -75,6 +75,7 @@ struct Shared final {
   }
 
   std::string create_request_id();
+  std::string create_request_id(std::string_view const &postfix);
 
  protected:
   std::string_view session_logon_helper(
@@ -91,7 +92,7 @@ struct Shared final {
  private:
   std::vector<utils::regex::Pattern> const regex_symbols_;
 
-  uint32_t next_request_id_ = {};
+  uint64_t next_request_id_ = {};
 };
 
 }  // namespace fix

@@ -55,6 +55,11 @@ auto get_client_from_parties(T &value) -> std::string_view {
   log::warn("Unexpected: party_ids=[{}]"sv, fmt::join(party_ids, ", "sv));
   return {};
 }
+
+auto find_real_cl_ord_id(auto &cl_ord_id) -> std::string_view {
+  auto pos = cl_ord_id.find(':');
+  return pos == cl_ord_id.npos ? cl_ord_id : cl_ord_id.substr(pos + 1);
+}
 }  // namespace
 
 // === IMPLEMENTATION ===
@@ -471,12 +476,32 @@ void Controller::operator()(Trace<codec::fix::MarketDataIncrementalRefresh> cons
   // note! delivery failure is valid (an unsubscribe request could already have removed md_req_id)
 }
 
-void Controller::operator()(Trace<codec::fix::OrderCancelReject> const &event, std::string_view const &username) {
-  dispatch_to_client(event, username);
+void Controller::operator()(Trace<codec::fix::OrderCancelReject> const &event) {
+  auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
+    auto orig_cl_ord_id = find_real_cl_ord_id(event.value.orig_cl_ord_id);
+    auto order_cancel_reject = event.value;
+    order_cancel_reject.cl_ord_id = req_id;
+    order_cancel_reject.orig_cl_ord_id = orig_cl_ord_id;
+    Trace event_2{event.trace_info, order_cancel_reject};
+    dispatch_to_client(event_2, session_id);
+  };
+  auto &req_id = event.value.cl_ord_id;
+  auto &mapping = subscriptions_.cl_ord_id;
+  find_req_id(mapping, req_id, dispatch);
+  remove_req_id(mapping, req_id);
 }
 
-void Controller::operator()(Trace<codec::fix::OrderMassCancelReport> const &event, std::string_view const &username) {
-  dispatch_to_client(event, username);
+void Controller::operator()(Trace<codec::fix::OrderMassCancelReport> const &event) {
+  auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
+    auto order_mass_cancel_report = event.value;
+    order_mass_cancel_report.cl_ord_id = req_id;
+    Trace event_2{event.trace_info, order_mass_cancel_report};
+    dispatch_to_client(event_2, session_id);
+  };
+  auto &req_id = event.value.cl_ord_id;
+  auto &mapping = subscriptions_.mass_cancel_cl_ord_id;
+  find_req_id(mapping, req_id, dispatch);
+  remove_req_id(mapping, req_id);
 }
 
 void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
@@ -615,32 +640,33 @@ void Controller::operator()(Trace<codec::fix::TradeCaptureReport> const &event) 
 // client::Session::Handler
 
 void Controller::operator()(Trace<client::Session::Disconnected> const &event, uint64_t session_id) {
-  // market data
-  auto iter_1 = subscriptions_.md_req_id.client_to_server.find(session_id);
-  if (iter_1 != std::end(subscriptions_.md_req_id.client_to_server)) {
-    for (auto &[_, server_md_req_id] : (*iter_1).second) {
-      if (ready()) {
-        auto market_data_request = codec::fix::MarketDataRequest{
-            .md_req_id = server_md_req_id,
-            .subscription_request_type = roq::fix::SubscriptionRequestType::UNSUBSCRIBE,
-            .market_depth = {},
-            .md_update_type = {},
-            .aggregated_book = {},
-            .no_md_entry_types = {},  // note! non-standard -- fix-bridge will unsubscribe all
-            .no_related_sym = {},
-            .no_trading_sessions = {},
-            .custom_type = {},
-            .custom_value = {},
-        };
-        Trace event_2{event.trace_info, market_data_request};
-        dispatch_to_server(event_2);
-      }
-      subscriptions_.md_req_id.server_to_client.erase(server_md_req_id);
-    }
-    subscriptions_.md_req_id.client_to_server.erase(iter_1);
-  } else {
-    log::debug("no market data subscriptions associated with session_id={}"sv, session_id);
-  }
+  auto unsubscribe_market_data = [&](auto &req_id) {
+    if (!ready())
+      return;
+    auto market_data_request = codec::fix::MarketDataRequest{
+        .md_req_id = req_id,
+        .subscription_request_type = roq::fix::SubscriptionRequestType::UNSUBSCRIBE,
+        .market_depth = {},
+        .md_update_type = {},
+        .aggregated_book = {},
+        .no_md_entry_types = {},  // note! non-standard -- fix-bridge will unsubscribe all
+        .no_related_sym = {},
+        .no_trading_sessions = {},
+        .custom_type = {},
+        .custom_value = {},
+    };
+    Trace event_2{event.trace_info, market_data_request};
+    dispatch_to_server(event_2);
+  };
+  clear_req_ids(subscriptions_.security_req_id, session_id);         // note! subscriptions not yet supported
+  clear_req_ids(subscriptions_.security_status_req_id, session_id);  // note! subscriptions not yet supported
+  clear_req_ids(subscriptions_.md_req_id, session_id, unsubscribe_market_data);
+  clear_req_ids(subscriptions_.ord_status_req_id, session_id);
+  clear_req_ids(subscriptions_.mass_status_req_id, session_id);
+  clear_req_ids(subscriptions_.pos_req_id, session_id);        // note! subscriptions not yet supported
+  clear_req_ids(subscriptions_.trade_request_id, session_id);  // note! subscriptions not yet supported
+  clear_req_ids(subscriptions_.cl_ord_id, session_id);
+  clear_req_ids(subscriptions_.mass_cancel_cl_ord_id, session_id);
   // user
   auto iter_2 = subscriptions_.user.session_to_client.find(session_id);
   if (iter_2 != std::end(subscriptions_.user.session_to_client)) {
@@ -975,6 +1001,7 @@ void Controller::operator()(Trace<codec::fix::OrderStatusRequest> const &event, 
     auto request_id = shared_.create_request_id();
     auto execution_report = codec::fix::ExecutionReport{
         .order_id = request_id,  // required
+        .secondary_cl_ord_id = {},
         .cl_ord_id = order_status_request.cl_ord_id,
         .orig_cl_ord_id = {},
         .ord_status_req_id = order_status_request.ord_status_req_id,
@@ -1037,15 +1064,151 @@ void Controller::operator()(Trace<codec::fix::OrderStatusRequest> const &event, 
 }
 
 void Controller::operator()(Trace<codec::fix::NewOrderSingle> const &event, uint64_t session_id) {
-  dispatch_to_server(event);
+  auto &req_id = event.value.cl_ord_id;
+  auto &mapping = subscriptions_.cl_ord_id;
+  auto &client_to_server = mapping.client_to_server[session_id];
+  auto reject = [&](auto ord_rej_reason, auto const &text) {
+    auto &new_order_single = event.value;
+    auto request_id = shared_.create_request_id();
+    auto execution_report = codec::fix::ExecutionReport{
+        .order_id = request_id,  // required
+        .secondary_cl_ord_id = {},
+        .cl_ord_id = new_order_single.cl_ord_id,
+        .orig_cl_ord_id = {},
+        .ord_status_req_id = {},
+        .mass_status_req_id = {},
+        .tot_num_reports = {},
+        .last_rpt_requested = {},
+        .no_party_ids = new_order_single.no_party_ids,
+        .exec_id = request_id,                          // required
+        .exec_type = roq::fix::ExecType::ORDER_STATUS,  // required
+        .ord_status = roq::fix::OrdStatus::REJECTED,    // required
+        .working_indicator = {},
+        .ord_rej_reason = ord_rej_reason,  // note!
+        .account = new_order_single.account,
+        .account_type = {},
+        .symbol = new_order_single.symbol,                        // required
+        .security_exchange = new_order_single.security_exchange,  // note! quickfix
+        .side = new_order_single.side,                            // required
+        .order_qty = {},
+        .price = {},
+        .stop_px = {},
+        .currency = {},
+        .time_in_force = {},
+        .exec_inst = {},
+        .last_qty = {},
+        .last_px = {},
+        .trading_session_id = {},
+        .leaves_qty = {},
+        .cum_qty = {},
+        .avg_px = {},
+        .transact_time = {},
+        .position_effect = {},
+        .max_show = {},
+        .text = text,
+        .last_liquidity_ind = {},
+    };
+    Trace event_2{event.trace_info, execution_report};
+    dispatch_to_client(event_2, session_id);
+  };
+  auto dispatch = [&]() {
+    auto request_id = shared_.create_request_id(event.value.cl_ord_id);
+    auto new_order_single = event.value;
+    new_order_single.cl_ord_id = request_id;
+    Trace event_2{event.trace_info, new_order_single};
+    dispatch_to_server(event_2);
+    // note! *after* request has been sent
+    client_to_server.emplace(req_id, request_id);
+    mapping.server_to_client.try_emplace(request_id, session_id, req_id, true);
+  };
+  auto iter = client_to_server.find(req_id);
+  if (iter == std::end(client_to_server)) {
+    dispatch();
+  } else {
+    reject(roq::fix::OrdRejReason::OTHER, "DUPLICATE_ORD_STATUS_REQ_ID"sv);
+  }
 }
 
 void Controller::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &event, uint64_t session_id) {
-  dispatch_to_server(event);
+  auto &req_id = event.value.cl_ord_id;
+  auto &mapping = subscriptions_.cl_ord_id;
+  auto &client_to_server = mapping.client_to_server[session_id];
+  auto reject = [&](auto ord_status, auto cxl_rej_reason, auto const &text) {
+    auto &order_cancel_replace_request = event.value;
+    auto order_cancel_reject = codec::fix::OrderCancelReject{
+        .order_id = "NONE"sv,  // required
+        .secondary_cl_ord_id = {},
+        .cl_ord_id = order_cancel_replace_request.cl_ord_id,            // required
+        .orig_cl_ord_id = order_cancel_replace_request.orig_cl_ord_id,  // required
+        .ord_status = ord_status,                                       // required
+        .working_indicator = {},
+        .account = order_cancel_replace_request.account,
+        .cxl_rej_response_to = roq::fix::CxlRejResponseTo::ORDER_CANCEL_REPLACE_REQUEST,
+        .cxl_rej_reason = cxl_rej_reason,
+        .text = text,
+    };
+    Trace event_2{event.trace_info, order_cancel_reject};
+    dispatch_to_client(event_2, session_id);
+  };
+  auto dispatch = [&]() {
+    auto request_id = shared_.create_request_id(event.value.cl_ord_id);
+    auto order_cancel_replace_request = event.value;
+    order_cancel_replace_request.cl_ord_id = request_id;
+    order_cancel_replace_request.orig_cl_ord_id = {};  // XXX FIXME HANS FIND
+    Trace event_2{event.trace_info, order_cancel_replace_request};
+    dispatch_to_server(event_2);
+    // note! *after* request has been sent
+    client_to_server.emplace(req_id, request_id);
+    mapping.server_to_client.try_emplace(request_id, session_id, req_id, true);
+  };
+  auto iter = client_to_server.find(req_id);
+  if (iter == std::end(client_to_server)) {
+    dispatch();
+  } else {
+    // XXX FIXME HANS ord status should be status of order !!!
+    reject(roq::fix::OrdStatus::REJECTED, roq::fix::CxlRejReason::DUPLICATE_CL_ORD_ID, "DUPLICATE_ORD_STATUS_REQ_ID"sv);
+  }
 }
 
 void Controller::operator()(Trace<codec::fix::OrderCancelRequest> const &event, uint64_t session_id) {
-  dispatch_to_server(event);
+  auto &req_id = event.value.cl_ord_id;
+  auto &mapping = subscriptions_.cl_ord_id;
+  auto &client_to_server = mapping.client_to_server[session_id];
+  auto reject = [&](auto ord_status, auto cxl_rej_reason, auto const &text) {
+    auto &order_cancel_request = event.value;
+    auto order_cancel_reject = codec::fix::OrderCancelReject{
+        .order_id = "NONE"sv,  // required
+        .secondary_cl_ord_id = {},
+        .cl_ord_id = order_cancel_request.cl_ord_id,            // required
+        .orig_cl_ord_id = order_cancel_request.orig_cl_ord_id,  // required
+        .ord_status = ord_status,                               // required
+        .working_indicator = {},
+        .account = order_cancel_request.account,
+        .cxl_rej_response_to = roq::fix::CxlRejResponseTo::ORDER_CANCEL_REQUEST,
+        .cxl_rej_reason = cxl_rej_reason,
+        .text = text,
+    };
+    Trace event_2{event.trace_info, order_cancel_reject};
+    dispatch_to_client(event_2, session_id);
+  };
+  auto dispatch = [&]() {
+    auto request_id = shared_.create_request_id(event.value.cl_ord_id);
+    auto order_cancel_request = event.value;
+    order_cancel_request.cl_ord_id = request_id;
+    order_cancel_request.orig_cl_ord_id = {};  // XXX FIXME HANS FIND
+    Trace event_2{event.trace_info, order_cancel_request};
+    dispatch_to_server(event_2);
+    // note! *after* request has been sent
+    client_to_server.emplace(req_id, request_id);
+    mapping.server_to_client.try_emplace(request_id, session_id, req_id, true);
+  };
+  auto iter = client_to_server.find(req_id);
+  if (iter == std::end(client_to_server)) {
+    dispatch();
+  } else {
+    // XXX FIXME HANS ord status should be status of order !!!
+    reject(roq::fix::OrdStatus::REJECTED, roq::fix::CxlRejReason::DUPLICATE_CL_ORD_ID, "DUPLICATE_ORD_STATUS_REQ_ID"sv);
+  }
 }
 
 void Controller::operator()(Trace<codec::fix::OrderMassStatusRequest> const &event, uint64_t session_id) {
@@ -1058,6 +1221,7 @@ void Controller::operator()(Trace<codec::fix::OrderMassStatusRequest> const &eve
     auto request_id = shared_.create_request_id();
     auto execution_report = codec::fix::ExecutionReport{
         .order_id = request_id,  // required
+        .secondary_cl_ord_id = {},
         .cl_ord_id = {},
         .orig_cl_ord_id = {},
         .ord_status_req_id = {},
@@ -1115,7 +1279,42 @@ void Controller::operator()(Trace<codec::fix::OrderMassStatusRequest> const &eve
 }
 
 void Controller::operator()(Trace<codec::fix::OrderMassCancelRequest> const &event, uint64_t session_id) {
-  dispatch_to_server(event);
+  auto &req_id = event.value.cl_ord_id;
+  auto &mapping = subscriptions_.mass_cancel_cl_ord_id;
+  auto &client_to_server = mapping.client_to_server[session_id];
+  auto reject = [&](auto order_mass_reject_reason, std::string_view const &text) {
+    auto &order_mass_cancel_request = event.value;
+    auto order_mass_cancel_report = codec::fix::OrderMassCancelReport{
+        .cl_ord_id = order_mass_cancel_request.cl_ord_id,
+        .order_id = order_mass_cancel_request.cl_ord_id,                                 // required
+        .mass_cancel_request_type = order_mass_cancel_request.mass_cancel_request_type,  // required
+        .mass_cancel_response = roq::fix::MassCancelResponse::CANCEL_REQUEST_REJECTED,   // required
+        .mass_cancel_reject_reason = order_mass_reject_reason,
+        .total_affected_orders = {},
+        .symbol = order_mass_cancel_request.symbol,
+        .security_exchange = order_mass_cancel_request.security_exchange,
+        .side = order_mass_cancel_request.side,
+        .text = text,
+        .no_party_ids = order_mass_cancel_request.no_party_ids,
+    };
+    Trace event_2{event.trace_info, order_mass_cancel_report};
+    dispatch_to_client(event_2, session_id);
+  };
+  auto dispatch = [&]() {
+    auto request_id = shared_.create_request_id();
+    auto order_mass_cancel_report = event.value;
+    order_mass_cancel_report.cl_ord_id = request_id;
+    Trace event_2{event.trace_info, order_mass_cancel_report};
+    dispatch_to_server(event_2);
+    client_to_server.emplace(req_id, request_id);
+    mapping.server_to_client.try_emplace(request_id, session_id, req_id, false);
+  };
+  auto iter = client_to_server.find(req_id);
+  if (iter == std::end(client_to_server)) {
+    dispatch();
+  } else {
+    reject(roq::fix::MassCancelRejectReason::OTHER, "DUPLICATE_ORD_STATUS_REQ_ID"sv);
+  }
 }
 
 void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event, uint64_t session_id) {
@@ -1338,6 +1537,19 @@ void Controller::remove_req_id(auto &mapping, std::string_view const &req_id) {
       mapping.client_to_server.erase(iter_2);
   }
   mapping.server_to_client.erase(iter_1);
+}
+
+template <typename Callback>
+void Controller::clear_req_ids(auto &mapping, uint64_t session_id, Callback callback) {
+  auto iter = mapping.client_to_server.find(session_id);
+  if (iter == std::end(mapping.client_to_server))
+    return;
+  auto &tmp = (*iter).second;
+  for (auto &[_, req_id] : tmp) {
+    callback(req_id);
+    mapping.server_to_client.erase(req_id);
+  }
+  mapping.client_to_server.erase(iter);
 }
 
 // user
