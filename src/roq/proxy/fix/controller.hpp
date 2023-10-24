@@ -120,6 +120,11 @@ struct Controller final : public io::sys::Signal::Handler,
     clear_req_ids(mapping, session_id, []([[maybe_unused]] auto &req_id) {});
   }
 
+  void ensure_cl_ord_id(std::string_view const &cl_ord_id, std::string_view const &client_id, roq::fix::OrdStatus);
+  void remove_cl_ord_id(std::string_view const &cl_ord_id, std::string_view const &client_id);
+
+  std::string_view find_server_cl_ord_id(std::string_view const &cl_ord_id, std::string_view &client_id);
+
   void user_add(std::string_view const &username, uint64_t session_id);
   void user_remove(std::string_view const &username, bool ready);
   bool user_is_locked(std::string_view const &username) const;
@@ -144,9 +149,9 @@ struct Controller final : public io::sys::Signal::Handler,
       absl::flat_hash_map<uint64_t, std::string> client_to_server;
     } user;
     struct Mapping final {
-      // server_req_id => {session_id, client_req_id, keep_alive}
+      // req_id(server) => {session_id, req_id(client), keep_alive}
       absl::flat_hash_map<std::string, std::tuple<uint64_t, std::string, bool>> server_to_client;
-      // session_id => client_req_id => server_req_id
+      // session_id => req_id(client) => req_id(server)
       absl::flat_hash_map<uint64_t, absl::flat_hash_map<std::string, std::string>> client_to_server;
     };
     Mapping security_req_id;
@@ -159,6 +164,12 @@ struct Controller final : public io::sys::Signal::Handler,
     Mapping cl_ord_id;
     Mapping mass_cancel_cl_ord_id;
   } subscriptions_;
+  struct {
+    // cl_ord_id(server) => order status
+    absl::flat_hash_map<std::string, roq::fix::OrdStatus> state;
+    // client_id => cl_ord_id(client) => cl_ord_id(server)
+    absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::string>> lookup;
+  } cl_ord_id_;
   // WORK-AROUND
   uint32_t total_num_pos_reports_ = {};
 };

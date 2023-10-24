@@ -7,6 +7,8 @@
 
 #include "roq/oms/exceptions.hpp"
 
+#include "roq/fix/utils.hpp"
+
 #include "roq/logging.hpp"
 
 using namespace std::literals;
@@ -60,6 +62,11 @@ auto find_real_cl_ord_id(auto &cl_ord_id) -> std::string_view {
   auto pos = cl_ord_id.find(':');
   return pos == cl_ord_id.npos ? cl_ord_id : cl_ord_id.substr(pos + 1);
 }
+
+auto is_order_complete(auto ord_status) {
+  auto order_status = roq::fix::map(ord_status);
+  return roq::utils::is_order_complete(order_status);
+}
 }  // namespace
 
 // === IMPLEMENTATION ===
@@ -112,6 +119,7 @@ void Controller::operator()(Trace<server::Session::Ready> const &) {
 void Controller::operator()(Trace<server::Session::Disconnected> const &) {
   ready_ = false;
   client_manager_.get_all_sessions([&](auto &session) { session.force_disconnect(); });
+  // XXX FIXME clear cl_ord_id_ ???
 }
 
 void Controller::operator()(Trace<codec::fix::BusinessMessageReject> const &event) {
@@ -505,38 +513,65 @@ void Controller::operator()(Trace<codec::fix::OrderMassCancelReport> const &even
 }
 
 void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
-  auto has_ord_status_req_id = !std::empty(event.value.ord_status_req_id);
-  auto has_mass_status_req_id = !std::empty(event.value.mass_status_req_id);
+  auto execution_report = event.value;
+  auto cl_ord_id = execution_report.cl_ord_id;
+  auto orig_cl_ord_id = execution_report.orig_cl_ord_id;
+  execution_report.cl_ord_id = find_real_cl_ord_id(cl_ord_id);
+  execution_report.orig_cl_ord_id = find_real_cl_ord_id(orig_cl_ord_id);
+  auto has_ord_status_req_id = !std::empty(execution_report.ord_status_req_id);
+  auto has_mass_status_req_id = !std::empty(execution_report.mass_status_req_id);
   assert(!(has_ord_status_req_id && has_mass_status_req_id));  // can't have both
   if (has_ord_status_req_id) {
-    auto &req_id = event.value.ord_status_req_id;
+    assert(execution_report.last_rpt_requested);
+    auto &req_id = execution_report.ord_status_req_id;
     auto &mapping = subscriptions_.ord_status_req_id;
     auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
-      auto execution_report = event.value;
+      assert(std::empty(execution_report.orig_cl_ord_id));
       execution_report.ord_status_req_id = req_id;
       Trace event_2{event.trace_info, execution_report};
       dispatch_to_client(event_2, session_id);
     };
     if (find_req_id(mapping, req_id, dispatch)) {
-      assert(event.value.last_rpt_requested);
       remove_req_id(mapping, req_id);
     }
   } else if (has_mass_status_req_id) {
-    auto &req_id = event.value.mass_status_req_id;
+    auto &req_id = execution_report.mass_status_req_id;
     auto &mapping = subscriptions_.mass_status_req_id;
     auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
-      auto execution_report = event.value;
+      execution_report.cl_ord_id = find_real_cl_ord_id(execution_report.cl_ord_id);
+      assert(std::empty(execution_report.orig_cl_ord_id));
       execution_report.mass_status_req_id = req_id;
       Trace event_2{event.trace_info, execution_report};
       dispatch_to_client(event_2, session_id);
     };
     if (find_req_id(mapping, req_id, dispatch)) {
-      if (event.value.last_rpt_requested)
+      if (execution_report.last_rpt_requested)
         remove_req_id(mapping, req_id);
     }
   } else {
-    auto client_id = get_client_from_parties(event.value);
-    broadcast(event, client_id);
+    auto &req_id = cl_ord_id;
+    auto &mapping = subscriptions_.cl_ord_id;
+    remove_req_id(mapping, req_id);  // note! request, not routing
+    auto client_id = get_client_from_parties(execution_report);
+    if (execution_report.exec_type == roq::fix::ExecType::REJECTED) {
+      auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
+        assert(execution_report.cl_ord_id == req_id);
+        Trace event_2{event.trace_info, execution_report};
+        dispatch_to_client(event_2, session_id);
+      };
+      auto &req_id = cl_ord_id;
+      find_req_id(mapping, req_id, dispatch);
+    } else {
+      auto done = is_order_complete(execution_report.ord_status);
+      if (done) {
+        remove_cl_ord_id(cl_ord_id, client_id);
+      } else {
+        ensure_cl_ord_id(cl_ord_id, client_id, execution_report.ord_status);
+      }
+      if (!std::empty(orig_cl_ord_id))
+        remove_cl_ord_id(orig_cl_ord_id, client_id);
+      broadcast(event, client_id);
+    }
   }
 }
 
@@ -1123,7 +1158,13 @@ void Controller::operator()(Trace<codec::fix::NewOrderSingle> const &event, uint
   };
   auto iter = client_to_server.find(req_id);
   if (iter == std::end(client_to_server)) {
-    dispatch();
+    auto client_id = get_client_from_parties(event.value);
+    auto cl_ord_id = find_server_cl_ord_id(event.value.cl_ord_id, client_id);
+    if (std::empty(cl_ord_id)) {
+      dispatch();
+    } else {
+      reject(roq::fix::OrdRejReason::OTHER, "DUPLICATE_ORD_STATUS_REQ_ID"sv);
+    }
   } else {
     reject(roq::fix::OrdRejReason::OTHER, "DUPLICATE_ORD_STATUS_REQ_ID"sv);
   }
@@ -1150,23 +1191,32 @@ void Controller::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &
     Trace event_2{event.trace_info, order_cancel_reject};
     dispatch_to_client(event_2, session_id);
   };
-  auto dispatch = [&]() {
+  auto dispatch = [&](auto &orig_cl_ord_id) {
     auto request_id = shared_.create_request_id(event.value.cl_ord_id);
     auto order_cancel_replace_request = event.value;
     order_cancel_replace_request.cl_ord_id = request_id;
-    order_cancel_replace_request.orig_cl_ord_id = {};  // XXX FIXME HANS FIND
+    order_cancel_replace_request.orig_cl_ord_id = orig_cl_ord_id;
     Trace event_2{event.trace_info, order_cancel_replace_request};
     dispatch_to_server(event_2);
     // note! *after* request has been sent
     client_to_server.emplace(req_id, request_id);
     mapping.server_to_client.try_emplace(request_id, session_id, req_id, true);
   };
+  // XXX TODO also check by-strategy routing table
   auto iter = client_to_server.find(req_id);
   if (iter == std::end(client_to_server)) {
-    dispatch();
+    auto client_id = get_client_from_parties(event.value);
+    auto orig_cl_ord_id = find_server_cl_ord_id(event.value.orig_cl_ord_id, client_id);
+    if (!std::empty(orig_cl_ord_id)) {
+      dispatch(orig_cl_ord_id);
+    } else {
+      reject(roq::fix::OrdStatus::REJECTED, roq::fix::CxlRejReason::UNKNOWN_ORDER, "UNKNOWN_ORIG_CL_ORD_ID"sv);
+    }
   } else {
-    // XXX FIXME HANS ord status should be status of order !!!
-    reject(roq::fix::OrdStatus::REJECTED, roq::fix::CxlRejReason::DUPLICATE_CL_ORD_ID, "DUPLICATE_ORD_STATUS_REQ_ID"sv);
+    reject(
+        roq::fix::OrdStatus::REJECTED,  // XXX FIXME should be latest "known"
+        roq::fix::CxlRejReason::DUPLICATE_CL_ORD_ID,
+        "DUPLICATE_ORD_STATUS_REQ_ID"sv);
   }
 }
 
@@ -1191,11 +1241,11 @@ void Controller::operator()(Trace<codec::fix::OrderCancelRequest> const &event, 
     Trace event_2{event.trace_info, order_cancel_reject};
     dispatch_to_client(event_2, session_id);
   };
-  auto dispatch = [&]() {
+  auto dispatch = [&](auto &orig_cl_ord_id) {
     auto request_id = shared_.create_request_id(event.value.cl_ord_id);
     auto order_cancel_request = event.value;
     order_cancel_request.cl_ord_id = request_id;
-    order_cancel_request.orig_cl_ord_id = {};  // XXX FIXME HANS FIND
+    order_cancel_request.orig_cl_ord_id = orig_cl_ord_id;
     Trace event_2{event.trace_info, order_cancel_request};
     dispatch_to_server(event_2);
     // note! *after* request has been sent
@@ -1204,10 +1254,18 @@ void Controller::operator()(Trace<codec::fix::OrderCancelRequest> const &event, 
   };
   auto iter = client_to_server.find(req_id);
   if (iter == std::end(client_to_server)) {
-    dispatch();
+    auto client_id = get_client_from_parties(event.value);
+    auto orig_cl_ord_id = find_server_cl_ord_id(event.value.orig_cl_ord_id, client_id);
+    if (!std::empty(orig_cl_ord_id)) {
+      dispatch(orig_cl_ord_id);
+    } else {
+      reject(roq::fix::OrdStatus::REJECTED, roq::fix::CxlRejReason::UNKNOWN_ORDER, "UNKNOWN_ORIG_CL_ORD_ID"sv);
+    }
   } else {
-    // XXX FIXME HANS ord status should be status of order !!!
-    reject(roq::fix::OrdStatus::REJECTED, roq::fix::CxlRejReason::DUPLICATE_CL_ORD_ID, "DUPLICATE_ORD_STATUS_REQ_ID"sv);
+    reject(
+        roq::fix::OrdStatus::REJECTED,  // XXX FIXME should be latest "known"
+        roq::fix::CxlRejReason::DUPLICATE_CL_ORD_ID,
+        "DUPLICATE_ORD_STATUS_REQ_ID"sv);
   }
 }
 
@@ -1550,6 +1608,39 @@ void Controller::clear_req_ids(auto &mapping, uint64_t session_id, Callback call
     mapping.server_to_client.erase(req_id);
   }
   mapping.client_to_server.erase(iter);
+}
+
+// cl_ord_id
+
+void Controller::ensure_cl_ord_id(
+    std::string_view const &cl_ord_id, std::string_view const &client_id, roq::fix::OrdStatus ord_status) {
+  cl_ord_id_.state[cl_ord_id] = ord_status;
+  auto real_cl_ord_id = find_real_cl_ord_id(cl_ord_id);
+  cl_ord_id_.lookup[client_id][real_cl_ord_id] = cl_ord_id;
+}
+
+void Controller::remove_cl_ord_id(std::string_view const &cl_ord_id, std::string_view const &client_id) {
+  auto iter_1 = cl_ord_id_.state.find(cl_ord_id);
+  if (iter_1 != std::end(cl_ord_id_.state))
+    cl_ord_id_.state.erase(iter_1);
+  auto iter_2 = cl_ord_id_.lookup.find(client_id);
+  if (iter_2 != std::end(cl_ord_id_.lookup)) {
+    auto &tmp = (*iter_2).second;
+    auto real_cl_ord_id = find_real_cl_ord_id(cl_ord_id);
+    tmp.erase(real_cl_ord_id);
+    cl_ord_id_.lookup.erase(iter_2);
+  }
+}
+
+std::string_view Controller::find_server_cl_ord_id(std::string_view const &cl_ord_id, std::string_view &client_id) {
+  auto iter_1 = cl_ord_id_.lookup.find(client_id);
+  if (iter_1 == std::end(cl_ord_id_.lookup))
+    return {};
+  auto &tmp = (*iter_1).second;
+  auto iter_2 = tmp.find(cl_ord_id);
+  if (iter_2 == std::end(tmp))
+    return {};
+  return (*iter_2).second;
 }
 
 // user
