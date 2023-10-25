@@ -5,6 +5,8 @@
 #include "roq/event.hpp"
 #include "roq/timer.hpp"
 
+#include "roq/utils/update.hpp"
+
 #include "roq/oms/exceptions.hpp"
 
 #include "roq/fix/utils.hpp"
@@ -386,7 +388,7 @@ void Controller::operator()(Trace<codec::fix::SecurityList> const &event) {
     Trace event_2{event.trace_info, security_list};
     dispatch_to_client(event_2, session_id);
   };
-  auto &req_id = event.value.security_req_id;
+  auto req_id = event.value.security_req_id;
   auto &mapping = subscriptions_.security_req_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     if (remove)
@@ -406,7 +408,7 @@ void Controller::operator()(Trace<codec::fix::SecurityDefinition> const &event) 
     Trace event_2{event.trace_info, security_definition};
     dispatch_to_client(event_2, session_id);
   };
-  auto &req_id = event.value.security_req_id;
+  auto req_id = event.value.security_req_id;
   auto &mapping = subscriptions_.security_req_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     if (remove)
@@ -426,7 +428,7 @@ void Controller::operator()(Trace<codec::fix::SecurityStatus> const &event) {
     Trace event_2{event.trace_info, security_status};
     dispatch_to_client(event_2, session_id);
   };
-  auto &req_id = event.value.security_status_req_id;
+  auto req_id = event.value.security_status_req_id;
   auto &mapping = subscriptions_.security_status_req_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     if (remove)
@@ -443,7 +445,7 @@ void Controller::operator()(Trace<codec::fix::MarketDataRequestReject> const &ev
     Trace event_2{event.trace_info, market_data_request_reject};
     dispatch_to_client(event_2, session_id);
   };
-  auto &req_id = event.value.md_req_id;
+  auto req_id = event.value.md_req_id;
   auto &mapping = subscriptions_.md_req_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     remove_req_id(mapping, req_id);
@@ -461,7 +463,7 @@ void Controller::operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> con
     Trace event_2{event.trace_info, market_data_snapshot_full_refresh};
     dispatch_to_client(event_2, session_id);
   };
-  auto &req_id = event.value.md_req_id;
+  auto req_id = event.value.md_req_id;
   auto &mapping = subscriptions_.md_req_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     if (remove)
@@ -478,7 +480,7 @@ void Controller::operator()(Trace<codec::fix::MarketDataIncrementalRefresh> cons
     Trace event_2{event.trace_info, market_data_incremental_refresh};
     dispatch_to_client(event_2, session_id);
   };
-  auto &req_id = event.value.md_req_id;
+  auto req_id = event.value.md_req_id;
   auto &mapping = subscriptions_.md_req_id;
   find_req_id(mapping, req_id, dispatch);
   // note! delivery failure is valid (an unsubscribe request could already have removed md_req_id)
@@ -493,7 +495,7 @@ void Controller::operator()(Trace<codec::fix::OrderCancelReject> const &event) {
     Trace event_2{event.trace_info, order_cancel_reject};
     dispatch_to_client(event_2, session_id);
   };
-  auto &req_id = event.value.cl_ord_id;
+  auto req_id = event.value.cl_ord_id;
   auto &mapping = subscriptions_.cl_ord_id;
   find_req_id(mapping, req_id, dispatch);
   remove_req_id(mapping, req_id);
@@ -506,7 +508,7 @@ void Controller::operator()(Trace<codec::fix::OrderMassCancelReport> const &even
     Trace event_2{event.trace_info, order_mass_cancel_report};
     dispatch_to_client(event_2, session_id);
   };
-  auto &req_id = event.value.cl_ord_id;
+  auto req_id = event.value.cl_ord_id;
   auto &mapping = subscriptions_.mass_cancel_cl_ord_id;
   find_req_id(mapping, req_id, dispatch);
   remove_req_id(mapping, req_id);
@@ -523,7 +525,7 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
   assert(!(has_ord_status_req_id && has_mass_status_req_id));  // can't have both
   if (has_ord_status_req_id) {
     assert(execution_report.last_rpt_requested);
-    auto &req_id = execution_report.ord_status_req_id;
+    auto req_id = execution_report.ord_status_req_id;
     auto &mapping = subscriptions_.ord_status_req_id;
     auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
       assert(std::empty(execution_report.orig_cl_ord_id));
@@ -533,9 +535,11 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
     };
     if (find_req_id(mapping, req_id, dispatch)) {
       remove_req_id(mapping, req_id);
+    } else {
+      log::warn(R"(DEBUG: no ord_status_req_id="{}")"sv, req_id);
     }
   } else if (has_mass_status_req_id) {
-    auto &req_id = execution_report.mass_status_req_id;
+    auto req_id = execution_report.mass_status_req_id;
     auto &mapping = subscriptions_.mass_status_req_id;
     auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
       execution_report.cl_ord_id = find_real_cl_ord_id(execution_report.cl_ord_id);
@@ -545,21 +549,24 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
       dispatch_to_client(event_2, session_id);
     };
     if (find_req_id(mapping, req_id, dispatch)) {
-      if (execution_report.last_rpt_requested)
+      if (execution_report.last_rpt_requested) {
         remove_req_id(mapping, req_id);
+      }
+    } else {
+      log::warn(R"(DEBUG: no mass_status_req_id="{}")"sv, req_id);
     }
   } else {
-    auto &req_id = cl_ord_id;
+    auto req_id = cl_ord_id;
     auto &mapping = subscriptions_.cl_ord_id;
-    remove_req_id(mapping, req_id);  // note! request, not routing
+    remove_req_id_relaxed(mapping, req_id);  // note! request, not routing
     auto client_id = get_client_from_parties(execution_report);
+    assert(!std::empty(client_id));
     if (execution_report.exec_type == roq::fix::ExecType::REJECTED) {
       auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
         assert(execution_report.cl_ord_id == req_id);
         Trace event_2{event.trace_info, execution_report};
         dispatch_to_client(event_2, session_id);
       };
-      auto &req_id = cl_ord_id;
       find_req_id(mapping, req_id, dispatch);
     } else {
       auto done = is_order_complete(execution_report.ord_status);
@@ -570,7 +577,8 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
       }
       if (!std::empty(orig_cl_ord_id))
         remove_cl_ord_id(orig_cl_ord_id, client_id);
-      broadcast(event, client_id);
+      Trace event_2{event.trace_info, execution_report};
+      broadcast(event_2, client_id);
     }
   }
 }
@@ -593,7 +601,7 @@ void Controller::operator()(Trace<codec::fix::RequestForPositionsAck> const &eve
     Trace event_2{event.trace_info, position_report};
     dispatch_to_client(event_2, session_id);
   };
-  auto &req_id = event.value.pos_req_id;
+  auto req_id = event.value.pos_req_id;
   auto &mapping = subscriptions_.pos_req_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     if (remove)
@@ -621,7 +629,7 @@ void Controller::operator()(Trace<codec::fix::PositionReport> const &event) {
     Trace event_2{event.trace_info, position_report};
     dispatch_to_client(event_2, session_id);
   };
-  auto &req_id = event.value.pos_req_id;
+  auto req_id = event.value.pos_req_id;
   auto &mapping = subscriptions_.pos_req_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     if (remove)
@@ -640,7 +648,7 @@ void Controller::operator()(Trace<codec::fix::TradeCaptureReportRequestAck> cons
     Trace event_2{event.trace_info, trade_capture_report_request_ack};
     dispatch_to_client(event_2, session_id);
   };
-  auto &req_id = event.value.trade_request_id;
+  auto req_id = event.value.trade_request_id;
   auto &mapping = subscriptions_.trade_request_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     if (remove)
@@ -662,7 +670,7 @@ void Controller::operator()(Trace<codec::fix::TradeCaptureReport> const &event) 
     Trace event_2{event.trace_info, trade_capture_report};
     dispatch_to_client(event_2, session_id);
   };
-  auto &req_id = event.value.trade_request_id;
+  auto req_id = event.value.trade_request_id;
   auto &mapping = subscriptions_.trade_request_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     if (remove)
@@ -758,7 +766,7 @@ void Controller::operator()(Trace<codec::fix::UserRequest> const &event, uint64_
 }
 
 void Controller::operator()(Trace<codec::fix::SecurityListRequest> const &event, uint64_t session_id) {
-  auto &req_id = event.value.security_req_id;
+  auto req_id = event.value.security_req_id;
   assert(!std::empty(req_id));  // required
   auto &mapping = subscriptions_.security_req_id;
   auto reject = [&]() {
@@ -824,7 +832,7 @@ void Controller::operator()(Trace<codec::fix::SecurityListRequest> const &event,
 }
 
 void Controller::operator()(Trace<codec::fix::SecurityDefinitionRequest> const &event, uint64_t session_id) {
-  auto &req_id = event.value.security_req_id;
+  auto req_id = event.value.security_req_id;
   assert(!std::empty(req_id));  // required
   auto &mapping = subscriptions_.security_req_id;
   auto reject = [&]() {
@@ -895,7 +903,7 @@ void Controller::operator()(Trace<codec::fix::SecurityDefinitionRequest> const &
 }
 
 void Controller::operator()(Trace<codec::fix::SecurityStatusRequest> const &event, uint64_t session_id) {
-  auto &req_id = event.value.security_status_req_id;
+  auto req_id = event.value.security_status_req_id;
   assert(!std::empty(req_id));  // required
   auto &mapping = subscriptions_.security_status_req_id;
   auto reject = [&]() {
@@ -964,7 +972,7 @@ void Controller::operator()(Trace<codec::fix::SecurityStatusRequest> const &even
 }
 
 void Controller::operator()(Trace<codec::fix::MarketDataRequest> const &event, uint64_t session_id) {
-  auto &req_id = event.value.md_req_id;
+  auto req_id = event.value.md_req_id;
   assert(!std::empty(req_id));  // required
   auto &mapping = subscriptions_.md_req_id;
   auto reject = [&](auto md_req_rej_reason, auto const &text) {
@@ -1028,7 +1036,7 @@ void Controller::operator()(Trace<codec::fix::MarketDataRequest> const &event, u
 }
 
 void Controller::operator()(Trace<codec::fix::OrderStatusRequest> const &event, uint64_t session_id) {
-  auto &req_id = event.value.ord_status_req_id;
+  auto req_id = event.value.ord_status_req_id;
   auto &mapping = subscriptions_.ord_status_req_id;
   auto &client_to_server = mapping.client_to_server[session_id];
   auto reject = [&](auto ord_rej_reason, auto const &text) {
@@ -1099,7 +1107,7 @@ void Controller::operator()(Trace<codec::fix::OrderStatusRequest> const &event, 
 }
 
 void Controller::operator()(Trace<codec::fix::NewOrderSingle> const &event, uint64_t session_id) {
-  auto &req_id = event.value.cl_ord_id;
+  auto req_id = event.value.cl_ord_id;
   auto &mapping = subscriptions_.cl_ord_id;
   auto &client_to_server = mapping.client_to_server[session_id];
   auto reject = [&](auto ord_rej_reason, auto const &text) {
@@ -1171,7 +1179,7 @@ void Controller::operator()(Trace<codec::fix::NewOrderSingle> const &event, uint
 }
 
 void Controller::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &event, uint64_t session_id) {
-  auto &req_id = event.value.cl_ord_id;
+  auto req_id = event.value.cl_ord_id;
   auto &mapping = subscriptions_.cl_ord_id;
   auto &client_to_server = mapping.client_to_server[session_id];
   auto reject = [&](auto ord_status, auto cxl_rej_reason, auto const &text) {
@@ -1221,7 +1229,7 @@ void Controller::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &
 }
 
 void Controller::operator()(Trace<codec::fix::OrderCancelRequest> const &event, uint64_t session_id) {
-  auto &req_id = event.value.cl_ord_id;
+  auto req_id = event.value.cl_ord_id;
   auto &mapping = subscriptions_.cl_ord_id;
   auto &client_to_server = mapping.client_to_server[session_id];
   auto reject = [&](auto ord_status, auto cxl_rej_reason, auto const &text) {
@@ -1270,9 +1278,9 @@ void Controller::operator()(Trace<codec::fix::OrderCancelRequest> const &event, 
 }
 
 void Controller::operator()(Trace<codec::fix::OrderMassStatusRequest> const &event, uint64_t session_id) {
-  auto &req_id = event.value.mass_status_req_id;
+  auto req_id = event.value.mass_status_req_id;
   assert(!std::empty(req_id));  // required
-  auto &mapping = subscriptions_.ord_status_req_id;
+  auto &mapping = subscriptions_.mass_status_req_id;
   auto &client_to_server = mapping.client_to_server[session_id];
   auto reject = [&](auto ord_rej_reason, auto const &text) {
     auto &order_mass_status_request = event.value;
@@ -1337,7 +1345,7 @@ void Controller::operator()(Trace<codec::fix::OrderMassStatusRequest> const &eve
 }
 
 void Controller::operator()(Trace<codec::fix::OrderMassCancelRequest> const &event, uint64_t session_id) {
-  auto &req_id = event.value.cl_ord_id;
+  auto req_id = event.value.cl_ord_id;
   auto &mapping = subscriptions_.mass_cancel_cl_ord_id;
   auto &client_to_server = mapping.client_to_server[session_id];
   auto reject = [&](auto order_mass_reject_reason, std::string_view const &text) {
@@ -1376,7 +1384,7 @@ void Controller::operator()(Trace<codec::fix::OrderMassCancelRequest> const &eve
 }
 
 void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event, uint64_t session_id) {
-  auto &req_id = event.value.pos_req_id;
+  auto req_id = event.value.pos_req_id;
   assert(!std::empty(req_id));  // required
   auto &mapping = subscriptions_.pos_req_id;
   auto reject = [&](auto const &text) {
@@ -1450,7 +1458,7 @@ void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event,
 }
 
 void Controller::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &event, uint64_t session_id) {
-  auto &req_id = event.value.trade_request_id;
+  auto req_id = event.value.trade_request_id;
   assert(!std::empty(req_id));  // required
   auto &mapping = subscriptions_.trade_request_id;
   auto reject = [&]() {
@@ -1597,6 +1605,20 @@ void Controller::remove_req_id(auto &mapping, std::string_view const &req_id) {
   mapping.server_to_client.erase(iter_1);
 }
 
+void Controller::remove_req_id_relaxed(auto &mapping, std::string_view const &req_id) {
+  auto iter_1 = mapping.server_to_client.find(req_id);
+  if (iter_1 == std::end(mapping.server_to_client))
+    return;
+  auto &[session_id, client_req_id, keep_alive] = (*iter_1).second;
+  auto iter_2 = mapping.client_to_server.find(session_id);
+  if (iter_2 != std::end(mapping.client_to_server)) {
+    (*iter_2).second.erase(client_req_id);
+    if (std::empty((*iter_2).second))
+      mapping.client_to_server.erase(iter_2);
+  }
+  mapping.server_to_client.erase(iter_1);
+}
+
 template <typename Callback>
 void Controller::clear_req_ids(auto &mapping, uint64_t session_id, Callback callback) {
   auto iter = mapping.client_to_server.find(session_id);
@@ -1614,21 +1636,47 @@ void Controller::clear_req_ids(auto &mapping, uint64_t session_id, Callback call
 
 void Controller::ensure_cl_ord_id(
     std::string_view const &cl_ord_id, std::string_view const &client_id, roq::fix::OrdStatus ord_status) {
-  cl_ord_id_.state[cl_ord_id] = ord_status;
+  auto iter_1 = cl_ord_id_.state.find(cl_ord_id);
+  if (iter_1 == std::end(cl_ord_id_.state)) {
+    log::warn(R"(DEBUG: ADD cl_ord_id(server)="{}" ==> {})"sv, cl_ord_id, ord_status);
+    auto res = cl_ord_id_.state.emplace(cl_ord_id, ord_status);
+    assert(res.second);
+  } else {
+    if (utils::update((*iter_1).second, ord_status))
+      log::warn(R"(DEBUG: UPDATE cl_ord_id(server)="{}" ==> {})"sv, cl_ord_id, ord_status);
+  }
   auto real_cl_ord_id = find_real_cl_ord_id(cl_ord_id);
-  cl_ord_id_.lookup[client_id][real_cl_ord_id] = cl_ord_id;
+  assert(!std::empty(real_cl_ord_id));
+  auto &tmp = cl_ord_id_.lookup[client_id];
+  auto iter_2 = tmp.find(real_cl_ord_id);
+  if (iter_2 == std::end(tmp)) {
+    log::warn(
+        R"(DEBUG: ADD {{client_id="{}", cl_ord_id(client)="{}"}} ==> cl_ord_id(server)="{}")"sv,
+        client_id,
+        real_cl_ord_id,
+        cl_ord_id);
+    auto res = tmp.emplace(real_cl_ord_id, cl_ord_id);
+    assert(res.second);
+  } else {
+    assert((*iter_2).second == cl_ord_id);
+  }
 }
 
 void Controller::remove_cl_ord_id(std::string_view const &cl_ord_id, std::string_view const &client_id) {
   auto iter_1 = cl_ord_id_.state.find(cl_ord_id);
-  if (iter_1 != std::end(cl_ord_id_.state))
+  if (iter_1 != std::end(cl_ord_id_.state)) {
+    log::warn(R"(DEBUG: REMOVE cl_ord_id(server)="{}")"sv, cl_ord_id);
     cl_ord_id_.state.erase(iter_1);
+  }
   auto iter_2 = cl_ord_id_.lookup.find(client_id);
   if (iter_2 != std::end(cl_ord_id_.lookup)) {
     auto &tmp = (*iter_2).second;
     auto real_cl_ord_id = find_real_cl_ord_id(cl_ord_id);
+    assert(!std::empty(real_cl_ord_id));
+    log::warn(R"(DEBUG: REMOVE {{client_id="{}", cl_ord_id(client)="{}"}})"sv, client_id, real_cl_ord_id);
     tmp.erase(real_cl_ord_id);
-    cl_ord_id_.lookup.erase(iter_2);
+    if (std::empty(tmp))
+      cl_ord_id_.lookup.erase(iter_2);
   }
 }
 

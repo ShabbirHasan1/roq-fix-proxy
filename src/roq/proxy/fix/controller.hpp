@@ -112,6 +112,7 @@ struct Controller final : public io::sys::Signal::Handler,
   bool find_req_id(auto &mapping, std::string_view const &req_id, Callback callback);
 
   void remove_req_id(auto &mapping, std::string_view const &req_id);
+  void remove_req_id_relaxed(auto &mapping, std::string_view const &req_id);
 
   template <typename Callback>
   void clear_req_ids(auto &mapping, uint64_t session_id, Callback);
