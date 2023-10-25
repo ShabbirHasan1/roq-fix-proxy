@@ -69,6 +69,13 @@ auto is_order_complete(auto ord_status) {
   auto order_status = roq::fix::map(ord_status);
   return roq::utils::is_order_complete(order_status);
 }
+
+auto get_subscription_request_type(auto &event) {
+  auto result = event.value.subscription_request_type;
+  if (result == roq::fix::SubscriptionRequestType::UNDEFINED)
+    result = roq::fix::SubscriptionRequestType::SNAPSHOT;
+  return result;
+}
 }  // namespace
 
 // === IMPLEMENTATION ===
@@ -616,7 +623,7 @@ void Controller::operator()(Trace<codec::fix::PositionReport> const &event) {
     --total_num_pos_reports_;
   if (!total_num_pos_reports_)
     log::warn("... last position report!"sv);
-  auto remove = true;
+  auto remove = false;
   auto dispatch = [&](auto session_id, auto &req_id, auto keep_alive) {
     auto failure = event.value.pos_req_result != roq::fix::PosReqResult::VALID;
     if (failure) {
@@ -783,6 +790,7 @@ void Controller::operator()(Trace<codec::fix::SecurityListRequest> const &event,
   auto &client_to_server = mapping.client_to_server[session_id];
   auto iter = client_to_server.find(req_id);
   auto exists = iter != std::end(client_to_server);
+  auto subscription_request_type = get_subscription_request_type(event);
   auto dispatch = [&](auto keep_alive) {
     auto request_id = shared_.create_request_id();
     auto security_list_request = event.value;
@@ -791,17 +799,17 @@ void Controller::operator()(Trace<codec::fix::SecurityListRequest> const &event,
     dispatch_to_server(event_2);
     // note! *after* request has been sent
     if (exists) {
-      assert(event.value.subscription_request_type == roq::fix::SubscriptionRequestType::UNSUBSCRIBE);
+      assert(subscription_request_type == roq::fix::SubscriptionRequestType::UNSUBSCRIBE);
       remove_req_id(mapping, request_id);  // note! protocol doesn't have an ack for unsubscribe
     } else {
       assert(
-          event.value.subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT ||
-          event.value.subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES);
+          subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT ||
+          subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES);
       client_to_server.emplace(req_id, request_id);
       mapping.server_to_client.try_emplace(request_id, session_id, req_id, keep_alive);
     }
   };
-  switch (event.value.subscription_request_type) {
+  switch (subscription_request_type) {
     using enum roq::fix::SubscriptionRequestType;
     case UNDEFINED:
     case UNKNOWN:
@@ -854,6 +862,7 @@ void Controller::operator()(Trace<codec::fix::SecurityDefinitionRequest> const &
   auto &client_to_server = mapping.client_to_server[session_id];
   auto iter = client_to_server.find(req_id);
   auto exists = iter != std::end(client_to_server);
+  auto subscription_request_type = get_subscription_request_type(event);
   auto dispatch = [&](auto keep_alive) {
     auto request_id = shared_.create_request_id();
     auto security_definition_request = event.value;
@@ -862,17 +871,17 @@ void Controller::operator()(Trace<codec::fix::SecurityDefinitionRequest> const &
     dispatch_to_server(event_2);
     // note! *after* request has been sent
     if (exists) {
-      assert(event.value.subscription_request_type == roq::fix::SubscriptionRequestType::UNSUBSCRIBE);
+      assert(subscription_request_type == roq::fix::SubscriptionRequestType::UNSUBSCRIBE);
       remove_req_id(mapping, request_id);  // note! protocol doesn't have an ack for unsubscribe
     } else {
       assert(
-          event.value.subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT ||
-          event.value.subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES);
+          subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT ||
+          subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES);
       client_to_server.emplace(req_id, request_id);
       mapping.server_to_client.try_emplace(request_id, session_id, req_id, keep_alive);
     }
   };
-  switch (event.value.subscription_request_type) {
+  switch (subscription_request_type) {
     using enum roq::fix::SubscriptionRequestType;
     case UNDEFINED:
     case UNKNOWN:
@@ -923,6 +932,7 @@ void Controller::operator()(Trace<codec::fix::SecurityStatusRequest> const &even
   auto &client_to_server = mapping.client_to_server[session_id];
   auto iter = client_to_server.find(req_id);
   auto exists = iter != std::end(client_to_server);
+  auto subscription_request_type = get_subscription_request_type(event);
   auto dispatch = [&](auto keep_alive) {
     auto request_id = shared_.create_request_id();
     auto security_definition_request = event.value;
@@ -931,17 +941,17 @@ void Controller::operator()(Trace<codec::fix::SecurityStatusRequest> const &even
     dispatch_to_server(event_2);
     // note! *after* request has been sent
     if (exists) {
-      assert(event.value.subscription_request_type == roq::fix::SubscriptionRequestType::UNSUBSCRIBE);
+      assert(subscription_request_type == roq::fix::SubscriptionRequestType::UNSUBSCRIBE);
       remove_req_id(mapping, request_id);  // note! protocol doesn't have an ack for unsubscribe
     } else {
       assert(
-          event.value.subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT ||
-          event.value.subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES);
+          subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT ||
+          subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES);
       client_to_server.emplace(req_id, request_id);
       mapping.server_to_client.try_emplace(request_id, session_id, req_id, keep_alive);
     }
   };
-  switch (event.value.subscription_request_type) {
+  switch (subscription_request_type) {
     using enum roq::fix::SubscriptionRequestType;
     case UNDEFINED:
     case UNKNOWN:
@@ -1409,6 +1419,7 @@ void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event,
   auto &client_to_server = mapping.client_to_server[session_id];
   auto iter = client_to_server.find(req_id);
   auto exists = iter != std::end(client_to_server);
+  auto subscription_request_type = get_subscription_request_type(event);
   auto dispatch = [&](auto keep_alive) {
     auto request_id = shared_.create_request_id();
     auto request_for_positions = event.value;
@@ -1417,17 +1428,17 @@ void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event,
     dispatch_to_server(event_2);
     // note! *after* request has been sent
     if (exists) {
-      assert(event.value.subscription_request_type == roq::fix::SubscriptionRequestType::UNSUBSCRIBE);
+      assert(subscription_request_type == roq::fix::SubscriptionRequestType::UNSUBSCRIBE);
       remove_req_id(mapping, request_id);  // note! protocol doesn't have an ack for unsubscribe
     } else {
       assert(
-          event.value.subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT ||
-          event.value.subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES);
+          subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT ||
+          subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES);
       client_to_server.emplace(req_id, request_id);
       mapping.server_to_client.try_emplace(request_id, session_id, req_id, keep_alive);
     }
   };
-  switch (event.value.subscription_request_type) {
+  switch (subscription_request_type) {
     using enum roq::fix::SubscriptionRequestType;
     case UNDEFINED:
     case UNKNOWN:
@@ -1479,6 +1490,7 @@ void Controller::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &
   auto &client_to_server = mapping.client_to_server[session_id];
   auto iter = client_to_server.find(req_id);
   auto exists = iter != std::end(client_to_server);
+  auto subscription_request_type = get_subscription_request_type(event);
   auto dispatch = [&](auto keep_alive) {
     auto request_id = shared_.create_request_id();
     auto trade_capture_report_request = event.value;
@@ -1487,17 +1499,17 @@ void Controller::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &
     dispatch_to_server(event_2);
     // note! *after* request has been sent
     if (exists) {
-      assert(event.value.subscription_request_type == roq::fix::SubscriptionRequestType::UNSUBSCRIBE);
+      assert(subscription_request_type == roq::fix::SubscriptionRequestType::UNSUBSCRIBE);
       remove_req_id(mapping, request_id);  // note! protocol doesn't have an ack for unsubscribe
     } else {
       assert(
-          event.value.subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT ||
-          event.value.subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES);
+          subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT ||
+          subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES);
       client_to_server.emplace(req_id, request_id);
       mapping.server_to_client.try_emplace(request_id, session_id, req_id, keep_alive);
     }
   };
-  switch (event.value.subscription_request_type) {
+  switch (subscription_request_type) {
     using enum roq::fix::SubscriptionRequestType;
     case UNDEFINED:
     case UNKNOWN:
@@ -1598,10 +1610,12 @@ void Controller::remove_req_id(auto &mapping, std::string_view const &req_id) {
   auto &[session_id, client_req_id, keep_alive] = (*iter_1).second;
   auto iter_2 = mapping.client_to_server.find(session_id);
   if (iter_2 != std::end(mapping.client_to_server)) {
+    log::warn(R"(DEBUG: REMOVE req_id(client)="{}")"sv, client_req_id);
     (*iter_2).second.erase(client_req_id);
     if (std::empty((*iter_2).second))
       mapping.client_to_server.erase(iter_2);
   }
+  log::warn(R"(DEBUG: REMOVE req_id(server)="{}")"sv, req_id);
   mapping.server_to_client.erase(iter_1);
 }
 
