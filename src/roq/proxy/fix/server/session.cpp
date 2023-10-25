@@ -2,6 +2,8 @@
 
 #include "roq/proxy/fix/server/session.hpp"
 
+#include <nameof.hpp>
+
 #include "roq/logging.hpp"
 
 #include "roq/oms/exceptions.hpp"
@@ -534,6 +536,7 @@ void Session::send(T const &value) {
 
 template <typename T>
 void Session::send_helper(T const &value) {
+  log::info<2>("send (=> server): {}={}"sv, nameof::nameof_short_type<T>(), value);
   auto sending_time = clock::get_realtime();
   auto header = roq::fix::Header{
       .version = FIX_VERSION,

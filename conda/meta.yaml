@@ -30,6 +30,7 @@ requirements:
     - roq-flags
     - roq-io
     - roq-oss-catch2  # [osx]
+    - roq-oss-nameof
     - roq-oss-tomlplusplus
     - roq-utils
     - roq-web

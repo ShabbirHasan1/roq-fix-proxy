@@ -578,8 +578,7 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
     } else {
       auto done = is_order_complete(execution_report.ord_status);
       if (done) {
-        if (!shared_.settings.test.disable_remove_cl_ord_id)
-          remove_cl_ord_id(cl_ord_id, client_id);
+        remove_cl_ord_id(cl_ord_id, client_id);
       } else {
         ensure_cl_ord_id(cl_ord_id, client_id, execution_report.ord_status);
       }
@@ -1678,6 +1677,8 @@ void Controller::ensure_cl_ord_id(
 }
 
 void Controller::remove_cl_ord_id(std::string_view const &cl_ord_id, std::string_view const &client_id) {
+  if (shared_.settings.test.disable_remove_cl_ord_id)
+    return;
   auto iter_1 = cl_ord_id_.state.find(cl_ord_id);
   if (iter_1 != std::end(cl_ord_id_.state)) {
     log::warn(R"(DEBUG: REMOVE cl_ord_id(server)="{}")"sv, cl_ord_id);

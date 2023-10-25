@@ -2,6 +2,8 @@
 
 #include "roq/proxy/fix/client/session.hpp"
 
+#include <nameof.hpp>
+
 #include "roq/logging.hpp"
 
 #include "roq/utils/chrono.hpp"  // hh_mm_ss
@@ -377,7 +379,7 @@ void Session::send(T const &event) {
 
 template <std::size_t level, typename T>
 void Session::send(T const &event, std::chrono::nanoseconds sending_time) {
-  log::info<level>("sending: event={}"sv, event);
+  log::info<level>("send (=> client): {}={}"sv, nameof::nameof_short_type<T>(), event);
   assert(!std::empty(comp_id_));
   auto header = roq::fix::Header{
       .version = FIX_VERSION,
