@@ -578,7 +578,8 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
     } else {
       auto done = is_order_complete(execution_report.ord_status);
       if (done) {
-        remove_cl_ord_id(cl_ord_id, client_id);
+        if (!shared_.settings.test.disable_remove_cl_ord_id)
+          remove_cl_ord_id(cl_ord_id, client_id);
       } else {
         ensure_cl_ord_id(cl_ord_id, client_id, execution_report.ord_status);
       }

@@ -30,6 +30,7 @@ Settings Settings::create(args::Parser const &) {
       .test{
           .enable_market_data = flags.enable_market_data,
           .enable_order_mass_cancel = flags.enable_order_mass_cancel,
+          .disable_remove_cl_ord_id = flags.disable_remove_cl_ord_id,
       },
   };
 }

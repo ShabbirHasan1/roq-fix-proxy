@@ -31,6 +31,12 @@
       "type": "bool",
       "default": false,
       "description": "enable order mass cancel?"
+    },
+    {
+      "name": "disable_remove_cl_ord_id",
+      "type": "bool",
+      "default": false,
+      "description": "disable removal of cl_ord_id when order reaches final state"
     }
   ]
 }
