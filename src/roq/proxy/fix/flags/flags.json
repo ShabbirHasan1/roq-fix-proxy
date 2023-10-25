@@ -21,12 +21,6 @@
       "description": "service listen address (CURRENTLY UNUSED)"
     },
     {
-      "name": "enable_market_data",
-      "type": "bool",
-      "default": false,
-      "description": "enable market data auto-subscription?"
-    },
-    {
       "name": "enable_order_mass_cancel",
       "type": "bool",
       "default": false,

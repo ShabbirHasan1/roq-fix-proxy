@@ -62,7 +62,7 @@ Session::Session(
       connection_factory_{create_connection_factory(settings, context, uri)},
       connection_manager_{create_connection_manager(*this, settings, *connection_factory_)},
       decode_buffer_(settings.server.decode_buffer_size), decode_buffer_2_(settings.server.decode_buffer_size),
-      encode_buffer_(settings.server.encode_buffer_size), enable_market_data_{settings.test.enable_market_data} {
+      encode_buffer_(settings.server.encode_buffer_size) {
 }
 
 void Session::operator()(Event<Start> const &) {
@@ -417,9 +417,6 @@ void Session::operator()(Trace<codec::fix::SecurityList> const &event, roq::fix:
       for (auto &item : security_list.no_related_sym) {
         if (shared_.include(item.symbol)) {
           exchange_symbols_[item.security_exchange].emplace(item.symbol);
-          // XXX FIXME send_security_definition_request(item.security_exchange, item.symbol);
-          if (enable_market_data_)  // XXX FIXME TEST
-            send_market_data_request(item.security_exchange, item.symbol);
         }
       }
       (*this)(State::READY);

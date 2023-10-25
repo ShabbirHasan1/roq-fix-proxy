@@ -30,7 +30,6 @@ struct Settings final {
   flags::Client client;
 
   struct {
-    bool enable_market_data = {};
     bool enable_order_mass_cancel = {};
     bool disable_remove_cl_ord_id = {};
   } test;
