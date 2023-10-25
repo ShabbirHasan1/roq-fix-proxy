@@ -1120,6 +1120,7 @@ void Controller::operator()(Trace<codec::fix::NewOrderSingle> const &event, uint
   auto req_id = event.value.cl_ord_id;
   auto &mapping = subscriptions_.cl_ord_id;
   auto &client_to_server = mapping.client_to_server[session_id];
+  auto client_id = get_client_from_parties(event.value);
   auto reject = [&](auto ord_rej_reason, auto const &text) {
     auto &new_order_single = event.value;
     auto request_id = shared_.create_request_id();
@@ -1165,7 +1166,7 @@ void Controller::operator()(Trace<codec::fix::NewOrderSingle> const &event, uint
     dispatch_to_client(event_2, session_id);
   };
   auto dispatch = [&]() {
-    auto request_id = shared_.create_request_id(event.value.cl_ord_id);
+    auto request_id = shared_.create_request_id(client_id, event.value.cl_ord_id);
     auto new_order_single = event.value;
     new_order_single.cl_ord_id = request_id;
     Trace event_2{event.trace_info, new_order_single};
@@ -1176,7 +1177,6 @@ void Controller::operator()(Trace<codec::fix::NewOrderSingle> const &event, uint
   };
   auto iter = client_to_server.find(req_id);
   if (iter == std::end(client_to_server)) {
-    auto client_id = get_client_from_parties(event.value);
     auto cl_ord_id = find_server_cl_ord_id(event.value.cl_ord_id, client_id);
     if (std::empty(cl_ord_id)) {
       dispatch();
@@ -1192,6 +1192,7 @@ void Controller::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &
   auto req_id = event.value.cl_ord_id;
   auto &mapping = subscriptions_.cl_ord_id;
   auto &client_to_server = mapping.client_to_server[session_id];
+  auto client_id = get_client_from_parties(event.value);
   auto reject = [&](auto ord_status, auto cxl_rej_reason, auto const &text) {
     auto &order_cancel_replace_request = event.value;
     auto order_cancel_reject = codec::fix::OrderCancelReject{
@@ -1210,7 +1211,7 @@ void Controller::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &
     dispatch_to_client(event_2, session_id);
   };
   auto dispatch = [&](auto &orig_cl_ord_id) {
-    auto request_id = shared_.create_request_id(event.value.cl_ord_id);
+    auto request_id = shared_.create_request_id(client_id, event.value.cl_ord_id);
     auto order_cancel_replace_request = event.value;
     order_cancel_replace_request.cl_ord_id = request_id;
     order_cancel_replace_request.orig_cl_ord_id = orig_cl_ord_id;
@@ -1223,7 +1224,6 @@ void Controller::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &
   // XXX TODO also check by-strategy routing table
   auto iter = client_to_server.find(req_id);
   if (iter == std::end(client_to_server)) {
-    auto client_id = get_client_from_parties(event.value);
     auto orig_cl_ord_id = find_server_cl_ord_id(event.value.orig_cl_ord_id, client_id);
     if (!std::empty(orig_cl_ord_id)) {
       dispatch(orig_cl_ord_id);
@@ -1242,6 +1242,7 @@ void Controller::operator()(Trace<codec::fix::OrderCancelRequest> const &event, 
   auto req_id = event.value.cl_ord_id;
   auto &mapping = subscriptions_.cl_ord_id;
   auto &client_to_server = mapping.client_to_server[session_id];
+  auto client_id = get_client_from_parties(event.value);
   auto reject = [&](auto ord_status, auto cxl_rej_reason, auto const &text) {
     auto &order_cancel_request = event.value;
     auto order_cancel_reject = codec::fix::OrderCancelReject{
@@ -1260,7 +1261,7 @@ void Controller::operator()(Trace<codec::fix::OrderCancelRequest> const &event, 
     dispatch_to_client(event_2, session_id);
   };
   auto dispatch = [&](auto &orig_cl_ord_id) {
-    auto request_id = shared_.create_request_id(event.value.cl_ord_id);
+    auto request_id = shared_.create_request_id(client_id, event.value.cl_ord_id);
     auto order_cancel_request = event.value;
     order_cancel_request.cl_ord_id = request_id;
     order_cancel_request.orig_cl_ord_id = orig_cl_ord_id;
@@ -1272,7 +1273,6 @@ void Controller::operator()(Trace<codec::fix::OrderCancelRequest> const &event, 
   };
   auto iter = client_to_server.find(req_id);
   if (iter == std::end(client_to_server)) {
-    auto client_id = get_client_from_parties(event.value);
     auto orig_cl_ord_id = find_server_cl_ord_id(event.value.orig_cl_ord_id, client_id);
     if (!std::empty(orig_cl_ord_id)) {
       dispatch(orig_cl_ord_id);

@@ -116,8 +116,8 @@ std::string Shared::create_request_id() {
   return fmt::format("proxy-{}"sv, ++next_request_id_);
 }
 
-std::string Shared::create_request_id(std::string_view const &postfix) {
-  return fmt::format("proxy-{}:{}"sv, ++next_request_id_, postfix);
+std::string Shared::create_request_id(std::string_view const &client_id, std::string_view const &cl_ord_id) {
+  return fmt::format("proxy-{}:{}"sv, client_id, cl_ord_id);
 }
 
 }  // namespace fix
