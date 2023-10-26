@@ -100,9 +100,6 @@ struct Controller final : public io::sys::Signal::Handler,
   void dispatch_to_server(Trace<T> const &);
 
   template <typename T>
-  void dispatch_to_client(Trace<T> const &, std::string_view const &username);
-
-  template <typename T>
   bool dispatch_to_client(Trace<T> const &, uint64_t session_id);
 
   template <typename T>

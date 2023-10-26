@@ -23,7 +23,21 @@ namespace fix {
 
 namespace {
 auto const TIMER_FREQUENCY = 100ms;
-}
+
+auto const ORDER_ID_NONE = "NONE"sv;
+
+auto const ERROR_VALIDATION = "VALIDATION"sv;
+auto const ERROR_DUPLICATE_CL_ORD_ID = "DUPLICATE_CL_ORD_ID"sv;
+auto const ERROR_UNKNOWN_ORIG_CL_ORD_ID = "UNKNOWN_ORIG_CL_ORD_ID"sv;
+auto const ERROR_DUPLICATE_ORD_STATUS_REQ_ID = "DUPLICATE_ORD_STATUS_REQ_ID"sv;
+auto const ERROR_DUPLICATE_MASS_STATUS_REQ_ID = "DUPLICATE_MASS_STATUS_REQ_ID"sv;
+auto const ERROR_UNKNOWN_SUBSCRIPTION_REQUEST_TYPE = "UNKNOWN_SUBSCRIPTION_REQUEST_TYPE"sv;
+auto const ERROR_UNSUPPORTED_SUBSCRIPTION_REQUEST_TYPE = "UNSUPPORTED_SUBSCRIPTION_REQUEST_TYPE"sv;
+auto const ERROR_DUPLICATE_MD_REQ_ID = "DUPLICATE_MD_REQ_ID"sv;
+auto const ERROR_UNKNOWN_MD_REQ_ID = "UNKNOWN_MD_REQ_ID"sv;
+auto const ERROR_DUPLICATED_POS_REQ_ID = "DUPLICATED_POS_REQ_ID"sv;
+auto const ERROR_UNKNOWN_POS_REQ_ID = "UNKNOWN_POS_REQ_ID"sv;
+}  // namespace
 
 // === HELPERS ===
 
@@ -33,7 +47,6 @@ auto create_server_session(auto &handler, auto &settings, auto &context, auto &s
     log::fatal("Unexpected: only supporting a single upstream fix-bridge"sv);
   auto &connection = connections[0];
   auto uri = io::web::URI{connection};
-  log::debug("{}"sv, uri);
   return server::Session(handler, settings, context, shared, uri);
 }
 
@@ -773,9 +786,8 @@ void Controller::operator()(Trace<codec::fix::UserRequest> const &event, uint64_
 }
 
 void Controller::operator()(Trace<codec::fix::SecurityListRequest> const &event, uint64_t session_id) {
-  auto req_id = event.value.security_req_id;
-  assert(!std::empty(req_id));  // required
-  auto &mapping = subscriptions_.security_req_id;
+  auto &security_list_request = event.value;
+  auto req_id = security_list_request.security_req_id;
   auto reject = [&]() {
     auto request_id = shared_.create_request_id();
     auto security_list = roq::codec::fix::SecurityList{
@@ -787,15 +799,20 @@ void Controller::operator()(Trace<codec::fix::SecurityListRequest> const &event,
     Trace event_2{event.trace_info, security_list};
     dispatch_to_client(event_2, session_id);
   };
+  if (!security_list_request.is_valid()) {
+    reject();
+    return;
+  }
+  auto &mapping = subscriptions_.security_req_id;
   auto &client_to_server = mapping.client_to_server[session_id];
   auto iter = client_to_server.find(req_id);
   auto exists = iter != std::end(client_to_server);
   auto subscription_request_type = get_subscription_request_type(event);
   auto dispatch = [&](auto keep_alive) {
     auto request_id = shared_.create_request_id();
-    auto security_list_request = event.value;
-    security_list_request.security_req_id = request_id;
-    Trace event_2{event.trace_info, security_list_request};
+    auto security_list_request_2 = security_list_request;
+    security_list_request_2.security_req_id = request_id;
+    Trace event_2{event.trace_info, security_list_request_2};
     dispatch_to_server(event_2);
     // note! *after* request has been sent
     if (exists) {
@@ -840,11 +857,9 @@ void Controller::operator()(Trace<codec::fix::SecurityListRequest> const &event,
 }
 
 void Controller::operator()(Trace<codec::fix::SecurityDefinitionRequest> const &event, uint64_t session_id) {
-  auto req_id = event.value.security_req_id;
-  assert(!std::empty(req_id));  // required
-  auto &mapping = subscriptions_.security_req_id;
+  auto &security_definition_request = event.value;
+  auto req_id = security_definition_request.security_req_id;
   auto reject = [&]() {
-    auto &security_definition_request = event.value;
     auto request_id = shared_.create_request_id();
     auto security_definition = codec::fix::SecurityDefinition{
         .security_req_id = security_definition_request.security_req_id,
@@ -859,15 +874,20 @@ void Controller::operator()(Trace<codec::fix::SecurityDefinitionRequest> const &
     Trace event_2{event.trace_info, security_definition};
     dispatch_to_client(event_2, session_id);
   };
+  if (!security_definition_request.is_valid()) {
+    reject();
+    return;
+  }
+  auto &mapping = subscriptions_.security_req_id;
   auto &client_to_server = mapping.client_to_server[session_id];
   auto iter = client_to_server.find(req_id);
   auto exists = iter != std::end(client_to_server);
   auto subscription_request_type = get_subscription_request_type(event);
   auto dispatch = [&](auto keep_alive) {
     auto request_id = shared_.create_request_id();
-    auto security_definition_request = event.value;
-    security_definition_request.security_req_id = request_id;
-    Trace event_2{event.trace_info, security_definition_request};
+    auto security_definition_request_2 = security_definition_request;
+    security_definition_request_2.security_req_id = request_id;
+    Trace event_2{event.trace_info, security_definition_request_2};
     dispatch_to_server(event_2);
     // note! *after* request has been sent
     if (exists) {
@@ -912,11 +932,9 @@ void Controller::operator()(Trace<codec::fix::SecurityDefinitionRequest> const &
 }
 
 void Controller::operator()(Trace<codec::fix::SecurityStatusRequest> const &event, uint64_t session_id) {
-  auto req_id = event.value.security_status_req_id;
-  assert(!std::empty(req_id));  // required
-  auto &mapping = subscriptions_.security_status_req_id;
+  auto &security_status_request = event.value;
+  auto req_id = security_status_request.security_status_req_id;
   auto reject = [&]() {
-    auto &security_status_request = event.value;
     // note! protocol doesn't have a proper solution for reject
     auto security_status = codec::fix::SecurityStatus{
         .security_status_req_id = security_status_request.security_status_req_id,
@@ -929,15 +947,20 @@ void Controller::operator()(Trace<codec::fix::SecurityStatusRequest> const &even
     Trace event_2{event.trace_info, security_status};
     dispatch_to_client(event_2, session_id);
   };
+  if (!security_status_request.is_valid()) {
+    reject();
+    return;
+  }
+  auto &mapping = subscriptions_.security_status_req_id;
   auto &client_to_server = mapping.client_to_server[session_id];
   auto iter = client_to_server.find(req_id);
   auto exists = iter != std::end(client_to_server);
   auto subscription_request_type = get_subscription_request_type(event);
   auto dispatch = [&](auto keep_alive) {
     auto request_id = shared_.create_request_id();
-    auto security_definition_request = event.value;
-    security_definition_request.security_status_req_id = request_id;
-    Trace event_2{event.trace_info, security_definition_request};
+    auto security_status_request_2 = security_status_request;
+    security_status_request_2.security_status_req_id = request_id;
+    Trace event_2{event.trace_info, security_status_request_2};
     dispatch_to_server(event_2);
     // note! *after* request has been sent
     if (exists) {
@@ -982,10 +1005,9 @@ void Controller::operator()(Trace<codec::fix::SecurityStatusRequest> const &even
 }
 
 void Controller::operator()(Trace<codec::fix::MarketDataRequest> const &event, uint64_t session_id) {
-  auto req_id = event.value.md_req_id;
-  assert(!std::empty(req_id));  // required
-  auto &mapping = subscriptions_.md_req_id;
-  auto reject = [&](auto md_req_rej_reason, auto const &text) {
+  auto market_data_request = event.value;
+  auto req_id = market_data_request.md_req_id;
+  auto reject = [&](auto md_req_rej_reason, auto &text) {
     auto market_data_request_reject = roq::codec::fix::MarketDataRequestReject{
         .md_req_id = req_id,
         .md_req_rej_reason = md_req_rej_reason,
@@ -994,43 +1016,50 @@ void Controller::operator()(Trace<codec::fix::MarketDataRequest> const &event, u
     Trace event_2{event.trace_info, market_data_request_reject};
     dispatch_to_client(event_2, session_id);
   };
+  if (!market_data_request.is_valid()) {
+    reject(
+        roq::fix::MDReqRejReason::UNSUPPORTED_SCOPE,  // XXX FIXME what to use ???
+        ERROR_VALIDATION);
+    return;
+  }
+  auto &mapping = subscriptions_.md_req_id;
   auto &client_to_server = mapping.client_to_server[session_id];
   auto iter = client_to_server.find(req_id);
   auto exists = iter != std::end(client_to_server);
   auto dispatch = [&](auto keep_alive) {
     auto request_id = shared_.create_request_id();
-    auto market_data_request = event.value;
-    market_data_request.md_req_id = request_id;
-    Trace event_2{event.trace_info, market_data_request};
+    auto market_data_request_2 = market_data_request;
+    market_data_request_2.md_req_id = request_id;
+    Trace event_2{event.trace_info, market_data_request_2};
     dispatch_to_server(event_2);
     // note! *after* request has been sent
     if (exists) {
-      assert(event.value.subscription_request_type == roq::fix::SubscriptionRequestType::UNSUBSCRIBE);
+      assert(market_data_request.subscription_request_type == roq::fix::SubscriptionRequestType::UNSUBSCRIBE);
       remove_req_id(mapping, request_id);  // note! protocol doesn't have an ack for unsubscribe
     } else {
       assert(
-          event.value.subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT ||
-          event.value.subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES);
+          market_data_request.subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT ||
+          market_data_request.subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES);
       client_to_server.emplace(req_id, request_id);
       mapping.server_to_client.try_emplace(request_id, session_id, req_id, keep_alive);
     }
   };
-  switch (event.value.subscription_request_type) {
+  switch (market_data_request.subscription_request_type) {
     using enum roq::fix::SubscriptionRequestType;
     case UNDEFINED:
     case UNKNOWN:
-      reject(roq::fix::MDReqRejReason::UNSUPPORTED_SUBSCRIPTION_REQUEST_TYPE, "UNKNOWN_SUBSCRIPTION_REQUEST_TYPE"sv);
+      reject(roq::fix::MDReqRejReason::UNSUPPORTED_SUBSCRIPTION_REQUEST_TYPE, ERROR_UNKNOWN_SUBSCRIPTION_REQUEST_TYPE);
       break;
     case SNAPSHOT:
       if (exists) {
-        reject(roq::fix::MDReqRejReason::DUPLICATE_MD_REQ_ID, "DUPLICATE_MD_REQ_ID"sv);
+        reject(roq::fix::MDReqRejReason::DUPLICATE_MD_REQ_ID, ERROR_DUPLICATE_MD_REQ_ID);
       } else {
         dispatch(false);
       }
       break;
     case SNAPSHOT_UPDATES:
       if (exists) {
-        reject(roq::fix::MDReqRejReason::DUPLICATE_MD_REQ_ID, "DUPLICATE_MD_REQ_ID"sv);
+        reject(roq::fix::MDReqRejReason::DUPLICATE_MD_REQ_ID, ERROR_DUPLICATE_MD_REQ_ID);
       } else {
         dispatch(true);
       }
@@ -1039,18 +1068,17 @@ void Controller::operator()(Trace<codec::fix::MarketDataRequest> const &event, u
       if (exists) {
         dispatch(false);
       } else {
-        reject(roq::fix::MDReqRejReason::UNSUPPORTED_SUBSCRIPTION_REQUEST_TYPE, "UNKNOWN_MD_REQ_ID"sv);
+        reject(
+            roq::fix::MDReqRejReason::UNSUPPORTED_SUBSCRIPTION_REQUEST_TYPE,  // XXX FIXME what to use ???
+            ERROR_UNKNOWN_MD_REQ_ID);
       }
       break;
   }
 }
 
 void Controller::operator()(Trace<codec::fix::OrderStatusRequest> const &event, uint64_t session_id) {
-  auto req_id = event.value.ord_status_req_id;
-  auto &mapping = subscriptions_.ord_status_req_id;
-  auto &client_to_server = mapping.client_to_server[session_id];
-  auto reject = [&](auto ord_rej_reason, auto const &text) {
-    auto &order_status_request = event.value;
+  auto &order_status_request = event.value;
+  auto reject = [&](auto ord_rej_reason, auto &text) {
     auto request_id = shared_.create_request_id();
     auto execution_report = codec::fix::ExecutionReport{
         .order_id = request_id,  // required
@@ -1070,7 +1098,7 @@ void Controller::operator()(Trace<codec::fix::OrderStatusRequest> const &event, 
         .account = order_status_request.account,
         .account_type = {},
         .symbol = order_status_request.symbol,                        // required
-        .security_exchange = order_status_request.security_exchange,  // note! quickfix
+        .security_exchange = order_status_request.security_exchange,  // required
         .side = order_status_request.side,                            // required
         .order_qty = {},
         .price = {},
@@ -1081,9 +1109,9 @@ void Controller::operator()(Trace<codec::fix::OrderStatusRequest> const &event, 
         .last_qty = {},
         .last_px = {},
         .trading_session_id = {},
-        .leaves_qty = {},
-        .cum_qty = {},
-        .avg_px = {},
+        .leaves_qty = {},  // required XXX FIXME HANS
+        .cum_qty = {},     // required XXX FIXME HANS
+        .avg_px = {},      // required XXX FIXME HANS
         .transact_time = {},
         .position_effect = {},
         .max_show = {},
@@ -1093,36 +1121,34 @@ void Controller::operator()(Trace<codec::fix::OrderStatusRequest> const &event, 
     Trace event_2{event.trace_info, execution_report};
     dispatch_to_client(event_2, session_id);
   };
-  auto dispatch = [&]() {
-    auto request_id = shared_.create_request_id();
-    auto order_status_request = event.value;
-    order_status_request.ord_status_req_id = request_id;
-    Trace event_2{event.trace_info, order_status_request};
-    dispatch_to_server(event_2);
-    // note! *after* request has been sent
-    if (!std::empty(req_id))  // optional
-      client_to_server.emplace(req_id, request_id);
-    mapping.server_to_client.try_emplace(request_id, session_id, req_id, false);
-  };
-  if (std::empty(req_id)) {  // optional
-    dispatch();
-  } else {
+  if (!order_status_request.is_valid()) {
+    reject(roq::fix::OrdRejReason::OTHER, ERROR_VALIDATION);
+    return;
+  }
+  auto req_id = order_status_request.ord_status_req_id;
+  auto &mapping = subscriptions_.ord_status_req_id;
+  auto &client_to_server = mapping.client_to_server[session_id];
+  if (!std::empty(req_id)) {  // note! optional
     auto iter = client_to_server.find(req_id);
-    if (iter == std::end(client_to_server)) {
-      dispatch();
-    } else {
-      reject(roq::fix::OrdRejReason::OTHER, "DUPLICATE_ORD_STATUS_REQ_ID"sv);
+    if (iter != std::end(client_to_server)) {
+      reject(roq::fix::OrdRejReason::OTHER, ERROR_DUPLICATE_ORD_STATUS_REQ_ID);
+      return;
     }
   }
+  auto request_id = shared_.create_request_id();
+  auto order_status_request_2 = order_status_request;
+  order_status_request_2.ord_status_req_id = request_id;
+  Trace event_2{event.trace_info, order_status_request_2};
+  dispatch_to_server(event_2);
+  // note! *after* request has been sent
+  if (!std::empty(req_id))  // note! optional
+    client_to_server.emplace(req_id, request_id);
+  mapping.server_to_client.try_emplace(request_id, session_id, req_id, false);
 }
 
 void Controller::operator()(Trace<codec::fix::NewOrderSingle> const &event, uint64_t session_id) {
-  auto req_id = event.value.cl_ord_id;
-  auto &mapping = subscriptions_.cl_ord_id;
-  auto &client_to_server = mapping.client_to_server[session_id];
-  auto client_id = get_client_from_parties(event.value);
-  auto reject = [&](auto ord_rej_reason, auto const &text) {
-    auto &new_order_single = event.value;
+  auto &new_order_single = event.value;
+  auto reject = [&](auto ord_rej_reason, auto &text) {
     auto request_id = shared_.create_request_id();
     auto execution_report = codec::fix::ExecutionReport{
         .order_id = request_id,  // required
@@ -1142,20 +1168,20 @@ void Controller::operator()(Trace<codec::fix::NewOrderSingle> const &event, uint
         .account = new_order_single.account,
         .account_type = {},
         .symbol = new_order_single.symbol,                        // required
-        .security_exchange = new_order_single.security_exchange,  // note! quickfix
+        .security_exchange = new_order_single.security_exchange,  // required
         .side = new_order_single.side,                            // required
-        .order_qty = {},
-        .price = {},
-        .stop_px = {},
+        .order_qty = new_order_single.order_qty,
+        .price = new_order_single.price,
+        .stop_px = new_order_single.stop_px,
         .currency = {},
-        .time_in_force = {},
-        .exec_inst = {},
+        .time_in_force = new_order_single.time_in_force,
+        .exec_inst = new_order_single.exec_inst,
         .last_qty = {},
         .last_px = {},
         .trading_session_id = {},
-        .leaves_qty = {},
-        .cum_qty = {},
-        .avg_px = {},
+        .leaves_qty = {},  // required XXX FIXME HANS
+        .cum_qty = {},     // required XXX FIXME HANS
+        .avg_px = {},      // required XXX FIXME HANS
         .transact_time = {},
         .position_effect = {},
         .max_show = {},
@@ -1165,135 +1191,144 @@ void Controller::operator()(Trace<codec::fix::NewOrderSingle> const &event, uint
     Trace event_2{event.trace_info, execution_report};
     dispatch_to_client(event_2, session_id);
   };
-  auto dispatch = [&]() {
-    auto request_id = shared_.create_request_id(client_id, event.value.cl_ord_id);
-    auto new_order_single = event.value;
-    new_order_single.cl_ord_id = request_id;
-    Trace event_2{event.trace_info, new_order_single};
-    dispatch_to_server(event_2);
-    // note! *after* request has been sent
-    client_to_server.emplace(req_id, request_id);
-    mapping.server_to_client.try_emplace(request_id, session_id, req_id, true);
-  };
-  auto iter = client_to_server.find(req_id);
-  if (iter == std::end(client_to_server)) {
-    auto cl_ord_id = find_server_cl_ord_id(event.value.cl_ord_id, client_id);
-    if (std::empty(cl_ord_id)) {
-      dispatch();
-    } else {
-      reject(roq::fix::OrdRejReason::OTHER, "DUPLICATE_ORD_STATUS_REQ_ID"sv);
-    }
-  } else {
-    reject(roq::fix::OrdRejReason::OTHER, "DUPLICATE_ORD_STATUS_REQ_ID"sv);
+  if (!new_order_single.is_valid()) {
+    reject(roq::fix::OrdRejReason::OTHER, ERROR_VALIDATION);
+    return;
   }
+  auto req_id = new_order_single.cl_ord_id;
+  auto &mapping = subscriptions_.cl_ord_id;
+  auto &client_to_server = mapping.client_to_server[session_id];
+  auto client_id = get_client_from_parties(new_order_single);
+  auto iter = client_to_server.find(req_id);
+  if (iter != std::end(client_to_server)) {
+    reject(roq::fix::OrdRejReason::OTHER, ERROR_DUPLICATE_CL_ORD_ID);
+    return;
+  }
+  auto cl_ord_id = find_server_cl_ord_id(new_order_single.cl_ord_id, client_id);
+  if (!std::empty(cl_ord_id)) {
+    reject(roq::fix::OrdRejReason::OTHER, ERROR_DUPLICATE_CL_ORD_ID);
+    return;
+  }
+  auto request_id = shared_.create_request_id(client_id, new_order_single.cl_ord_id);
+  auto new_order_single_2 = new_order_single;
+  new_order_single_2.cl_ord_id = request_id;
+  Trace event_2{event.trace_info, new_order_single_2};
+  dispatch_to_server(event_2);
+  // note! *after* request has been sent
+  client_to_server.emplace(req_id, request_id);
+  mapping.server_to_client.try_emplace(request_id, session_id, req_id, true);
 }
 
 void Controller::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &event, uint64_t session_id) {
-  auto req_id = event.value.cl_ord_id;
-  auto &mapping = subscriptions_.cl_ord_id;
-  auto &client_to_server = mapping.client_to_server[session_id];
-  auto client_id = get_client_from_parties(event.value);
-  auto reject = [&](auto ord_status, auto cxl_rej_reason, auto const &text) {
-    auto &order_cancel_replace_request = event.value;
+  auto &order_cancel_replace_request = event.value;
+  auto reject = [&](auto &order_id, auto ord_status, auto cxl_rej_reason, auto &text) {
     auto order_cancel_reject = codec::fix::OrderCancelReject{
-        .order_id = "NONE"sv,  // required
+        .order_id = order_id,  // required
         .secondary_cl_ord_id = {},
         .cl_ord_id = order_cancel_replace_request.cl_ord_id,            // required
         .orig_cl_ord_id = order_cancel_replace_request.orig_cl_ord_id,  // required
         .ord_status = ord_status,                                       // required
         .working_indicator = {},
         .account = order_cancel_replace_request.account,
-        .cxl_rej_response_to = roq::fix::CxlRejResponseTo::ORDER_CANCEL_REPLACE_REQUEST,
+        .cxl_rej_response_to = roq::fix::CxlRejResponseTo::ORDER_CANCEL_REPLACE_REQUEST,  // required
         .cxl_rej_reason = cxl_rej_reason,
         .text = text,
     };
     Trace event_2{event.trace_info, order_cancel_reject};
     dispatch_to_client(event_2, session_id);
   };
-  auto dispatch = [&](auto &orig_cl_ord_id) {
-    auto request_id = shared_.create_request_id(client_id, event.value.cl_ord_id);
-    auto order_cancel_replace_request = event.value;
-    order_cancel_replace_request.cl_ord_id = request_id;
-    order_cancel_replace_request.orig_cl_ord_id = orig_cl_ord_id;
-    Trace event_2{event.trace_info, order_cancel_replace_request};
-    dispatch_to_server(event_2);
-    // note! *after* request has been sent
-    client_to_server.emplace(req_id, request_id);
-    mapping.server_to_client.try_emplace(request_id, session_id, req_id, true);
-  };
-  // XXX TODO also check by-strategy routing table
+  if (!order_cancel_replace_request.is_valid()) {
+    reject(ORDER_ID_NONE, roq::fix::OrdStatus::REJECTED, roq::fix::CxlRejReason::OTHER, ERROR_VALIDATION);
+    return;
+  }
+  auto req_id = order_cancel_replace_request.cl_ord_id;
+  auto &mapping = subscriptions_.cl_ord_id;
+  auto &client_to_server = mapping.client_to_server[session_id];
+  auto client_id = get_client_from_parties(order_cancel_replace_request);
   auto iter = client_to_server.find(req_id);
-  if (iter == std::end(client_to_server)) {
-    auto orig_cl_ord_id = find_server_cl_ord_id(event.value.orig_cl_ord_id, client_id);
-    if (!std::empty(orig_cl_ord_id)) {
-      dispatch(orig_cl_ord_id);
-    } else {
-      reject(roq::fix::OrdStatus::REJECTED, roq::fix::CxlRejReason::UNKNOWN_ORDER, "UNKNOWN_ORIG_CL_ORD_ID"sv);
-    }
-  } else {
+  if (iter != std::end(client_to_server)) {
     reject(
+        ORDER_ID_NONE,
         roq::fix::OrdStatus::REJECTED,  // XXX FIXME should be latest "known"
         roq::fix::CxlRejReason::DUPLICATE_CL_ORD_ID,
-        "DUPLICATE_ORD_STATUS_REQ_ID"sv);
+        ERROR_DUPLICATE_CL_ORD_ID);
+    return;
   }
+  auto orig_cl_ord_id = find_server_cl_ord_id(order_cancel_replace_request.orig_cl_ord_id, client_id);
+  if (std::empty(orig_cl_ord_id)) {
+    reject(
+        ORDER_ID_NONE, roq::fix::OrdStatus::REJECTED, roq::fix::CxlRejReason::UNKNOWN_ORDER, ERROR_DUPLICATE_CL_ORD_ID);
+    return;
+  }
+  auto request_id = shared_.create_request_id(client_id, req_id);
+  auto order_cancel_replace_request_2 = order_cancel_replace_request;
+  order_cancel_replace_request_2.cl_ord_id = request_id;
+  order_cancel_replace_request_2.orig_cl_ord_id = orig_cl_ord_id;
+  Trace event_2{event.trace_info, order_cancel_replace_request_2};
+  dispatch_to_server(event_2);
+  // note! *after* request has been sent
+  client_to_server.emplace(req_id, request_id);
+  mapping.server_to_client.try_emplace(request_id, session_id, req_id, true);
 }
 
 void Controller::operator()(Trace<codec::fix::OrderCancelRequest> const &event, uint64_t session_id) {
-  auto req_id = event.value.cl_ord_id;
-  auto &mapping = subscriptions_.cl_ord_id;
-  auto &client_to_server = mapping.client_to_server[session_id];
-  auto client_id = get_client_from_parties(event.value);
-  auto reject = [&](auto ord_status, auto cxl_rej_reason, auto const &text) {
-    auto &order_cancel_request = event.value;
+  auto &order_cancel_request = event.value;
+  auto reject = [&](auto &order_id, auto ord_status, auto cxl_rej_reason, auto &text) {
     auto order_cancel_reject = codec::fix::OrderCancelReject{
-        .order_id = "NONE"sv,  // required
+        .order_id = order_id,  // required
         .secondary_cl_ord_id = {},
         .cl_ord_id = order_cancel_request.cl_ord_id,            // required
         .orig_cl_ord_id = order_cancel_request.orig_cl_ord_id,  // required
         .ord_status = ord_status,                               // required
         .working_indicator = {},
         .account = order_cancel_request.account,
-        .cxl_rej_response_to = roq::fix::CxlRejResponseTo::ORDER_CANCEL_REQUEST,
+        .cxl_rej_response_to = roq::fix::CxlRejResponseTo::ORDER_CANCEL_REQUEST,  // required
         .cxl_rej_reason = cxl_rej_reason,
         .text = text,
     };
     Trace event_2{event.trace_info, order_cancel_reject};
     dispatch_to_client(event_2, session_id);
   };
-  auto dispatch = [&](auto &orig_cl_ord_id) {
-    auto request_id = shared_.create_request_id(client_id, event.value.cl_ord_id);
-    auto order_cancel_request = event.value;
-    order_cancel_request.cl_ord_id = request_id;
-    order_cancel_request.orig_cl_ord_id = orig_cl_ord_id;
-    Trace event_2{event.trace_info, order_cancel_request};
-    dispatch_to_server(event_2);
-    // note! *after* request has been sent
-    client_to_server.emplace(req_id, request_id);
-    mapping.server_to_client.try_emplace(request_id, session_id, req_id, true);
-  };
+  if (!order_cancel_request.is_valid()) {
+    reject(ORDER_ID_NONE, roq::fix::OrdStatus::REJECTED, roq::fix::CxlRejReason::OTHER, ERROR_VALIDATION);
+    return;
+  }
+  auto req_id = order_cancel_request.cl_ord_id;
+  auto &mapping = subscriptions_.cl_ord_id;
+  auto &client_to_server = mapping.client_to_server[session_id];
+  auto client_id = get_client_from_parties(order_cancel_request);
   auto iter = client_to_server.find(req_id);
-  if (iter == std::end(client_to_server)) {
-    auto orig_cl_ord_id = find_server_cl_ord_id(event.value.orig_cl_ord_id, client_id);
-    if (!std::empty(orig_cl_ord_id)) {
-      dispatch(orig_cl_ord_id);
-    } else {
-      reject(roq::fix::OrdStatus::REJECTED, roq::fix::CxlRejReason::UNKNOWN_ORDER, "UNKNOWN_ORIG_CL_ORD_ID"sv);
-    }
-  } else {
+  if (iter != std::end(client_to_server)) {
     reject(
+        ORDER_ID_NONE,
         roq::fix::OrdStatus::REJECTED,  // XXX FIXME should be latest "known"
         roq::fix::CxlRejReason::DUPLICATE_CL_ORD_ID,
-        "DUPLICATE_ORD_STATUS_REQ_ID"sv);
+        ERROR_DUPLICATE_ORD_STATUS_REQ_ID);
+    return;
   }
+  auto orig_cl_ord_id = find_server_cl_ord_id(order_cancel_request.orig_cl_ord_id, client_id);
+  if (std::empty(orig_cl_ord_id)) {
+    reject(
+        ORDER_ID_NONE,
+        roq::fix::OrdStatus::REJECTED,
+        roq::fix::CxlRejReason::UNKNOWN_ORDER,
+        ERROR_UNKNOWN_ORIG_CL_ORD_ID);
+    return;
+  }
+  auto request_id = shared_.create_request_id(client_id, order_cancel_request.cl_ord_id);
+  auto order_cancel_request_2 = order_cancel_request;
+  order_cancel_request_2.cl_ord_id = request_id;
+  order_cancel_request_2.orig_cl_ord_id = orig_cl_ord_id;
+  Trace event_2{event.trace_info, order_cancel_request_2};
+  dispatch_to_server(event_2);
+  // note! *after* request has been sent
+  client_to_server.emplace(req_id, request_id);
+  mapping.server_to_client.try_emplace(request_id, session_id, req_id, true);
 }
 
 void Controller::operator()(Trace<codec::fix::OrderMassStatusRequest> const &event, uint64_t session_id) {
-  auto req_id = event.value.mass_status_req_id;
-  assert(!std::empty(req_id));  // required
-  auto &mapping = subscriptions_.mass_status_req_id;
-  auto &client_to_server = mapping.client_to_server[session_id];
-  auto reject = [&](auto ord_rej_reason, auto const &text) {
-    auto &order_mass_status_request = event.value;
+  auto &order_mass_status_request = event.value;
+  auto reject = [&](auto ord_rej_reason, auto &text) {
     auto request_id = shared_.create_request_id();
     auto execution_report = codec::fix::ExecutionReport{
         .order_id = request_id,  // required
@@ -1313,7 +1348,7 @@ void Controller::operator()(Trace<codec::fix::OrderMassStatusRequest> const &eve
         .account = order_mass_status_request.account,
         .account_type = {},
         .symbol = order_mass_status_request.symbol,                        // required
-        .security_exchange = order_mass_status_request.security_exchange,  // note! quickfix
+        .security_exchange = order_mass_status_request.security_exchange,  // required
         .side = order_mass_status_request.side,                            // required
         .order_qty = {},
         .price = {},
@@ -1324,9 +1359,9 @@ void Controller::operator()(Trace<codec::fix::OrderMassStatusRequest> const &eve
         .last_qty = {},
         .last_px = {},
         .trading_session_id = {},
-        .leaves_qty = {},
-        .cum_qty = {},
-        .avg_px = {},
+        .leaves_qty = {},  // required XXX FIXME HANS
+        .cum_qty = {},     // required XXX FIXME HANS
+        .avg_px = {},      // required XXX FIXME HANS
         .transact_time = {},
         .position_effect = {},
         .max_show = {},
@@ -1336,30 +1371,31 @@ void Controller::operator()(Trace<codec::fix::OrderMassStatusRequest> const &eve
     Trace event_2{event.trace_info, execution_report};
     dispatch_to_client(event_2, session_id);
   };
-  auto dispatch = [&]() {
-    auto request_id = shared_.create_request_id();
-    auto order_mass_status_request = event.value;
-    order_mass_status_request.mass_status_req_id = request_id;
-    Trace event_2{event.trace_info, order_mass_status_request};
-    dispatch_to_server(event_2);
-    // note! *after* request has been sent
-    client_to_server.emplace(req_id, request_id);
-    mapping.server_to_client.try_emplace(request_id, session_id, req_id, false);
-  };
-  auto iter = client_to_server.find(req_id);
-  if (iter == std::end(client_to_server)) {
-    dispatch();
-  } else {
-    reject(roq::fix::OrdRejReason::OTHER, "DUPLICATE_MASS_STATUS_REQ_ID"sv);
+  if (!order_mass_status_request.is_valid()) {
+    reject(roq::fix::OrdRejReason::OTHER, ERROR_VALIDATION);
+    return;
   }
+  auto req_id = order_mass_status_request.mass_status_req_id;
+  auto &mapping = subscriptions_.mass_status_req_id;
+  auto &client_to_server = mapping.client_to_server[session_id];
+  auto iter = client_to_server.find(req_id);
+  if (iter != std::end(client_to_server)) {
+    reject(roq::fix::OrdRejReason::OTHER, ERROR_DUPLICATE_MASS_STATUS_REQ_ID);
+    return;
+  }
+  auto request_id = shared_.create_request_id();
+  auto order_mass_status_request_2 = order_mass_status_request;
+  order_mass_status_request_2.mass_status_req_id = request_id;
+  Trace event_2{event.trace_info, order_mass_status_request_2};
+  dispatch_to_server(event_2);
+  // note! *after* request has been sent
+  client_to_server.emplace(req_id, request_id);
+  mapping.server_to_client.try_emplace(request_id, session_id, req_id, false);
 }
 
 void Controller::operator()(Trace<codec::fix::OrderMassCancelRequest> const &event, uint64_t session_id) {
-  auto req_id = event.value.cl_ord_id;
-  auto &mapping = subscriptions_.mass_cancel_cl_ord_id;
-  auto &client_to_server = mapping.client_to_server[session_id];
-  auto reject = [&](auto order_mass_reject_reason, std::string_view const &text) {
-    auto &order_mass_cancel_request = event.value;
+  auto &order_mass_cancel_request = event.value;
+  auto reject = [&](auto order_mass_reject_reason, auto &text) {
     auto order_mass_cancel_report = codec::fix::OrderMassCancelReport{
         .cl_ord_id = order_mass_cancel_request.cl_ord_id,
         .order_id = order_mass_cancel_request.cl_ord_id,                                 // required
@@ -1376,29 +1412,32 @@ void Controller::operator()(Trace<codec::fix::OrderMassCancelRequest> const &eve
     Trace event_2{event.trace_info, order_mass_cancel_report};
     dispatch_to_client(event_2, session_id);
   };
-  auto dispatch = [&]() {
-    auto request_id = shared_.create_request_id();
-    auto order_mass_cancel_report = event.value;
-    order_mass_cancel_report.cl_ord_id = request_id;
-    Trace event_2{event.trace_info, order_mass_cancel_report};
-    dispatch_to_server(event_2);
-    client_to_server.emplace(req_id, request_id);
-    mapping.server_to_client.try_emplace(request_id, session_id, req_id, false);
-  };
-  auto iter = client_to_server.find(req_id);
-  if (iter == std::end(client_to_server)) {
-    dispatch();
-  } else {
-    reject(roq::fix::MassCancelRejectReason::OTHER, "DUPLICATE_ORD_STATUS_REQ_ID"sv);
+  if (!order_mass_cancel_request.is_valid()) {
+    reject(roq::fix::MassCancelRejectReason::OTHER, ERROR_VALIDATION);
+    return;
   }
+  auto req_id = order_mass_cancel_request.cl_ord_id;
+  auto &mapping = subscriptions_.mass_cancel_cl_ord_id;
+  auto &client_to_server = mapping.client_to_server[session_id];
+  auto iter = client_to_server.find(req_id);
+  if (iter != std::end(client_to_server)) {
+    reject(roq::fix::MassCancelRejectReason::OTHER, ERROR_DUPLICATE_CL_ORD_ID);
+    return;
+  }
+  auto request_id = shared_.create_request_id();
+  auto order_mass_cancel_request_2 = order_mass_cancel_request;
+  order_mass_cancel_request_2.cl_ord_id = request_id;
+  Trace event_2{event.trace_info, order_mass_cancel_request_2};
+  dispatch_to_server(event_2);
+  // note! *after* request has been sent
+  client_to_server.emplace(req_id, request_id);
+  mapping.server_to_client.try_emplace(request_id, session_id, req_id, false);
 }
 
 void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event, uint64_t session_id) {
-  auto req_id = event.value.pos_req_id;
-  assert(!std::empty(req_id));  // required
-  auto &mapping = subscriptions_.pos_req_id;
-  auto reject = [&](auto const &text) {
-    auto &request_for_positions = event.value;
+  auto &request_for_positions = event.value;
+  auto req_id = request_for_positions.pos_req_id;
+  auto reject = [&](auto &text) {
     auto request_id = shared_.create_request_id();
     auto request_for_positions_ack = codec::fix::RequestForPositionsAck{
         .pos_maint_rpt_id = request_id,  // required
@@ -1412,19 +1451,23 @@ void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event,
         .account_type = request_for_positions.account_type,                // required
         .text = text,
     };
-    log::debug("request_for_positions_ack={}"sv, request_for_positions_ack);
     Trace event_2{event.trace_info, request_for_positions_ack};
     dispatch_to_client(event_2, session_id);
   };
+  if (!request_for_positions.is_valid()) {
+    reject(ERROR_VALIDATION);
+    return;
+  }
+  auto &mapping = subscriptions_.pos_req_id;
   auto &client_to_server = mapping.client_to_server[session_id];
   auto iter = client_to_server.find(req_id);
   auto exists = iter != std::end(client_to_server);
   auto subscription_request_type = get_subscription_request_type(event);
   auto dispatch = [&](auto keep_alive) {
     auto request_id = shared_.create_request_id();
-    auto request_for_positions = event.value;
-    request_for_positions.pos_req_id = request_id;
-    Trace event_2{event.trace_info, request_for_positions};
+    auto request_for_positions_2 = request_for_positions;
+    request_for_positions_2.pos_req_id = request_id;
+    Trace event_2{event.trace_info, request_for_positions_2};
     dispatch_to_server(event_2);
     // note! *after* request has been sent
     if (exists) {
@@ -1442,18 +1485,18 @@ void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event,
     using enum roq::fix::SubscriptionRequestType;
     case UNDEFINED:
     case UNKNOWN:
-      reject("UNKNOWN_SUBSCRIPTION_REQUEST_TYPE"sv);
+      reject(ERROR_UNKNOWN_SUBSCRIPTION_REQUEST_TYPE);
       break;
     case SNAPSHOT:
       if (exists) {
-        reject("DUPLICATED_POS_REQ_ID"sv);
+        reject(ERROR_DUPLICATED_POS_REQ_ID);
       } else {
         dispatch(false);
       }
       break;
     case SNAPSHOT_UPDATES:
       if (exists) {
-        reject("DUPLICATED_POS_REQ_ID"sv);
+        reject(ERROR_DUPLICATED_POS_REQ_ID);
       } else {
         dispatch(true);
       }
@@ -1462,18 +1505,16 @@ void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event,
       if (exists) {
         dispatch(false);
       } else {
-        reject("UNKNOWN_POS_REQ_ID"sv);
+        reject(ERROR_UNKNOWN_POS_REQ_ID);
       }
       break;
   }
 }
 
 void Controller::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &event, uint64_t session_id) {
-  auto req_id = event.value.trade_request_id;
-  assert(!std::empty(req_id));  // required
-  auto &mapping = subscriptions_.trade_request_id;
+  auto &trade_capture_report_request = event.value;
+  auto req_id = trade_capture_report_request.trade_request_id;
   auto reject = [&]() {
-    auto &trade_capture_report_request = event.value;
     auto request_id = shared_.create_request_id();
     auto trade_capture_report_request_ack = codec::fix::TradeCaptureReportRequestAck{
         .trade_request_id = req_id,                                             // required
@@ -1487,15 +1528,20 @@ void Controller::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &
     Trace event_2{event.trace_info, trade_capture_report_request_ack};
     dispatch_to_client(event_2, session_id);
   };
+  if (!trade_capture_report_request.is_valid()) {
+    reject();
+    return;
+  }
+  auto &mapping = subscriptions_.trade_request_id;
   auto &client_to_server = mapping.client_to_server[session_id];
   auto iter = client_to_server.find(req_id);
   auto exists = iter != std::end(client_to_server);
   auto subscription_request_type = get_subscription_request_type(event);
   auto dispatch = [&](auto keep_alive) {
     auto request_id = shared_.create_request_id();
-    auto trade_capture_report_request = event.value;
-    trade_capture_report_request.trade_request_id = request_id;
-    Trace event_2{event.trace_info, trade_capture_report_request};
+    auto trade_capture_report_request_2 = trade_capture_report_request;
+    trade_capture_report_request_2.trade_request_id = request_id;
+    Trace event_2{event.trace_info, trade_capture_report_request_2};
     dispatch_to_server(event_2);
     // note! *after* request has been sent
     if (exists) {
@@ -1552,20 +1598,6 @@ void Controller::dispatch(Args &&...args) {
 template <typename T>
 void Controller::dispatch_to_server(Trace<T> const &event) {
   server_session_(event);
-}
-
-template <typename T>
-void Controller::dispatch_to_client(Trace<T> const &event, std::string_view const &username) {
-  // [[maybe_unused]] auto strategy_id = get_strategy_id(event.value);
-  auto success = false;
-  shared_.session_find(username, [&](auto session_id) {
-    client_manager_.find(session_id, [&](auto &session) {
-      session(event);
-      success = true;
-    });
-  });
-  if (!success)
-    log::warn<0>(R"(Undeliverable: username="{}")"sv, username);
 }
 
 template <typename T>
