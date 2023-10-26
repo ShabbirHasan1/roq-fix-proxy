@@ -91,6 +91,46 @@ def new_order_single_request(cl_ord_id):
     return request
 
 
+def order_cancel_request(cl_ord_id, orig_cl_ord_id):
+    msg = simplefix.FixMessage()
+    msg.append_pair(8, FIX)
+    msg.append_pair(35, "F")
+    msg.append_pair(49, SENDER_COMP_ID)
+    msg.append_pair(56, TARGET_COMP_ID)
+    msg.append_pair(11, cl_ord_id)
+    msg.append_pair(41, orig_cl_ord_id)
+    msg.append_pair(1, ACCOUNT)
+    msg.append_pair(55, SYMBOL)
+    msg.append_pair(207, EXCHANGE)
+    msg.append_pair(54, "1")  # buy
+    msg.append_pair(38, 1.0)  # quantity
+    msg.append_pair(60, "19700101-23:59:59")
+    request = msg.encode()
+    print(request)
+    return request
+
+
+def order_cancel_replace_request(cl_ord_id, orig_cl_ord_id):
+    msg = simplefix.FixMessage()
+    msg.append_pair(8, FIX)
+    msg.append_pair(35, "G")
+    msg.append_pair(49, SENDER_COMP_ID)
+    msg.append_pair(56, TARGET_COMP_ID)
+    msg.append_pair(11, cl_ord_id)
+    msg.append_pair(41, orig_cl_ord_id)
+    msg.append_pair(1, ACCOUNT)
+    msg.append_pair(55, SYMBOL)
+    msg.append_pair(207, EXCHANGE)
+    msg.append_pair(54, "1")  # buy
+    msg.append_pair(40, "2")  # limit
+    msg.append_pair(38, 1.0)  # quantity
+    msg.append_pair(44, 200.0)  # quantity
+    msg.append_pair(60, "19700101-23:59:59")
+    request = msg.encode()
+    print(request)
+    return request
+
+
 def request_for_positions_request():
     msg = simplefix.FixMessage()
     msg.append_pair(8, FIX)
@@ -146,8 +186,8 @@ def trade_capture_report_request():
     msg.append_pair(35, "AD")
     msg.append_pair(49, SENDER_COMP_ID)
     msg.append_pair(56, TARGET_COMP_ID)
-    # msg.append_pair(207, EXCHANGE)
-    # msg.append_pair(55, SYMBOL)
+    msg.append_pair(207, EXCHANGE)
+    msg.append_pair(55, SYMBOL)
     msg.append_pair(568, "req1")
     msg.append_pair(569, "0")  # 0=all trades
     msg.append_pair(263, "0")  # 0=snapshot
@@ -164,11 +204,16 @@ if __name__ == "__main__":
         s.sendall(logon_request())
         response = s.recv(4096)
         print_message(response)
-        s.sendall(order_mass_status_request())
+        # s.sendall(order_mass_status_request())
+        # response = s.recv(4096)
+        # print_message(response)
+        # s.sendall(order_mass_status_request())
         # s.sendall(order_mass_cancel_request())
         # s.sendall(trade_capture_report_request())
         # s.sendall(request_for_positions_request())
-        # s.sendall(new_order_single_request("test-1"))
+        # s.sendall(new_order_single_request("test-2"))
+        # s.sendall(order_cancel_request("test-3", "test-2"))
+        s.sendall(order_cancel_replace_request("test-5", "test-4"))
         # s.sendall(market_data_request())
         response = s.recv(4096)
         print_message(response)

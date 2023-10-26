@@ -538,6 +538,9 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
   auto execution_report = event.value;
   auto cl_ord_id = execution_report.cl_ord_id;
   auto orig_cl_ord_id = execution_report.orig_cl_ord_id;
+  auto client_id = get_client_from_parties(execution_report);
+  assert(!std::empty(client_id));
+  log::debug("client_id={}"sv, client_id);
   execution_report.cl_ord_id = find_real_cl_ord_id(cl_ord_id);
   execution_report.orig_cl_ord_id = find_real_cl_ord_id(orig_cl_ord_id);
   auto has_ord_status_req_id = !std::empty(execution_report.ord_status_req_id);
@@ -545,6 +548,7 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
   assert(!(has_ord_status_req_id && has_mass_status_req_id));  // can't have both
   if (has_ord_status_req_id) {
     assert(execution_report.last_rpt_requested);
+    ensure_cl_ord_id(cl_ord_id, client_id, execution_report.ord_status);
     auto req_id = execution_report.ord_status_req_id;
     auto &mapping = subscriptions_.ord_status_req_id;
     auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
@@ -559,6 +563,7 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
       log::warn(R"(DEBUG: no ord_status_req_id="{}")"sv, req_id);
     }
   } else if (has_mass_status_req_id) {
+    ensure_cl_ord_id(cl_ord_id, client_id, execution_report.ord_status);
     auto req_id = execution_report.mass_status_req_id;
     auto &mapping = subscriptions_.mass_status_req_id;
     auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
@@ -578,9 +583,6 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
   } else {
     auto req_id = cl_ord_id;
     auto &mapping = subscriptions_.cl_ord_id;
-    auto client_id = get_client_from_parties(execution_report);
-    assert(!std::empty(client_id));
-    log::debug("client_id={}"sv, client_id);
     if (execution_report.exec_type == roq::fix::ExecType::REJECTED) {
       log::debug(R"(reject req_id="{}")"sv, req_id);
       auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
@@ -1156,6 +1158,7 @@ void Controller::operator()(Trace<codec::fix::OrderStatusRequest> const &event, 
 void Controller::operator()(Trace<codec::fix::NewOrderSingle> const &event, uint64_t session_id) {
   auto &new_order_single = event.value;
   auto reject = [&](auto ord_rej_reason, auto &text) {
+    log::warn(R"(DEBUG: REJECT ord_rej_reason={}, text="{}")"sv, ord_rej_reason, text);
     auto request_id = shared_.create_request_id();
     auto execution_report = codec::fix::ExecutionReport{
         .order_id = request_id,  // required
@@ -1228,6 +1231,12 @@ void Controller::operator()(Trace<codec::fix::NewOrderSingle> const &event, uint
 void Controller::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &event, uint64_t session_id) {
   auto &order_cancel_replace_request = event.value;
   auto reject = [&](auto &order_id, auto ord_status, auto cxl_rej_reason, auto &text) {
+    log::warn(
+        R"(DEBUG: REJECT order_id="{}", ord_status={}, cxl_rej_reason={}, text="{}")"sv,
+        order_id,
+        ord_status,
+        cxl_rej_reason,
+        text);
     auto order_cancel_reject = codec::fix::OrderCancelReject{
         .order_id = order_id,  // required
         .secondary_cl_ord_id = {},
@@ -1260,11 +1269,11 @@ void Controller::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &
         ERROR_DUPLICATE_CL_ORD_ID);
     return;
   }
-  auto orig_cl_ord_id = find_server_cl_ord_id(order_cancel_replace_request.orig_cl_ord_id, client_id);
+  std::string orig_cl_ord_id{find_server_cl_ord_id(order_cancel_replace_request.orig_cl_ord_id, client_id)};  // alloc
   if (std::empty(orig_cl_ord_id)) {
-    reject(
-        ORDER_ID_NONE, roq::fix::OrdStatus::REJECTED, roq::fix::CxlRejReason::UNKNOWN_ORDER, ERROR_DUPLICATE_CL_ORD_ID);
-    return;
+    orig_cl_ord_id = shared_.create_request_id(client_id, order_cancel_replace_request.orig_cl_ord_id);
+    log::warn(
+        R"(DEBUG: RELAXING orig_cl_ord_id="{}"==>"{}")"sv, order_cancel_replace_request.orig_cl_ord_id, orig_cl_ord_id);
   }
   auto request_id = shared_.create_request_id(client_id, req_id);
   auto order_cancel_replace_request_2 = order_cancel_replace_request;
@@ -1280,6 +1289,12 @@ void Controller::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &
 void Controller::operator()(Trace<codec::fix::OrderCancelRequest> const &event, uint64_t session_id) {
   auto &order_cancel_request = event.value;
   auto reject = [&](auto &order_id, auto ord_status, auto cxl_rej_reason, auto &text) {
+    log::warn(
+        R"(DEBUG: REJECT order_id="{}", ord_status={}, cxl_rej_reason={}, text="{}")"sv,
+        order_id,
+        ord_status,
+        cxl_rej_reason,
+        text);
     auto order_cancel_reject = codec::fix::OrderCancelReject{
         .order_id = order_id,  // required
         .secondary_cl_ord_id = {},
@@ -1312,14 +1327,10 @@ void Controller::operator()(Trace<codec::fix::OrderCancelRequest> const &event, 
         ERROR_DUPLICATE_ORD_STATUS_REQ_ID);
     return;
   }
-  auto orig_cl_ord_id = find_server_cl_ord_id(order_cancel_request.orig_cl_ord_id, client_id);
+  std::string orig_cl_ord_id{find_server_cl_ord_id(order_cancel_request.orig_cl_ord_id, client_id)};  // alloc
   if (std::empty(orig_cl_ord_id)) {
-    reject(
-        ORDER_ID_NONE,
-        roq::fix::OrdStatus::REJECTED,
-        roq::fix::CxlRejReason::UNKNOWN_ORDER,
-        ERROR_UNKNOWN_ORIG_CL_ORD_ID);
-    return;
+    orig_cl_ord_id = shared_.create_request_id(client_id, order_cancel_request.orig_cl_ord_id);
+    log::warn(R"(DEBUG: RELAXING orig_cl_ord_id="{}"==>"{}")"sv, order_cancel_request.orig_cl_ord_id, orig_cl_ord_id);
   }
   auto request_id = shared_.create_request_id(client_id, order_cancel_request.cl_ord_id);
   auto order_cancel_request_2 = order_cancel_request;
