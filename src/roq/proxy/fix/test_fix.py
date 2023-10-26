@@ -85,6 +85,7 @@ def new_order_single_request(cl_ord_id):
     msg.append_pair(38, 1.0)  # quantity
     msg.append_pair(44, 100.0)  # price
     msg.append_pair(59, "1")  # gtc
+    msg.append_pair(60, "19700101-23:59:59")
     request = msg.encode()
     print(request)
     return request
@@ -163,12 +164,11 @@ if __name__ == "__main__":
         s.sendall(logon_request())
         response = s.recv(4096)
         print_message(response)
-        # order mass status request
-        s.sendall(order_mass_status_request())
+        # s.sendall(order_mass_status_request())
         # s.sendall(order_mass_cancel_request())
         # s.sendall(trade_capture_report_request())
         # s.sendall(request_for_positions_request())
-        # s.sendall(new_order_single_request('test-1'))
+        s.sendall(new_order_single_request("test-1"))
         # s.sendall(market_data_request())
         response = s.recv(4096)
         print_message(response)

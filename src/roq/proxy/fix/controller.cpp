@@ -578,17 +578,22 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
   } else {
     auto req_id = cl_ord_id;
     auto &mapping = subscriptions_.cl_ord_id;
-    remove_req_id_relaxed(mapping, req_id);  // note! request, not routing
     auto client_id = get_client_from_parties(execution_report);
     assert(!std::empty(client_id));
+    log::debug("client_id={}"sv, client_id);
     if (execution_report.exec_type == roq::fix::ExecType::REJECTED) {
+      log::debug(R"(reject req_id="{}")"sv, req_id);
       auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
         assert(execution_report.cl_ord_id == req_id);
         Trace event_2{event.trace_info, execution_report};
         dispatch_to_client(event_2, session_id);
       };
-      find_req_id(mapping, req_id, dispatch);
+      if (find_req_id(mapping, req_id, dispatch)) {
+      } else {
+        log::warn(R"(Internal error: req_id="{}")"sv, req_id);
+      }
     } else {
+      log::debug(R"(success req_id="{}")"sv, req_id);
       auto done = is_order_complete(execution_report.ord_status);
       if (done) {
         remove_cl_ord_id(cl_ord_id, client_id);
@@ -600,6 +605,7 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
       Trace event_2{event.trace_info, execution_report};
       broadcast(event_2, client_id);
     }
+    remove_req_id_relaxed(mapping, req_id);  // note! request, not routing
   }
 }
 
@@ -1109,9 +1115,9 @@ void Controller::operator()(Trace<codec::fix::OrderStatusRequest> const &event, 
         .last_qty = {},
         .last_px = {},
         .trading_session_id = {},
-        .leaves_qty = {},  // required XXX FIXME HANS
-        .cum_qty = {},     // required XXX FIXME HANS
-        .avg_px = {},      // required XXX FIXME HANS
+        .leaves_qty = {0.0, {}},  // required
+        .cum_qty = {0.0, {}},     // required
+        .avg_px = {0.0, {}},      // required
         .transact_time = {},
         .position_effect = {},
         .max_show = {},
@@ -1179,9 +1185,9 @@ void Controller::operator()(Trace<codec::fix::NewOrderSingle> const &event, uint
         .last_qty = {},
         .last_px = {},
         .trading_session_id = {},
-        .leaves_qty = {},  // required XXX FIXME HANS
-        .cum_qty = {},     // required XXX FIXME HANS
-        .avg_px = {},      // required XXX FIXME HANS
+        .leaves_qty = {0.0, {}},  // required
+        .cum_qty = {0.0, {}},     // required
+        .avg_px = {0.0, {}},      // required
         .transact_time = {},
         .position_effect = {},
         .max_show = {},
@@ -1215,8 +1221,7 @@ void Controller::operator()(Trace<codec::fix::NewOrderSingle> const &event, uint
   Trace event_2{event.trace_info, new_order_single_2};
   dispatch_to_server(event_2);
   // note! *after* request has been sent
-  client_to_server.emplace(req_id, request_id);
-  mapping.server_to_client.try_emplace(request_id, session_id, req_id, true);
+  add_req_id(mapping, req_id, request_id, session_id, true);
 }
 
 void Controller::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &event, uint64_t session_id) {
@@ -1359,9 +1364,9 @@ void Controller::operator()(Trace<codec::fix::OrderMassStatusRequest> const &eve
         .last_qty = {},
         .last_px = {},
         .trading_session_id = {},
-        .leaves_qty = {},  // required XXX FIXME HANS
-        .cum_qty = {},     // required XXX FIXME HANS
-        .avg_px = {},      // required XXX FIXME HANS
+        .leaves_qty = {0.0, {}},  // required
+        .cum_qty = {0.0, {}},     // required
+        .avg_px = {0.0, {}},      // required
         .transact_time = {},
         .position_effect = {},
         .max_show = {},
@@ -1633,6 +1638,17 @@ bool Controller::find_req_id(auto &mapping, std::string_view const &req_id, Call
   return true;
 }
 
+void Controller::add_req_id(
+    auto &mapping,
+    std::string_view const &req_id,
+    std::string_view const &request_id,
+    uint64_t session_id,
+    bool keep_alive) {
+  auto &client_to_server = mapping.client_to_server[session_id];
+  client_to_server.emplace(req_id, request_id);
+  mapping.server_to_client.try_emplace(request_id, session_id, req_id, keep_alive);
+}
+
 void Controller::remove_req_id(auto &mapping, std::string_view const &req_id) {
   auto iter_1 = mapping.server_to_client.find(req_id);
   if (iter_1 == std::end(mapping.server_to_client)) {
@@ -1656,6 +1672,7 @@ void Controller::remove_req_id_relaxed(auto &mapping, std::string_view const &re
   if (iter_1 == std::end(mapping.server_to_client))
     return;
   auto &[session_id, client_req_id, keep_alive] = (*iter_1).second;
+  log::warn(R"(DEBUG: REMOVE req_id(client)="{} <==> req_id(server)="{}")"sv, client_req_id, req_id);
   auto iter_2 = mapping.client_to_server.find(session_id);
   if (iter_2 != std::end(mapping.client_to_server)) {
     (*iter_2).second.erase(client_req_id);
