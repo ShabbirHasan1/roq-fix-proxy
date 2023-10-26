@@ -1141,7 +1141,8 @@ void Controller::operator()(Trace<codec::fix::OrderStatusRequest> const &event, 
       return;
     }
   }
-  auto request_id = shared_.create_request_id();
+  auto client_id = get_client_from_parties(order_status_request);
+  auto request_id = shared_.create_request_id(client_id, req_id);
   auto order_status_request_2 = order_status_request;
   order_status_request_2.ord_status_req_id = request_id;
   Trace event_2{event.trace_info, order_status_request_2};
@@ -1388,7 +1389,8 @@ void Controller::operator()(Trace<codec::fix::OrderMassStatusRequest> const &eve
     reject(roq::fix::OrdRejReason::OTHER, ERROR_DUPLICATE_MASS_STATUS_REQ_ID);
     return;
   }
-  auto request_id = shared_.create_request_id();
+  auto client_id = get_client_from_parties(order_mass_status_request);
+  auto request_id = shared_.create_request_id(client_id, req_id);
   auto order_mass_status_request_2 = order_mass_status_request;
   order_mass_status_request_2.mass_status_req_id = request_id;
   Trace event_2{event.trace_info, order_mass_status_request_2};
@@ -1429,7 +1431,8 @@ void Controller::operator()(Trace<codec::fix::OrderMassCancelRequest> const &eve
     reject(roq::fix::MassCancelRejectReason::OTHER, ERROR_DUPLICATE_CL_ORD_ID);
     return;
   }
-  auto request_id = shared_.create_request_id();
+  auto client_id = get_client_from_parties(order_mass_cancel_request);
+  auto request_id = shared_.create_request_id(client_id, req_id);
   auto order_mass_cancel_request_2 = order_mass_cancel_request;
   order_mass_cancel_request_2.cl_ord_id = request_id;
   Trace event_2{event.trace_info, order_mass_cancel_request_2};
@@ -1543,7 +1546,8 @@ void Controller::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &
   auto exists = iter != std::end(client_to_server);
   auto subscription_request_type = get_subscription_request_type(event);
   auto dispatch = [&](auto keep_alive) {
-    auto request_id = shared_.create_request_id();
+    auto client_id = get_client_from_parties(trade_capture_report_request);
+    auto request_id = shared_.create_request_id(client_id, req_id);
     auto trade_capture_report_request_2 = trade_capture_report_request;
     trade_capture_report_request_2.trade_request_id = request_id;
     Trace event_2{event.trace_info, trade_capture_report_request_2};
