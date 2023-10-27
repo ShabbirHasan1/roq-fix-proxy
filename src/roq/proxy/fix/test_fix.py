@@ -157,7 +157,7 @@ def order_mass_status_request():
     msg.append_pair(1, ACCOUNT)
     msg.append_pair(207, EXCHANGE)
     msg.append_pair(55, SYMBOL)
-    msg.append_pair(584, "req1")
+    msg.append_pair(584, "req_1")
     msg.append_pair(585, "1")  # Status for orders for a security
     request = msg.encode()
     print(request)

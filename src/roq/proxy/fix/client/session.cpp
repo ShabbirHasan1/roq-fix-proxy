@@ -9,6 +9,8 @@
 #include "roq/utils/chrono.hpp"  // hh_mm_ss
 #include "roq/utils/update.hpp"
 
+#include "roq/utils/codec/base64.hpp"
+
 #include "roq/oms/exceptions.hpp"
 
 using namespace std::literals;
@@ -32,6 +34,10 @@ auto const ERROR_UNKNOWN_TARGET_COMP_ID = "UNKNOWN TARGET_COMP_ID"sv;
 auto const ERROR_UNSUPPORTED_MSG_TYPE = "UNSUPPORTED MSG_TYPE"sv;
 auto const ERROR_UNSUPPORTED_PARTY_IDS = "UNSUPPORTED PARTY_IDS"sv;
 auto const ERROR_USER_RESPONSE_TIMEOUT = "USER_RESPONSE_TIMEOUT"sv;
+auto const ERROR_INVALID_REQ_ID = "INVALID_REQ_ID"sv;
+auto const ERROR_INVALID_MD_REQ_ID = "INVALID_MD_REQ_ID"sv;
+auto const ERROR_INVALID_CL_ORD_ID = "INVALID_CL_ORD_ID"sv;
+auto const ERROR_INVALID_ORIG_CL_ORD_ID = "INVALID_ORIG_CL_ORD_ID"sv;
 }  // namespace
 
 // === HELPERS ===
@@ -40,6 +46,11 @@ namespace {
 auto create_logon_timeout(auto &settings) {
   auto now = clock::get_system();
   return now + settings.client.logon_timeout;
+}
+
+auto validate_req_id(auto &req_id) {
+  static auto const web_safe = true;
+  return utils::codec::Base64::is_valid(req_id, web_safe);
 }
 }  // namespace
 
@@ -682,9 +693,16 @@ void Session::operator()(Trace<codec::fix::SecurityListRequest> const &event, ro
     case WAITING_CREATE_ROUTE:
       send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY:
+    case READY: {
+      auto &security_list_request = event.value;
+      if (!validate_req_id(security_list_request.security_req_id)) {
+        send_business_message_reject(
+            header, security_list_request.security_req_id, roq::fix::BusinessRejectReason::OTHER, ERROR_INVALID_REQ_ID);
+        return;
+      }
       handler_(event, session_id_);
       break;
+    }
     case WAITING_REMOVE_ROUTE:
       make_zombie();
       break;
@@ -700,9 +718,19 @@ void Session::operator()(Trace<codec::fix::SecurityDefinitionRequest> const &eve
     case WAITING_CREATE_ROUTE:
       send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY:
+    case READY: {
+      auto &security_definition_request = event.value;
+      if (!validate_req_id(security_definition_request.security_req_id)) {
+        send_business_message_reject(
+            header,
+            security_definition_request.security_req_id,
+            roq::fix::BusinessRejectReason::OTHER,
+            ERROR_INVALID_REQ_ID);
+        return;
+      }
       handler_(event, session_id_);
       break;
+    }
     case WAITING_REMOVE_ROUTE:
       make_zombie();
       break;
@@ -718,9 +746,19 @@ void Session::operator()(Trace<codec::fix::SecurityStatusRequest> const &event, 
     case WAITING_CREATE_ROUTE:
       send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY:
+    case READY: {
+      auto &security_status_request = event.value;
+      if (!validate_req_id(security_status_request.security_status_req_id)) {
+        send_business_message_reject(
+            header,
+            security_status_request.security_status_req_id,
+            roq::fix::BusinessRejectReason::OTHER,
+            ERROR_INVALID_REQ_ID);
+        return;
+      }
       handler_(event, session_id_);
       break;
+    }
     case WAITING_REMOVE_ROUTE:
       make_zombie();
       break;
@@ -736,9 +774,16 @@ void Session::operator()(Trace<codec::fix::MarketDataRequest> const &event, roq:
     case WAITING_CREATE_ROUTE:
       send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY:
+    case READY: {
+      auto &market_data_request = event.value;
+      if (!validate_req_id(market_data_request.md_req_id)) {
+        send_business_message_reject(
+            header, market_data_request.md_req_id, roq::fix::BusinessRejectReason::OTHER, ERROR_INVALID_MD_REQ_ID);
+        return;
+      }
       handler_(event, session_id_);
       break;
+    }
     case WAITING_REMOVE_ROUTE:
       make_zombie();
       break;
@@ -754,15 +799,24 @@ void Session::operator()(Trace<codec::fix::OrderStatusRequest> const &event, roq
     case WAITING_CREATE_ROUTE:
       send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY:
+    case READY: {
+      auto &order_status_request = event.value;
+      if (!validate_req_id(order_status_request.ord_status_req_id)) {
+        send_business_message_reject(
+            header,
+            order_status_request.ord_status_req_id,
+            roq::fix::BusinessRejectReason::OTHER,
+            ERROR_INVALID_REQ_ID);
+        return;
+      }
       if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, session_id_); })) {
       } else {
         auto &[trace_info, order_status_request] = event;
-        // XXX FIXME should be execution report
         send_business_message_reject(
             header, order_status_request.cl_ord_id, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
       }
       break;
+    }
     case WAITING_REMOVE_ROUTE:
       make_zombie();
       break;
@@ -778,11 +832,18 @@ void Session::operator()(Trace<codec::fix::OrderMassStatusRequest> const &event,
     case WAITING_CREATE_ROUTE:
       send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY:
+    case READY: {
+      auto &order_mass_status_request = event.value;
+      if (!validate_req_id(order_mass_status_request.mass_status_req_id)) {
+        send_business_message_reject(
+            header,
+            order_mass_status_request.mass_status_req_id,
+            roq::fix::BusinessRejectReason::OTHER,
+            ERROR_INVALID_REQ_ID);
+        return;
+      }
       if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, session_id_); })) {
       } else {
-        auto &[trace_info, order_mass_status_request] = event;
-        // XXX FIXME should be execution report
         send_business_message_reject(
             header,
             order_mass_status_request.mass_status_req_id,
@@ -790,6 +851,7 @@ void Session::operator()(Trace<codec::fix::OrderMassStatusRequest> const &event,
             ERROR_UNSUPPORTED_PARTY_IDS);
       }
       break;
+    }
     case WAITING_REMOVE_ROUTE:
       make_zombie();
       break;
@@ -805,15 +867,20 @@ void Session::operator()(Trace<codec::fix::NewOrderSingle> const &event, roq::fi
     case WAITING_CREATE_ROUTE:
       send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY:
+    case READY: {
+      auto &new_order_single = event.value;
+      if (!validate_req_id(new_order_single.cl_ord_id)) {
+        send_business_message_reject(
+            header, new_order_single.cl_ord_id, roq::fix::BusinessRejectReason::OTHER, ERROR_INVALID_CL_ORD_ID);
+        return;
+      }
       if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, session_id_); })) {
       } else {
-        auto &[trace_info, new_order_single] = event;
-        // XXX FIXME should be execution report
         send_business_message_reject(
             header, new_order_single.cl_ord_id, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
       }
       break;
+    }
     case WAITING_REMOVE_ROUTE:
       make_zombie();
       break;
@@ -829,7 +896,21 @@ void Session::operator()(Trace<codec::fix::OrderCancelRequest> const &event, roq
     case WAITING_CREATE_ROUTE:
       send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY:
+    case READY: {
+      auto &order_cancel_request = event.value;
+      if (!validate_req_id(order_cancel_request.cl_ord_id)) {
+        send_business_message_reject(
+            header, order_cancel_request.cl_ord_id, roq::fix::BusinessRejectReason::OTHER, ERROR_INVALID_CL_ORD_ID);
+        return;
+      }
+      if (!validate_req_id(order_cancel_request.orig_cl_ord_id)) {
+        send_business_message_reject(
+            header,
+            order_cancel_request.orig_cl_ord_id,
+            roq::fix::BusinessRejectReason::OTHER,
+            ERROR_INVALID_ORIG_CL_ORD_ID);
+        return;
+      }
       if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, session_id_); })) {
       } else {
         auto &[trace_info, order_cancel_request] = event;
@@ -838,6 +919,7 @@ void Session::operator()(Trace<codec::fix::OrderCancelRequest> const &event, roq
             header, order_cancel_request.cl_ord_id, roq::fix::BusinessRejectReason::OTHER, ERROR_UNSUPPORTED_PARTY_IDS);
       }
       break;
+    }
     case WAITING_REMOVE_ROUTE:
       make_zombie();
       break;
@@ -853,7 +935,24 @@ void Session::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &eve
     case WAITING_CREATE_ROUTE:
       send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY:
+    case READY: {
+      auto &order_cancel_replace_request = event.value;
+      if (!validate_req_id(order_cancel_replace_request.cl_ord_id)) {
+        send_business_message_reject(
+            header,
+            order_cancel_replace_request.cl_ord_id,
+            roq::fix::BusinessRejectReason::OTHER,
+            ERROR_INVALID_CL_ORD_ID);
+        return;
+      }
+      if (!validate_req_id(order_cancel_replace_request.orig_cl_ord_id)) {
+        send_business_message_reject(
+            header,
+            order_cancel_replace_request.orig_cl_ord_id,
+            roq::fix::BusinessRejectReason::OTHER,
+            ERROR_INVALID_ORIG_CL_ORD_ID);
+        return;
+      }
       if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, session_id_); })) {
       } else {
         auto &[trace_info, order_cancel_replace_request] = event;
@@ -865,6 +964,7 @@ void Session::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &eve
             ERROR_UNSUPPORTED_PARTY_IDS);
       }
       break;
+    }
     case WAITING_REMOVE_ROUTE:
       make_zombie();
       break;
@@ -880,10 +980,18 @@ void Session::operator()(Trace<codec::fix::OrderMassCancelRequest> const &event,
     case WAITING_CREATE_ROUTE:
       send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY:
+    case READY: {
+      auto &order_mass_cancel_request = event.value;
+      if (!validate_req_id(order_mass_cancel_request.cl_ord_id)) {
+        send_business_message_reject(
+            header,
+            order_mass_cancel_request.cl_ord_id,
+            roq::fix::BusinessRejectReason::OTHER,
+            ERROR_INVALID_CL_ORD_ID);
+        return;
+      }
       if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, session_id_); })) {
       } else {
-        auto &[trace_info, order_mass_cancel_request] = event;
         send_business_message_reject(
             header,
             order_mass_cancel_request.cl_ord_id,
@@ -891,6 +999,7 @@ void Session::operator()(Trace<codec::fix::OrderMassCancelRequest> const &event,
             ERROR_UNSUPPORTED_MSG_TYPE);
       }
       break;
+    }
     case WAITING_REMOVE_ROUTE:
       make_zombie();
       break;
@@ -906,7 +1015,13 @@ void Session::operator()(Trace<codec::fix::RequestForPositions> const &event, ro
     case WAITING_CREATE_ROUTE:
       send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY:
+    case READY: {
+      auto &request_for_positions = event.value;
+      if (!validate_req_id(request_for_positions.pos_req_id)) {
+        send_business_message_reject(
+            header, request_for_positions.pos_req_id, roq::fix::BusinessRejectReason::OTHER, ERROR_INVALID_REQ_ID);
+        return;
+      }
       if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, session_id_); })) {
       } else {
         auto &[trace_info, request_for_positions] = event;
@@ -917,6 +1032,7 @@ void Session::operator()(Trace<codec::fix::RequestForPositions> const &event, ro
             ERROR_UNSUPPORTED_PARTY_IDS);
       }
       break;
+    }
     case WAITING_REMOVE_ROUTE:
       make_zombie();
       break;
@@ -932,7 +1048,16 @@ void Session::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &eve
     case WAITING_CREATE_ROUTE:
       send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, ERROR_NO_LOGON);
       break;
-    case READY:
+    case READY: {
+      auto &trade_capture_report_request = event.value;
+      if (!validate_req_id(trade_capture_report_request.trade_request_id)) {
+        send_business_message_reject(
+            header,
+            trade_capture_report_request.trade_request_id,
+            roq::fix::BusinessRejectReason::OTHER,
+            ERROR_INVALID_REQ_ID);
+        return;
+      }
       if (add_party_ids(event, [&](auto &event_2) { handler_(event_2, session_id_); })) {
       } else {
         auto &[trace_info, trade_capture_report_request] = event;
@@ -943,6 +1068,7 @@ void Session::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &eve
             ERROR_UNSUPPORTED_MSG_TYPE);
       }
       break;
+    }
     case WAITING_REMOVE_ROUTE:
       make_zombie();
       break;
