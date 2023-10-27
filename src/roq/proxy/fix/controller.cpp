@@ -73,9 +73,19 @@ auto get_client_from_parties(T &value) -> std::string_view {
   return {};
 }
 
-auto find_real_cl_ord_id(auto &cl_ord_id) -> std::string_view {
+auto create_request_id(std::string_view const &client_id, std::string_view const &cl_ord_id) {
+  return fmt::format("proxy-{}:{}"sv, client_id, cl_ord_id);
+}
+
+auto get_client_cl_ord_id(auto &cl_ord_id) -> std::string_view {
+  if (std::empty(cl_ord_id))
+    return cl_ord_id;
   auto pos = cl_ord_id.find(':');
-  return pos == cl_ord_id.npos ? cl_ord_id : cl_ord_id.substr(pos + 1);
+  if (pos != cl_ord_id.npos)
+    return cl_ord_id.substr(pos + 1);
+  assert(false);
+  log::warn(R"(Unexpected: cl_ord_id="{}")"sv, cl_ord_id);
+  return cl_ord_id;
 }
 
 auto is_order_complete(auto ord_status) {
@@ -412,9 +422,10 @@ void Controller::operator()(Trace<codec::fix::SecurityList> const &event) {
   auto &mapping = subscriptions_.security_req_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     if (remove)
-      remove_req_id(mapping, req_id);
+      if (!remove_req_id(mapping, req_id))
+        log::warn(R"(Internal error: security_req_id="{}")"sv, req_id);
   } else {
-    log::warn(R"(Internal error: req_id="{}")"sv, req_id);
+    log::warn(R"(Internal error: security_req_id="{}")"sv, req_id);
   }
 }
 
@@ -432,9 +443,10 @@ void Controller::operator()(Trace<codec::fix::SecurityDefinition> const &event) 
   auto &mapping = subscriptions_.security_req_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     if (remove)
-      remove_req_id(mapping, req_id);
+      if (!remove_req_id(mapping, req_id))
+        log::warn(R"(Internal error: security_req_req_id="{}")"sv, req_id);
   } else {
-    log::warn(R"(Internal error: req_id="{}")"sv, req_id);
+    log::warn(R"(Internal error: security_req_id="{}")"sv, req_id);
   }
 }
 
@@ -452,9 +464,10 @@ void Controller::operator()(Trace<codec::fix::SecurityStatus> const &event) {
   auto &mapping = subscriptions_.security_status_req_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     if (remove)
-      remove_req_id(mapping, req_id);
+      if (!remove_req_id(mapping, req_id))
+        log::warn(R"(Internal error: security_status_req_id="{}")"sv, req_id);
   } else {
-    log::warn(R"(Internal error: req_id="{}")"sv, req_id);
+    log::warn(R"(Internal error: security_status_req_id="{}")"sv, req_id);
   }
 }
 
@@ -468,9 +481,10 @@ void Controller::operator()(Trace<codec::fix::MarketDataRequestReject> const &ev
   auto req_id = event.value.md_req_id;
   auto &mapping = subscriptions_.md_req_id;
   if (find_req_id(mapping, req_id, dispatch)) {
-    remove_req_id(mapping, req_id);
+    if (!remove_req_id(mapping, req_id))
+      log::warn(R"(Internal error: md_req_id="{}")"sv, req_id);
   } else {
-    log::warn(R"(Internal error: req_id="{}")"sv, req_id);
+    log::warn(R"(Internal error: md_req_id="{}")"sv, req_id);
   }
 }
 
@@ -487,9 +501,10 @@ void Controller::operator()(Trace<codec::fix::MarketDataSnapshotFullRefresh> con
   auto &mapping = subscriptions_.md_req_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     if (remove)
-      remove_req_id(mapping, req_id);
+      if (!remove_req_id(mapping, req_id))
+        log::warn(R"(Internal error: md_req_id="{}")"sv, req_id);
   } else {
-    log::warn(R"(Internal error: req_id="{}")"sv, req_id);
+    log::warn(R"(Internal error: md_req_id="{}")"sv, req_id);
   }
 }
 
@@ -508,7 +523,7 @@ void Controller::operator()(Trace<codec::fix::MarketDataIncrementalRefresh> cons
 
 void Controller::operator()(Trace<codec::fix::OrderCancelReject> const &event) {
   auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
-    auto orig_cl_ord_id = find_real_cl_ord_id(event.value.orig_cl_ord_id);
+    auto orig_cl_ord_id = get_client_cl_ord_id(event.value.orig_cl_ord_id);
     auto order_cancel_reject = event.value;
     order_cancel_reject.cl_ord_id = req_id;
     order_cancel_reject.orig_cl_ord_id = orig_cl_ord_id;
@@ -518,7 +533,8 @@ void Controller::operator()(Trace<codec::fix::OrderCancelReject> const &event) {
   auto req_id = event.value.cl_ord_id;
   auto &mapping = subscriptions_.cl_ord_id;
   find_req_id(mapping, req_id, dispatch);
-  remove_req_id(mapping, req_id);
+  if (!remove_req_id(mapping, req_id))
+    log::warn(R"(Internal error: cl_ord_id="{}")"sv, req_id);
 }
 
 void Controller::operator()(Trace<codec::fix::OrderMassCancelReport> const &event) {
@@ -531,7 +547,8 @@ void Controller::operator()(Trace<codec::fix::OrderMassCancelReport> const &even
   auto req_id = event.value.cl_ord_id;
   auto &mapping = subscriptions_.mass_cancel_cl_ord_id;
   find_req_id(mapping, req_id, dispatch);
-  remove_req_id(mapping, req_id);
+  if (!remove_req_id(mapping, req_id))
+    log::warn(R"(Internal error: cl_ord_id="{}")"sv, req_id);
 }
 
 void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
@@ -541,14 +558,19 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
   auto client_id = get_client_from_parties(execution_report);
   assert(!std::empty(client_id));
   log::debug("client_id={}"sv, client_id);
-  execution_report.cl_ord_id = find_real_cl_ord_id(cl_ord_id);
-  execution_report.orig_cl_ord_id = find_real_cl_ord_id(orig_cl_ord_id);
+  execution_report.cl_ord_id = get_client_cl_ord_id(cl_ord_id);
+  execution_report.orig_cl_ord_id = get_client_cl_ord_id(orig_cl_ord_id);
   auto has_ord_status_req_id = !std::empty(execution_report.ord_status_req_id);
   auto has_mass_status_req_id = !std::empty(execution_report.mass_status_req_id);
   assert(!(has_ord_status_req_id && has_mass_status_req_id));  // can't have both
   if (has_ord_status_req_id) {
+    if (execution_report.ord_status == roq::fix::OrdStatus::REJECTED) {
+      // note! no order
+    } else {
+      assert(!is_order_complete(execution_report.ord_status));
+    }
     assert(execution_report.last_rpt_requested);
-    ensure_cl_ord_id(cl_ord_id, client_id, execution_report.ord_status);
+    ensure_cl_ord_id(cl_ord_id, execution_report.ord_status);
     auto req_id = execution_report.ord_status_req_id;
     auto &mapping = subscriptions_.ord_status_req_id;
     auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
@@ -558,16 +580,21 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
       dispatch_to_client(event_2, session_id);
     };
     if (find_req_id(mapping, req_id, dispatch)) {
-      remove_req_id(mapping, req_id);
+      if (!remove_req_id(mapping, req_id))
+        log::warn(R"(Internal error: ord_status_req_id="{}")"sv, req_id);
     } else {
-      log::warn(R"(DEBUG: no ord_status_req_id="{}")"sv, req_id);
+      log::warn(R"(Internal error: ord_status_req_id="{}")"sv, req_id);
     }
   } else if (has_mass_status_req_id) {
-    ensure_cl_ord_id(cl_ord_id, client_id, execution_report.ord_status);
+    if (execution_report.ord_status == roq::fix::OrdStatus::REJECTED) {
+      assert(execution_report.tot_num_reports == 0);
+    } else {
+      assert(!is_order_complete(execution_report.ord_status));
+    }
+    ensure_cl_ord_id(cl_ord_id, execution_report.ord_status);
     auto req_id = execution_report.mass_status_req_id;
     auto &mapping = subscriptions_.mass_status_req_id;
     auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
-      execution_report.cl_ord_id = find_real_cl_ord_id(execution_report.cl_ord_id);
       assert(std::empty(execution_report.orig_cl_ord_id));
       execution_report.mass_status_req_id = req_id;
       Trace event_2{event.trace_info, execution_report};
@@ -575,16 +602,17 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
     };
     if (find_req_id(mapping, req_id, dispatch)) {
       if (execution_report.last_rpt_requested) {
-        remove_req_id(mapping, req_id);
+        if (!remove_req_id(mapping, req_id))
+          log::warn(R"(Internal error: mass_status_req_id="{}")"sv, req_id);
       }
     } else {
-      log::warn(R"(DEBUG: no mass_status_req_id="{}")"sv, req_id);
+      log::warn(R"(Internal error: mass_status_req_id="{}")"sv, req_id);
     }
   } else {
     auto req_id = cl_ord_id;
     auto &mapping = subscriptions_.cl_ord_id;
     if (execution_report.exec_type == roq::fix::ExecType::REJECTED) {
-      log::debug(R"(reject req_id="{}")"sv, req_id);
+      log::debug(R"(REJECT req_id="{}")"sv, req_id);
       auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
         assert(execution_report.cl_ord_id == req_id);
         Trace event_2{event.trace_info, execution_report};
@@ -592,22 +620,22 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
       };
       if (find_req_id(mapping, req_id, dispatch)) {
       } else {
-        log::warn(R"(Internal error: req_id="{}")"sv, req_id);
+        log::warn(R"(Internal error: req_id="{}")"sv, req_id);  // note! created by another proxy?
       }
     } else {
-      log::debug(R"(success req_id="{}")"sv, req_id);
+      log::debug(R"(SUCCESS req_id="{}")"sv, req_id);
       auto done = is_order_complete(execution_report.ord_status);
       if (done) {
-        remove_cl_ord_id(cl_ord_id, client_id);
+        remove_cl_ord_id(cl_ord_id);
       } else {
-        ensure_cl_ord_id(cl_ord_id, client_id, execution_report.ord_status);
+        ensure_cl_ord_id(cl_ord_id, execution_report.ord_status);
       }
       if (!std::empty(orig_cl_ord_id))
-        remove_cl_ord_id(orig_cl_ord_id, client_id);
+        remove_cl_ord_id(orig_cl_ord_id);
       Trace event_2{event.trace_info, execution_report};
       broadcast(event_2, client_id);
     }
-    remove_req_id_relaxed(mapping, req_id);  // note! request, not routing
+    remove_req_id(mapping, req_id);  // note! relaxed
   }
 }
 
@@ -633,9 +661,10 @@ void Controller::operator()(Trace<codec::fix::RequestForPositionsAck> const &eve
   auto &mapping = subscriptions_.pos_req_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     if (remove)
-      remove_req_id(mapping, req_id);
+      if (!remove_req_id(mapping, req_id))
+        log::warn(R"(Internal error: pos_req_id="{}")"sv, req_id);
   } else {
-    log::warn(R"(Internal error: req_id="{}")"sv, req_id);
+    log::warn(R"(Internal error: pos_req_id="{}")"sv, req_id);
   }
 }
 
@@ -661,9 +690,10 @@ void Controller::operator()(Trace<codec::fix::PositionReport> const &event) {
   auto &mapping = subscriptions_.pos_req_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     if (remove)
-      remove_req_id(mapping, req_id);
+      if (!remove_req_id(mapping, req_id))
+        log::warn(R"(Internal error: pos_req_id="{}")"sv, req_id);
   } else {
-    log::warn(R"(Internal error: req_id="{}")"sv, req_id);
+    log::warn(R"(Internal error: pos_req_id="{}")"sv, req_id);
   }
 }
 
@@ -680,9 +710,10 @@ void Controller::operator()(Trace<codec::fix::TradeCaptureReportRequestAck> cons
   auto &mapping = subscriptions_.trade_request_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     if (remove)
-      remove_req_id(mapping, req_id);
+      if (!remove_req_id(mapping, req_id))
+        log::warn(R"(Internal error: trade_request_id="{}")"sv, req_id);
   } else {
-    log::warn(R"(Internal error: req_id="{}")"sv, req_id);
+    log::warn(R"(Internal error: trade_request_id="{}")"sv, req_id);
   }
 }
 
@@ -702,9 +733,10 @@ void Controller::operator()(Trace<codec::fix::TradeCaptureReport> const &event) 
   auto &mapping = subscriptions_.trade_request_id;
   if (find_req_id(mapping, req_id, dispatch)) {
     if (remove)
-      remove_req_id(mapping, req_id);
+      if (!remove_req_id(mapping, req_id))
+        log::warn(R"(Internal error: trade_request_id="{}")"sv, req_id);
   } else {
-    log::warn(R"(Internal error: req_id="{}")"sv, req_id);
+    log::warn(R"(Internal error: trade_request_id="{}")"sv, req_id);
   }
 }
 
@@ -1144,7 +1176,7 @@ void Controller::operator()(Trace<codec::fix::OrderStatusRequest> const &event, 
     }
   }
   auto client_id = get_client_from_parties(order_status_request);
-  auto request_id = shared_.create_request_id(client_id, req_id);
+  auto request_id = create_request_id(client_id, req_id);
   auto order_status_request_2 = order_status_request;
   order_status_request_2.ord_status_req_id = request_id;
   Trace event_2{event.trace_info, order_status_request_2};
@@ -1214,12 +1246,7 @@ void Controller::operator()(Trace<codec::fix::NewOrderSingle> const &event, uint
     reject(roq::fix::OrdRejReason::OTHER, ERROR_DUPLICATE_CL_ORD_ID);
     return;
   }
-  auto cl_ord_id = find_server_cl_ord_id(new_order_single.cl_ord_id, client_id);
-  if (!std::empty(cl_ord_id)) {
-    reject(roq::fix::OrdRejReason::OTHER, ERROR_DUPLICATE_CL_ORD_ID);
-    return;
-  }
-  auto request_id = shared_.create_request_id(client_id, new_order_single.cl_ord_id);
+  auto request_id = create_request_id(client_id, new_order_single.cl_ord_id);
   auto new_order_single_2 = new_order_single;
   new_order_single_2.cl_ord_id = request_id;
   Trace event_2{event.trace_info, new_order_single_2};
@@ -1269,13 +1296,8 @@ void Controller::operator()(Trace<codec::fix::OrderCancelReplaceRequest> const &
         ERROR_DUPLICATE_CL_ORD_ID);
     return;
   }
-  std::string orig_cl_ord_id{find_server_cl_ord_id(order_cancel_replace_request.orig_cl_ord_id, client_id)};  // alloc
-  if (std::empty(orig_cl_ord_id)) {
-    orig_cl_ord_id = shared_.create_request_id(client_id, order_cancel_replace_request.orig_cl_ord_id);
-    log::warn(
-        R"(DEBUG: RELAXING orig_cl_ord_id="{}"==>"{}")"sv, order_cancel_replace_request.orig_cl_ord_id, orig_cl_ord_id);
-  }
-  auto request_id = shared_.create_request_id(client_id, req_id);
+  auto request_id = create_request_id(client_id, req_id);
+  auto orig_cl_ord_id = create_request_id(client_id, order_cancel_replace_request.orig_cl_ord_id);
   auto order_cancel_replace_request_2 = order_cancel_replace_request;
   order_cancel_replace_request_2.cl_ord_id = request_id;
   order_cancel_replace_request_2.orig_cl_ord_id = orig_cl_ord_id;
@@ -1327,12 +1349,8 @@ void Controller::operator()(Trace<codec::fix::OrderCancelRequest> const &event, 
         ERROR_DUPLICATE_ORD_STATUS_REQ_ID);
     return;
   }
-  std::string orig_cl_ord_id{find_server_cl_ord_id(order_cancel_request.orig_cl_ord_id, client_id)};  // alloc
-  if (std::empty(orig_cl_ord_id)) {
-    orig_cl_ord_id = shared_.create_request_id(client_id, order_cancel_request.orig_cl_ord_id);
-    log::warn(R"(DEBUG: RELAXING orig_cl_ord_id="{}"==>"{}")"sv, order_cancel_request.orig_cl_ord_id, orig_cl_ord_id);
-  }
-  auto request_id = shared_.create_request_id(client_id, order_cancel_request.cl_ord_id);
+  auto request_id = create_request_id(client_id, order_cancel_request.cl_ord_id);
+  auto orig_cl_ord_id = create_request_id(client_id, order_cancel_request.orig_cl_ord_id);
   auto order_cancel_request_2 = order_cancel_request;
   order_cancel_request_2.cl_ord_id = request_id;
   order_cancel_request_2.orig_cl_ord_id = orig_cl_ord_id;
@@ -1401,7 +1419,7 @@ void Controller::operator()(Trace<codec::fix::OrderMassStatusRequest> const &eve
     return;
   }
   auto client_id = get_client_from_parties(order_mass_status_request);
-  auto request_id = shared_.create_request_id(client_id, req_id);
+  auto request_id = create_request_id(client_id, req_id);
   auto order_mass_status_request_2 = order_mass_status_request;
   order_mass_status_request_2.mass_status_req_id = request_id;
   Trace event_2{event.trace_info, order_mass_status_request_2};
@@ -1443,7 +1461,7 @@ void Controller::operator()(Trace<codec::fix::OrderMassCancelRequest> const &eve
     return;
   }
   auto client_id = get_client_from_parties(order_mass_cancel_request);
-  auto request_id = shared_.create_request_id(client_id, req_id);
+  auto request_id = create_request_id(client_id, req_id);
   auto order_mass_cancel_request_2 = order_mass_cancel_request;
   order_mass_cancel_request_2.cl_ord_id = request_id;
   Trace event_2{event.trace_info, order_mass_cancel_request_2};
@@ -1558,7 +1576,7 @@ void Controller::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &
   auto subscription_request_type = get_subscription_request_type(event);
   auto dispatch = [&](auto keep_alive) {
     auto client_id = get_client_from_parties(trade_capture_report_request);
-    auto request_id = shared_.create_request_id(client_id, req_id);
+    auto request_id = create_request_id(client_id, req_id);
     auto trade_capture_report_request_2 = trade_capture_report_request;
     trade_capture_report_request_2.trade_request_id = request_id;
     Trace event_2{event.trace_info, trade_capture_report_request_2};
@@ -1664,37 +1682,23 @@ void Controller::add_req_id(
   mapping.server_to_client.try_emplace(request_id, session_id, req_id, keep_alive);
 }
 
-void Controller::remove_req_id(auto &mapping, std::string_view const &req_id) {
+bool Controller::remove_req_id(auto &mapping, std::string_view const &req_id) {
+  if (std::empty(req_id))
+    return true;
   auto iter_1 = mapping.server_to_client.find(req_id);
-  if (iter_1 == std::end(mapping.server_to_client)) {
-    log::warn(R"(Internal error: req_id="{}")"sv, req_id);
-    return;
-  }
+  if (iter_1 == std::end(mapping.server_to_client))
+    return false;
   auto &[session_id, client_req_id, keep_alive] = (*iter_1).second;
   auto iter_2 = mapping.client_to_server.find(session_id);
   if (iter_2 != std::end(mapping.client_to_server)) {
-    log::warn(R"(DEBUG: REMOVE req_id(client)="{}")"sv, client_req_id);
+    log::warn(R"(DEBUG: REMOVE req_id(client)="{} <==> req_id(server)="{}")"sv, client_req_id, req_id);
     (*iter_2).second.erase(client_req_id);
     if (std::empty((*iter_2).second))
       mapping.client_to_server.erase(iter_2);
   }
   log::warn(R"(DEBUG: REMOVE req_id(server)="{}")"sv, req_id);
   mapping.server_to_client.erase(iter_1);
-}
-
-void Controller::remove_req_id_relaxed(auto &mapping, std::string_view const &req_id) {
-  auto iter_1 = mapping.server_to_client.find(req_id);
-  if (iter_1 == std::end(mapping.server_to_client))
-    return;
-  auto &[session_id, client_req_id, keep_alive] = (*iter_1).second;
-  log::warn(R"(DEBUG: REMOVE req_id(client)="{} <==> req_id(server)="{}")"sv, client_req_id, req_id);
-  auto iter_2 = mapping.client_to_server.find(session_id);
-  if (iter_2 != std::end(mapping.client_to_server)) {
-    (*iter_2).second.erase(client_req_id);
-    if (std::empty((*iter_2).second))
-      mapping.client_to_server.erase(iter_2);
-  }
-  mapping.server_to_client.erase(iter_1);
+  return true;
 }
 
 template <typename Callback>
@@ -1712,63 +1716,30 @@ void Controller::clear_req_ids(auto &mapping, uint64_t session_id, Callback call
 
 // cl_ord_id
 
-void Controller::ensure_cl_ord_id(
-    std::string_view const &cl_ord_id, std::string_view const &client_id, roq::fix::OrdStatus ord_status) {
-  auto iter_1 = cl_ord_id_.state.find(cl_ord_id);
-  if (iter_1 == std::end(cl_ord_id_.state)) {
+void Controller::ensure_cl_ord_id(std::string_view const &cl_ord_id, roq::fix::OrdStatus ord_status) {
+  if (std::empty(cl_ord_id))
+    return;
+  auto iter = cl_ord_id_.state.find(cl_ord_id);
+  if (iter == std::end(cl_ord_id_.state)) {
     log::warn(R"(DEBUG: ADD cl_ord_id(server)="{}" ==> {})"sv, cl_ord_id, ord_status);
     auto res = cl_ord_id_.state.emplace(cl_ord_id, ord_status);
     assert(res.second);
   } else {
-    if (utils::update((*iter_1).second, ord_status))
+    if (utils::update((*iter).second, ord_status))
       log::warn(R"(DEBUG: UPDATE cl_ord_id(server)="{}" ==> {})"sv, cl_ord_id, ord_status);
   }
-  auto real_cl_ord_id = find_real_cl_ord_id(cl_ord_id);
-  assert(!std::empty(real_cl_ord_id));
-  auto &tmp = cl_ord_id_.lookup[client_id];
-  auto iter_2 = tmp.find(real_cl_ord_id);
-  if (iter_2 == std::end(tmp)) {
-    log::warn(
-        R"(DEBUG: ADD {{client_id="{}", cl_ord_id(client)="{}"}} ==> cl_ord_id(server)="{}")"sv,
-        client_id,
-        real_cl_ord_id,
-        cl_ord_id);
-    auto res = tmp.emplace(real_cl_ord_id, cl_ord_id);
-    assert(res.second);
-  } else {
-    assert((*iter_2).second == cl_ord_id);
-  }
 }
 
-void Controller::remove_cl_ord_id(std::string_view const &cl_ord_id, std::string_view const &client_id) {
+void Controller::remove_cl_ord_id(std::string_view const &cl_ord_id) {
+  if (std::empty(cl_ord_id))
+    return;
   if (shared_.settings.test.disable_remove_cl_ord_id)
     return;
-  auto iter_1 = cl_ord_id_.state.find(cl_ord_id);
-  if (iter_1 != std::end(cl_ord_id_.state)) {
+  auto iter = cl_ord_id_.state.find(cl_ord_id);
+  if (iter != std::end(cl_ord_id_.state)) {
     log::warn(R"(DEBUG: REMOVE cl_ord_id(server)="{}")"sv, cl_ord_id);
-    cl_ord_id_.state.erase(iter_1);
+    cl_ord_id_.state.erase(iter);
   }
-  auto iter_2 = cl_ord_id_.lookup.find(client_id);
-  if (iter_2 != std::end(cl_ord_id_.lookup)) {
-    auto &tmp = (*iter_2).second;
-    auto real_cl_ord_id = find_real_cl_ord_id(cl_ord_id);
-    assert(!std::empty(real_cl_ord_id));
-    log::warn(R"(DEBUG: REMOVE {{client_id="{}", cl_ord_id(client)="{}"}})"sv, client_id, real_cl_ord_id);
-    tmp.erase(real_cl_ord_id);
-    if (std::empty(tmp))
-      cl_ord_id_.lookup.erase(iter_2);
-  }
-}
-
-std::string_view Controller::find_server_cl_ord_id(std::string_view const &cl_ord_id, std::string_view &client_id) {
-  auto iter_1 = cl_ord_id_.lookup.find(client_id);
-  if (iter_1 == std::end(cl_ord_id_.lookup))
-    return {};
-  auto &tmp = (*iter_1).second;
-  auto iter_2 = tmp.find(cl_ord_id);
-  if (iter_2 == std::end(tmp))
-    return {};
-  return (*iter_2).second;
 }
 
 // user

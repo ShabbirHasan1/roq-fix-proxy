@@ -75,7 +75,6 @@ struct Shared final {
   }
 
   std::string create_request_id();
-  std::string create_request_id(std::string_view const &client_id, std::string_view const &cl_ord_id);
 
  protected:
   std::string_view session_logon_helper(

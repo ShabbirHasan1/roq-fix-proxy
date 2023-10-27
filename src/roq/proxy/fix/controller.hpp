@@ -115,8 +115,7 @@ struct Controller final : public io::sys::Signal::Handler,
       uint64_t session_id,
       bool keep_alive);
 
-  void remove_req_id(auto &mapping, std::string_view const &req_id);
-  void remove_req_id_relaxed(auto &mapping, std::string_view const &req_id);
+  bool remove_req_id(auto &mapping, std::string_view const &req_id);
 
   template <typename Callback>
   void clear_req_ids(auto &mapping, uint64_t session_id, Callback);
@@ -125,10 +124,8 @@ struct Controller final : public io::sys::Signal::Handler,
     clear_req_ids(mapping, session_id, []([[maybe_unused]] auto &req_id) {});
   }
 
-  void ensure_cl_ord_id(std::string_view const &cl_ord_id, std::string_view const &client_id, roq::fix::OrdStatus);
-  void remove_cl_ord_id(std::string_view const &cl_ord_id, std::string_view const &client_id);
-
-  std::string_view find_server_cl_ord_id(std::string_view const &cl_ord_id, std::string_view &client_id);
+  void ensure_cl_ord_id(std::string_view const &cl_ord_id, roq::fix::OrdStatus);
+  void remove_cl_ord_id(std::string_view const &cl_ord_id);
 
   void user_add(std::string_view const &username, uint64_t session_id);
   void user_remove(std::string_view const &username, bool ready);
@@ -172,8 +169,6 @@ struct Controller final : public io::sys::Signal::Handler,
   struct {
     // cl_ord_id(server) => order status
     absl::flat_hash_map<std::string, roq::fix::OrdStatus> state;
-    // client_id => cl_ord_id(client) => cl_ord_id(server)
-    absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::string>> lookup;
   } cl_ord_id_;
   // WORK-AROUND
   uint32_t total_num_pos_reports_ = {};
