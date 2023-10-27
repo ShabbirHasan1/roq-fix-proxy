@@ -158,6 +158,7 @@ struct Controller final : public io::sys::Signal::Handler,
     };
     Mapping security_req_id;
     Mapping security_status_req_id;
+    Mapping trad_ses_req_id;
     Mapping md_req_id;
     Mapping ord_status_req_id;
     Mapping mass_status_req_id;

@@ -271,16 +271,16 @@ void Controller::operator()(Trace<codec::fix::BusinessMessageReject> const &even
     case EMAIL:
       break;
     case NEW_ORDER_SINGLE:
-      dispatch(subscriptions_.md_req_id);  // XXX HANS
-      return;                              // note!
+      dispatch(subscriptions_.cl_ord_id);
+      return;  // note!
     case NEW_ORDER_LIST:
       break;
     case ORDER_CANCEL_REQUEST:
-      dispatch(subscriptions_.md_req_id);  // XXX HANS
-      return;                              // note!
+      dispatch(subscriptions_.cl_ord_id);
+      return;  // note!
     case ORDER_CANCEL_REPLACE_REQUEST:
-      dispatch(subscriptions_.md_req_id);  // XXX HANS
-      return;                              // note!
+      dispatch(subscriptions_.cl_ord_id);
+      return;  // note!
     case ORDER_STATUS_REQUEST:
       dispatch(subscriptions_.ord_status_req_id);
       return;  // note!
@@ -333,8 +333,8 @@ void Controller::operator()(Trace<codec::fix::BusinessMessageReject> const &even
     case SECURITY_STATUS:
       break;
     case TRADING_SESSION_STATUS_REQUEST:
-      dispatch(subscriptions_.md_req_id);  // XXX HANS
-      return;                              // note!
+      dispatch(subscriptions_.trad_ses_req_id);
+      return;  // note!
     case TRADING_SESSION_STATUS:
       break;
     case MASS_QUOTE:
@@ -763,6 +763,7 @@ void Controller::operator()(Trace<client::Session::Disconnected> const &event, u
   };
   clear_req_ids(subscriptions_.security_req_id, session_id);         // note! subscriptions not yet supported
   clear_req_ids(subscriptions_.security_status_req_id, session_id);  // note! subscriptions not yet supported
+  clear_req_ids(subscriptions_.trad_ses_req_id, session_id);         // note! subscriptions not yet supported
   clear_req_ids(subscriptions_.md_req_id, session_id, unsubscribe_market_data);
   clear_req_ids(subscriptions_.ord_status_req_id, session_id);
   clear_req_ids(subscriptions_.mass_status_req_id, session_id);
@@ -791,7 +792,7 @@ void Controller::operator()(Trace<client::Session::Disconnected> const &event, u
     // note!
     // there are two scenarios:
     //   we can't send ==> fix-bridge is disconnected so it doesn't matter
-    //   we get a response => fix-bridge was connect and we expect it to do the right thing
+    //   we get a response => fix-bridge was connected and we expect it to do the right thing
     // therefore: release immediately to allow the client to reconnect
     log::debug(R"(USER REMOVE client_id="{}" <==> session_id={})"sv, username_2, session_id);
     subscriptions_.user.client_to_session.erase((*iter_2).second);
@@ -1659,7 +1660,7 @@ void Controller::broadcast(Trace<T> const &event, std::string_view const &client
   client_manager_.find(session_id, [&](auto &session) { session(event); });
 }
 
-// mapping
+// req_id
 
 template <typename Callback>
 bool Controller::find_req_id(auto &mapping, std::string_view const &req_id, Callback callback) {
