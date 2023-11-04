@@ -28,11 +28,9 @@ auto const ORDER_ID_NONE = "NONE"sv;
 
 auto const ERROR_VALIDATION = "VALIDATION"sv;
 auto const ERROR_DUPLICATE_CL_ORD_ID = "DUPLICATE_CL_ORD_ID"sv;
-auto const ERROR_UNKNOWN_ORIG_CL_ORD_ID = "UNKNOWN_ORIG_CL_ORD_ID"sv;
 auto const ERROR_DUPLICATE_ORD_STATUS_REQ_ID = "DUPLICATE_ORD_STATUS_REQ_ID"sv;
 auto const ERROR_DUPLICATE_MASS_STATUS_REQ_ID = "DUPLICATE_MASS_STATUS_REQ_ID"sv;
 auto const ERROR_UNKNOWN_SUBSCRIPTION_REQUEST_TYPE = "UNKNOWN_SUBSCRIPTION_REQUEST_TYPE"sv;
-auto const ERROR_UNSUPPORTED_SUBSCRIPTION_REQUEST_TYPE = "UNSUPPORTED_SUBSCRIPTION_REQUEST_TYPE"sv;
 auto const ERROR_DUPLICATE_MD_REQ_ID = "DUPLICATE_MD_REQ_ID"sv;
 auto const ERROR_UNKNOWN_MD_REQ_ID = "UNKNOWN_MD_REQ_ID"sv;
 auto const ERROR_DUPLICATED_POS_REQ_ID = "DUPLICATED_POS_REQ_ID"sv;
@@ -613,7 +611,7 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
     auto &mapping = subscriptions_.cl_ord_id;
     if (execution_report.exec_type == roq::fix::ExecType::REJECTED) {
       log::debug(R"(REJECT req_id="{}")"sv, req_id);
-      auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
+      auto dispatch = [&](auto session_id, [[maybe_unused]] auto &req_id, [[maybe_unused]] auto keep_alive) {
         assert(execution_report.cl_ord_id == req_id);
         Trace event_2{event.trace_info, execution_report};
         dispatch_to_client(event_2, session_id);
