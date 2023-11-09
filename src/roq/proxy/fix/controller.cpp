@@ -1176,8 +1176,10 @@ void Controller::operator()(Trace<codec::fix::OrderStatusRequest> const &event, 
   }
   auto client_id = get_client_from_parties(order_status_request);
   auto request_id = create_request_id(client_id, req_id);
+  auto cl_ord_id = create_request_id(client_id, order_status_request.cl_ord_id);
   auto order_status_request_2 = order_status_request;
   order_status_request_2.ord_status_req_id = request_id;
+  order_status_request_2.cl_ord_id = cl_ord_id;
   Trace event_2{event.trace_info, order_status_request_2};
   dispatch_to_server(event_2);
   // note! *after* request has been sent
