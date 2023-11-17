@@ -60,7 +60,7 @@ Session::Session(
     Handler &handler, Settings const &settings, io::Context &context, Shared &shared, io::web::URI const &uri)
     : handler_{handler}, shared_{shared}, username_{settings.server.username}, password_{settings.server.password},
       sender_comp_id_{settings.server.sender_comp_id}, target_comp_id_{settings.server.target_comp_id},
-      ping_freq_{settings.server.ping_freq}, debug_{settings.server.debug}, market_depth_{settings.server.market_depth},
+      ping_freq_{settings.server.ping_freq}, debug_{settings.server.debug},
       connection_factory_{create_connection_factory(settings, context, uri)},
       connection_manager_{create_connection_manager(*this, settings, *connection_factory_)},
       decode_buffer_(settings.server.decode_buffer_size), decode_buffer_2_(settings.server.decode_buffer_size),
@@ -617,35 +617,6 @@ void Session::send_security_definition_request(std::string_view const &exchange,
 void Session::download_security_list() {
   send_security_list_request();
   (*this)(State::GET_SECURITY_LIST);
-}
-
-// XXX FIXME TEST
-
-void Session::send_market_data_request(std::string_view const &exchange, std::string_view const &symbol) {
-  auto md_entry_types = std::array<codec::fix::MDReq, 2>{{
-      {.md_entry_type = roq::fix::MDEntryType::BID},
-      {.md_entry_type = roq::fix::MDEntryType::OFFER},
-  }};
-  auto related_sym = std::array<codec::fix::InstrmtMDReq, 1>{{
-      {
-          .symbol = symbol,
-          .security_exchange = exchange,
-      },
-  }};
-  auto market_data_request = codec::fix::MarketDataRequest{
-      .md_req_id = "test"sv,
-      .subscription_request_type = roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
-      .market_depth = market_depth_,
-      .md_update_type = roq::fix::MDUpdateType::INCREMENTAL_REFRESH,
-      .aggregated_book = true,  // note! false=MbO, true=MbP
-      .no_md_entry_types = md_entry_types,
-      .no_related_sym = related_sym,
-      .no_trading_sessions = {},
-      // note! following fields used to support custom calculations, e.g. vwap
-      .custom_type = {},
-      .custom_value = {},
-  };
-  send(market_data_request);
 }
 
 }  // namespace server

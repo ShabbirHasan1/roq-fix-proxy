@@ -63,13 +63,6 @@
       "type": "bool",
       "default": false,
       "description": "debug"
-    },
-    {
-      "name": "market_depth",
-      "type": "uint32_t",
-      "required": true,
-      "default": 5,
-      "description": "market depth (0=full book, 1=top of book, N=best N)"
     }
   ]
 }

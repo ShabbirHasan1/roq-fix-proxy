@@ -208,8 +208,6 @@ struct Session final : public io::net::ConnectionManager::Handler {
   void send_security_list_request();
   void send_security_definition_request(std::string_view const &exchange, std::string_view const &symbol);
 
-  void send_market_data_request(std::string_view const &exchange, std::string_view const &symbol);
-
   // download
 
   void download_security_list();
@@ -224,7 +222,6 @@ struct Session final : public io::net::ConnectionManager::Handler {
   std::string_view const target_comp_id_;
   std::chrono::nanoseconds const ping_freq_;
   bool const debug_;
-  uint32_t const market_depth_;
   // connection
   std::unique_ptr<io::net::ConnectionFactory> const connection_factory_;
   std::unique_ptr<io::net::ConnectionManager> const connection_manager_;
