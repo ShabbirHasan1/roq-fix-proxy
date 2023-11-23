@@ -25,6 +25,7 @@ Settings Settings::create(args::Parser const &) {
           .connection_timeout = CONNECTION_TIMEOUT,
           .tls_validate_certificate = TLS_VALIDATE_CERTIFICATE,
       },
+      .auth = flags::Auth::create(),
       .server = flags::Server::create(),
       .client = flags::Client::create(),
       .test{

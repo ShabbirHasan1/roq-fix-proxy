@@ -7,6 +7,7 @@
 
 #include "roq/args/parser.hpp"
 
+#include "roq/proxy/fix/flags/auth.hpp"
 #include "roq/proxy/fix/flags/client.hpp"
 #include "roq/proxy/fix/flags/flags.hpp"
 #include "roq/proxy/fix/flags/server.hpp"
@@ -26,6 +27,7 @@ struct Settings final {
     bool tls_validate_certificate = {};
   } net;
 
+  flags::Auth auth;
   flags::Server server;
   flags::Client client;
 

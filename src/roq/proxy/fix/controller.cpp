@@ -40,12 +40,19 @@ auto const ERROR_UNKNOWN_POS_REQ_ID = "UNKNOWN_POS_REQ_ID"sv;
 // === HELPERS ===
 
 namespace {
+auto create_auth_session(auto &handler, auto &settings, auto &context, auto &shared) -> std::unique_ptr<auth::Session> {
+  if (std::empty(settings.auth.uri))
+    return {};
+  io::web::URI uri{settings.auth.uri};
+  return std::make_unique<auth::Session>(handler, settings, context, shared, uri);
+}
+
 auto create_server_session(auto &handler, auto &settings, auto &context, auto &shared, auto &connections) {
   if (std::size(connections) != 1)
     log::fatal("Unexpected: only supporting a single upstream fix-bridge"sv);
   auto &connection = connections[0];
   auto uri = io::web::URI{connection};
-  return server::Session(handler, settings, context, shared, uri);
+  return server::Session{handler, settings, context, shared, uri};
 }
 
 template <typename T>
@@ -109,6 +116,7 @@ Controller::Controller(
     : context_{context}, terminate_{context.create_signal(*this, io::sys::Signal::Type::TERMINATE)},
       interrupt_{context.create_signal(*this, io::sys::Signal::Type::INTERRUPT)},
       timer_{context.create_timer(*this, TIMER_FREQUENCY)}, shared_{settings, config},
+      auth_session_{create_auth_session(*this, settings, context, shared_)},
       server_session_{create_server_session(*this, settings, context, shared_, connections)},
       client_manager_{*this, settings, context, shared_} {
 }
@@ -1630,6 +1638,8 @@ template <typename... Args>
 void Controller::dispatch(Args &&...args) {
   auto message_info = MessageInfo{};
   Event event{message_info, std::forward<Args>(args)...};
+  if (static_cast<bool>(auth_session_))
+    (*auth_session_)(event);
   server_session_(event);
   client_manager_(event);
 }

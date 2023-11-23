@@ -17,6 +17,8 @@
 #include "roq/proxy/fix/settings.hpp"
 #include "roq/proxy/fix/shared.hpp"
 
+#include "roq/proxy/fix/auth/session.hpp"
+
 #include "roq/proxy/fix/server/session.hpp"
 
 #include "roq/proxy/fix/client/manager.hpp"
@@ -28,6 +30,7 @@ namespace fix {
 
 struct Controller final : public io::sys::Signal::Handler,
                           public io::sys::Timer::Handler,
+                          public auth::Session::Handler,
                           public server::Session::Handler,
                           public client::Session::Handler {
   Controller(Settings const &, Config const &, io::Context &, std::span<std::string_view const> const &connections);
@@ -137,6 +140,7 @@ struct Controller final : public io::sys::Signal::Handler,
   std::unique_ptr<io::sys::Signal> const interrupt_;
   std::unique_ptr<io::sys::Timer> const timer_;
   Shared shared_;
+  std::unique_ptr<auth::Session> auth_session_;
   server::Session server_session_;
   client::Manager client_manager_;
   bool ready_ = {};

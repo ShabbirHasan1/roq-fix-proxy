@@ -64,8 +64,6 @@ namespace proxy {
 namespace fix {
 namespace server {
 
-// note! supports both rest and websocket
-
 struct Session final : public io::net::ConnectionManager::Handler {
   struct Ready final {};
   struct Disconnected final {};
