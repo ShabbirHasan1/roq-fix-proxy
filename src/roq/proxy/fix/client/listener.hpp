@@ -26,6 +26,7 @@ struct Listener final : public io::net::tcp::Listener::Handler {
  protected:
   // io::net::tcp::Listener::Handler
   void operator()(io::net::tcp::Connection::Factory &) override;
+  void operator()(io::net::tcp::Connection::Factory &, io::NetworkAddress const &) override;
 
  private:
   Handler &handler_;
