@@ -30,6 +30,9 @@ struct Shared final {
 
   std::string encode_buffer;
 
+  void add_user(std::string_view const &username, std::string_view const &password, uint32_t strategy_id);
+  void remove_user(std::string_view const &username);
+
   template <typename Success, typename Failure>
   void session_logon(
       uint64_t session_id,

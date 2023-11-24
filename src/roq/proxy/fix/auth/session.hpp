@@ -21,7 +21,22 @@ namespace fix {
 namespace auth {
 
 struct Session final : public web::socket::Client::Handler {
-  struct Handler {};
+  struct Insert final {
+    std::string_view component;
+    std::string_view username;
+    std::string_view password;
+    uint32_t strategy_id = {};
+  };
+
+  struct Remove final {
+    std::string_view component;
+    std::string_view username;
+  };
+
+  struct Handler {
+    virtual void operator()(Insert const &) = 0;
+    virtual void operator()(Remove const &) = 0;
+  };
 
   Session(Handler &, Settings const &, io::Context &, Shared &, io::web::URI const &);
 

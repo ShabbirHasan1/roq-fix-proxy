@@ -46,6 +46,10 @@ struct Controller final : public io::sys::Signal::Handler,
   // io::sys::Timer::Handler
   void operator()(io::sys::Timer::Event const &) override;
 
+  // auth::Session::Handler
+  void operator()(auth::Session::Insert const &) override;
+  void operator()(auth::Session::Remove const &) override;
+
   // server::Session::Handler
   void operator()(Trace<server::Session::Ready> const &) override;
   void operator()(Trace<server::Session::Disconnected> const &) override;

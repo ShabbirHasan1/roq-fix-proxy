@@ -148,6 +148,16 @@ void Controller::operator()(io::sys::Timer::Event const &event) {
   dispatch(timer);
 }
 
+// auth::Session::Handler
+
+void Controller::operator()(auth::Session::Insert const &insert) {
+  shared_.add_user(insert.username, insert.password, insert.strategy_id);
+}
+
+void Controller::operator()(auth::Session::Remove const &remove) {
+  shared_.remove_user(remove.username);
+}
+
 // server::Session::Handler
 
 void Controller::operator()(Trace<server::Session::Ready> const &) {

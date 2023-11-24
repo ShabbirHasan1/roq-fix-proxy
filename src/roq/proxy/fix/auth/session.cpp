@@ -87,7 +87,7 @@ void Session::operator()(web::socket::Client::Latency const &) {
 }
 
 void Session::operator()(web::socket::Client::Text const &text) {
-  log::info(R"(text="{}")"sv, text.payload);
+  log::info(R"(DEBUG: text="{}")"sv, text.payload);
   auto json = nlohmann::json::parse(text.payload);
   auto result = json.at("result"sv);
   for (auto &obj : result) {
@@ -97,13 +97,29 @@ void Session::operator()(web::socket::Client::Text const &text) {
     if (action == "insert"sv) {
       auto password = obj.at("password"sv).template get<std::string_view>();
       auto strategy_id = obj.at("strategy_id"sv).template get<uint32_t>();
-      log::warn(
-          R"(DEBUG: action="{}", component="{}", username="{}", password="{}", strategy_id={})"sv,
+      log::info<1>(
+          R"(action="{}", component="{}", username="{}", password="{}", strategy_id={})"sv,
           action,
           component,
           username,
           password,
           strategy_id);
+      auto insert = Insert{
+          .component = component,
+          .username = username,
+          .password = password,
+          .strategy_id = strategy_id,
+      };
+      handler_(insert);
+    } else if (action == "remove"sv) {
+      log::info<1>(R"(action="{}", component="{}", username="{}")"sv, action, component, username);
+      auto remove = Remove{
+          .component = component,
+          .username = username,
+      };
+      handler_(remove);
+    } else {
+      log::warn(R"(Unexpected: action="{}")"sv, action);
     }
   }
 }

@@ -6,6 +6,8 @@
 
 #include "roq/clock.hpp"
 
+#include "roq/utils/update.hpp"
+
 #include "roq/proxy/fix/error.hpp"
 
 using namespace std::literals;
@@ -57,6 +59,29 @@ bool Shared::include(std::string_view const &symbol) const {
     if (regex.match(symbol))
       return true;
   return false;
+}
+
+void Shared::add_user(std::string_view const &username, std::string_view const &password, uint32_t strategy_id) {
+  auto updated = false;
+  auto iter = username_to_password_and_strategy_id_.find(username);
+  if (iter == std::end(username_to_password_and_strategy_id_)) {
+    iter = username_to_password_and_strategy_id_.try_emplace(username).first;
+    updated = true;
+  }
+  auto &tmp = (*iter).second;
+  updated |= utils::update(tmp.first, password);
+  updated |= utils::update(tmp.second, strategy_id);
+  if (updated)
+    log::info(R"(ADD: username="{}", strategy_id={})"sv, username, strategy_id);
+}
+
+void Shared::remove_user(std::string_view const &username) {
+  auto iter = username_to_password_and_strategy_id_.find(username);
+  if (iter == std::end(username_to_password_and_strategy_id_))
+    return;
+  auto &tmp = (*iter).second;
+  log::info(R"(REMOVE: username="{}", strategy_id={})"sv, username, tmp.second);
+  username_to_password_and_strategy_id_.erase(iter);
 }
 
 void Shared::session_remove(uint64_t session_id) {
