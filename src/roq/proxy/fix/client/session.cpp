@@ -326,6 +326,9 @@ void Session::operator()(io::net::tcp::Connection::Read const &) {
         break;
     }
     buffer_.drain(total_bytes);
+  } catch (SystemError &e) {
+    log::error("Exception: {}"sv, e);
+    close();
   } catch (Exception &e) {
     log::error("Exception: {}"sv, e);
     close();

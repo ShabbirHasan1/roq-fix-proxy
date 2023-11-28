@@ -34,6 +34,8 @@ int Application::main(args::Parser const &args) {
   } catch (...) {
     try {
       throw;
+    } catch (SystemError &e) {
+      log::error("Unhandled exception: {}"sv, e);
     } catch (Exception &e) {
       log::error("Unhandled exception: {}"sv, e);
     } catch (std::exception &e) {
