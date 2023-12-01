@@ -558,6 +558,8 @@ void Session::send_logon() {
   auto logon = codec::fix::Logon{
       .encrypt_method = roq::fix::EncryptMethod::NONE,
       .heart_bt_int = heart_bt_int,
+      .raw_data_length = {},
+      .raw_data = {},
       .reset_seq_num_flag = true,
       .next_expected_msg_seq_num = inbound_.msg_seq_num + 1,  // note!
       .username = username_,

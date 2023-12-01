@@ -140,6 +140,8 @@ void Session::operator()(Trace<codec::fix::UserResponse> const &event) {
           auto response = codec::fix::Logon{
               .encrypt_method = roq::fix::EncryptMethod::NONE,
               .heart_bt_int = static_cast<uint16_t>(heart_bt_int.count()),
+              .raw_data_length = {},
+              .raw_data = {},
               .reset_seq_num_flag = {},
               .next_expected_msg_seq_num = {},
               .username = {},
