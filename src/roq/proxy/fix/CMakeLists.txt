@@ -12,6 +12,7 @@ add_subdirectory(flags)
 add_subdirectory(auth)
 add_subdirectory(server)
 add_subdirectory(client)
+add_subdirectory(tools)
 
 add_executable(
   ${TARGET_NAME}
@@ -31,6 +32,7 @@ target_link_libraries(
           ${TARGET_NAME}-auth
           ${TARGET_NAME}-server
           ${TARGET_NAME}-client
+          ${TARGET_NAME}-tools
           roq-codec::roq-codec
           roq-fix::roq-fix
           roq-web::roq-web
