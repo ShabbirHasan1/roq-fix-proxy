@@ -51,7 +51,7 @@ Shared::Shared(Settings const &settings, Config const &config)
       username_to_password_and_strategy_id_{
           create_username_to_password_and_strategy_id<decltype(username_to_password_and_strategy_id_)>(config)},
       regex_symbols_{create_regex_symbols<decltype(regex_symbols_)>(config)},
-      next_request_id_{create_next_request_id()} {
+      next_request_id_{create_next_request_id()}, crypto_{!settings.client.test_hmac_sha256} {
 }
 
 bool Shared::include(std::string_view const &symbol) const {
@@ -89,10 +89,20 @@ void Shared::session_remove(uint64_t session_id) {
   session_remove_helper(session_id);
 }
 
+// XXX TODO maybe it's not great to reveal the reason for reject
 std::string_view Shared::session_logon_helper(
-    uint64_t session_id, std::string_view const &username, std::string_view const &password, uint32_t &strategy_id) {
+    uint64_t session_id,
+    std::string_view const &username,
+    std::string_view const &password,
+    std::string_view const &raw_data,
+    uint32_t &strategy_id) {
   auto iter_1 = username_to_password_and_strategy_id_.find(username);
-  if (iter_1 == std::end(username_to_password_and_strategy_id_) || password != (*iter_1).second.first) {
+  if (iter_1 == std::end(username_to_password_and_strategy_id_)) {
+    log::warn("Invalid: username"sv);
+    return Error::INVALID_USERNAME;
+  }
+  auto &secret = (*iter_1).second.first;
+  if (!crypto_.validate(password, raw_data, secret)) {
     log::warn("Invalid: password"sv);
     return Error::INVALID_PASSWORD;
   }

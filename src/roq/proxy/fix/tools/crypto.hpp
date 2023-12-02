@@ -20,6 +20,8 @@ struct Crypto final {
   Crypto(Crypto &&) = delete;
   Crypto(Crypto const &) = delete;
 
+  bool validate(std::string_view const &password, std::string_view const &secret, std::string_view const &raw_data);
+
  private:
   bool const simple_;
   std::array<std::byte, MAC::DIGEST_LENGTH> digest_;

@@ -13,6 +13,8 @@
 #include "roq/proxy/fix/config.hpp"
 #include "roq/proxy/fix/settings.hpp"
 
+#include "roq/proxy/fix/tools/crypto.hpp"
+
 namespace roq {
 namespace proxy {
 namespace fix {
@@ -38,10 +40,11 @@ struct Shared final {
       uint64_t session_id,
       std::string_view const &username,
       std::string_view const &password,
+      std::string_view const &raw_data,
       Success success,
       Failure failure) {
     uint32_t strategy_id = {};
-    auto result = session_logon_helper(session_id, username, password, strategy_id);
+    auto result = session_logon_helper(session_id, username, password, raw_data, strategy_id);
     if (std::empty(result))
       success(strategy_id);
     else
@@ -81,7 +84,11 @@ struct Shared final {
 
  protected:
   std::string_view session_logon_helper(
-      uint64_t session_id, std::string_view const &username, std::string_view const &password, uint32_t &strategy_id);
+      uint64_t session_id,
+      std::string_view const &username,
+      std::string_view const &password,
+      std::string_view const &raw_data,
+      uint32_t &strategy_id);
   std::string_view session_logout_helper(uint64_t session_id);
   void session_remove_helper(uint64_t session_id);
   void session_cleanup_helper(uint64_t session_id);
@@ -95,6 +102,7 @@ struct Shared final {
   std::vector<utils::regex::Pattern> const regex_symbols_;
 
   uint64_t next_request_id_ = {};
+  tools::Crypto crypto_;
 };
 
 }  // namespace fix

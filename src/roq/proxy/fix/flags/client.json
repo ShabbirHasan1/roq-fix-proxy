@@ -45,10 +45,10 @@
       "description": "encode buffer size"
     },
     {
-      "name": "test_sha256",
+      "name": "test_hmac_sha256",
       "type": "bool",
       "default": false,
-      "description": "test sha256 password validation"
+      "description": "test hmac sha256 password validation"
     }
   ]
 }

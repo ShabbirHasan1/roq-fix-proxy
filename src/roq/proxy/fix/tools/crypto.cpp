@@ -18,6 +18,19 @@ namespace tools {
 Crypto::Crypto(bool simple) : simple_{simple} {
 }
 
+bool Crypto::validate(
+    std::string_view const &password, std::string_view const &secret, std::string_view const &raw_data) {
+  if (simple_)
+    return password == secret;
+  MAC mac{secret};  // alloc
+  // mac.clear();
+  mac.update(raw_data);
+  auto digest = mac.final(digest_);
+  std::string result;
+  utils::codec::Base64::encode(result, digest, false, false);  // alloc
+  return result == password;
+}
+
 }  // namespace tools
 }  // namespace fix
 }  // namespace proxy
