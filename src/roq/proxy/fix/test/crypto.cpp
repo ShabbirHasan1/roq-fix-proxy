@@ -20,6 +20,6 @@ TEST_CASE("proxy_tools_crypto_hmac_sha256", "[fix_proxy_tools_crypto]") {
   tools::Crypto crypto{false};
   auto res_1 = crypto.validate("foobar"sv, "foobar"sv, {});
   CHECK(res_1 == false);
-  auto res_2 = crypto.validate("foobar"sv, "foobar"sv, "abc123"sv);
+  auto res_2 = crypto.validate("qEBeeU/7jdamNNZI+b4LBGRrX39qVIc20pPcZY8m5Zg="sv, "foobar"sv, "1234567890"sv);
   CHECK(res_2 == true);
 }

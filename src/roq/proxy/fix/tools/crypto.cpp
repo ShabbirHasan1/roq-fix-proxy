@@ -28,6 +28,7 @@ bool Crypto::validate(
   auto digest = mac.final(digest_);
   std::string result;
   utils::codec::Base64::encode(result, digest, false, false);  // alloc
+  log::warn("{}"sv, result);
   return result == password;
 }
 
