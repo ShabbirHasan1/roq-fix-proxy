@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <string_view>
+
 #include "roq/utils/hash/sha256.hpp"
 
 #include "roq/utils/mac/hmac.hpp"
