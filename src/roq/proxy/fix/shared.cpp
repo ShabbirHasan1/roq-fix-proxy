@@ -102,7 +102,7 @@ std::string_view Shared::session_logon_helper(
     return Error::INVALID_USERNAME;
   }
   auto &secret = (*iter_1).second.first;
-  if (!crypto_.validate(password, raw_data, secret)) {
+  if (!crypto_.validate(password, secret, raw_data)) {
     log::warn("Invalid: password"sv);
     return Error::INVALID_PASSWORD;
   }
