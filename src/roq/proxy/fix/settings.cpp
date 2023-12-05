@@ -2,6 +2,9 @@
 
 #include "roq/proxy/fix/settings.hpp"
 
+#include "roq/proxy/fix/flags/flags.hpp"
+#include "roq/proxy/fix/flags/test.hpp"
+
 using namespace std::chrono_literals;
 
 namespace roq {
@@ -19,6 +22,7 @@ auto TLS_VALIDATE_CERTIFICATE = false;
 
 Settings Settings::create(args::Parser const &) {
   auto flags = flags::Flags::create();
+  auto test = flags::Test::create();
   return {
       .config_file = flags.config_file,
       .net{
@@ -31,6 +35,7 @@ Settings Settings::create(args::Parser const &) {
       .test{
           .enable_order_mass_cancel = flags.enable_order_mass_cancel,
           .disable_remove_cl_ord_id = flags.disable_remove_cl_ord_id,
+          .hmac_sha256 = test.hmac_sha256,
       },
   };
 }

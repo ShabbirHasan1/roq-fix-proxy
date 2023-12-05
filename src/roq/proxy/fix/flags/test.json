@@ -1,0 +1,13 @@
+{
+  "name": "Test",
+  "type": "flags",
+  "prefix": "test_",
+  "values": [
+    {
+      "name": "hmac_sha256",
+      "type": "bool",
+      "default": false,
+      "description": "test hmac sha256 password validation"
+    }
+  ]
+}

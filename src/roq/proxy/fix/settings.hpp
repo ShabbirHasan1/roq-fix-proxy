@@ -9,7 +9,6 @@
 
 #include "roq/proxy/fix/flags/auth.hpp"
 #include "roq/proxy/fix/flags/client.hpp"
-#include "roq/proxy/fix/flags/flags.hpp"
 #include "roq/proxy/fix/flags/server.hpp"
 
 namespace roq {
@@ -34,6 +33,7 @@ struct Settings final {
   struct {
     bool enable_order_mass_cancel = {};
     bool disable_remove_cl_ord_id = {};
+    bool hmac_sha256 = {};
   } test;
 };
 
