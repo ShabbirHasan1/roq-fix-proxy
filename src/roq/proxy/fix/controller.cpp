@@ -98,6 +98,13 @@ auto is_order_complete(auto ord_status) {
   return roq::utils::is_order_complete(order_status);
 }
 
+auto is_pending(auto exec_type) {
+  if (exec_type == fix::ExecType::PENDING_NEW || exec_type == fix::ExecType::PENDING_REPLACE ||
+      exec_type == fix::ExecType::PENDING_CANCEL)
+    return true;
+  return false;
+}
+
 auto get_subscription_request_type(auto &event) {
   auto result = event.value.subscription_request_type;
   if (result == roq::fix::SubscriptionRequestType::UNDEFINED)
@@ -579,7 +586,7 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
   auto has_ord_status_req_id = !std::empty(execution_report.ord_status_req_id);
   auto has_mass_status_req_id = !std::empty(execution_report.mass_status_req_id);
   assert(!(has_ord_status_req_id && has_mass_status_req_id));  // can't have both
-  if (has_ord_status_req_id) {
+  if (has_ord_status_req_id) {                                 // order status request
     if (execution_report.ord_status == roq::fix::OrdStatus::REJECTED) {
       // note! no order
     } else {
@@ -601,7 +608,7 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
     } else {
       log::warn(R"(Internal error: ord_status_req_id="{}")"sv, req_id);
     }
-  } else if (has_mass_status_req_id) {
+  } else if (has_mass_status_req_id) {  // order mass status request
     if (execution_report.ord_status == roq::fix::OrdStatus::REJECTED) {
       assert(execution_report.tot_num_reports == 0);
     } else {
@@ -624,9 +631,10 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
     } else {
       log::warn(R"(Internal error: mass_status_req_id="{}")"sv, req_id);
     }
-  } else {
+  } else {  // order action request
     auto req_id = cl_ord_id;
     auto &mapping = subscriptions_.cl_ord_id;
+    auto pending = is_pending(execution_report.exec_type);
     if (execution_report.exec_type == roq::fix::ExecType::REJECTED) {
       log::debug(R"(REJECT req_id="{}")"sv, req_id);
       auto dispatch = [&](auto session_id, [[maybe_unused]] auto &req_id, [[maybe_unused]] auto keep_alive) {
@@ -644,14 +652,16 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
       if (done) {
         remove_cl_ord_id(cl_ord_id);
       } else {
-        ensure_cl_ord_id(cl_ord_id, execution_report.ord_status);
+        if (pending)
+          ensure_cl_ord_id(cl_ord_id, execution_report.ord_status);
       }
-      if (!std::empty(orig_cl_ord_id))
+      if (!pending !std::empty(orig_cl_ord_id))
         remove_cl_ord_id(orig_cl_ord_id);
       Trace event_2{event.trace_info, execution_report};
       broadcast(event_2, client_id);
     }
-    remove_req_id(mapping, req_id);  // note! relaxed
+    if (!pending)
+      remove_req_id(mapping, req_id);  // note! relaxed
   }
 }
 
