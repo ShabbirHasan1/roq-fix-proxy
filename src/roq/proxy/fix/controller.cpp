@@ -99,8 +99,8 @@ auto is_order_complete(auto ord_status) {
 }
 
 auto is_pending(auto exec_type) {
-  if (exec_type == fix::ExecType::PENDING_NEW || exec_type == fix::ExecType::PENDING_REPLACE ||
-      exec_type == fix::ExecType::PENDING_CANCEL)
+  if (exec_type == roq::fix::ExecType::PENDING_NEW || exec_type == roq::fix::ExecType::PENDING_REPLACE ||
+      exec_type == roq::fix::ExecType::PENDING_CANCEL)
     return true;
   return false;
 }
@@ -655,7 +655,7 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
         if (pending)
           ensure_cl_ord_id(cl_ord_id, execution_report.ord_status);
       }
-      if (!pending !std::empty(orig_cl_ord_id))
+      if (!pending && !std::empty(orig_cl_ord_id))
         remove_cl_ord_id(orig_cl_ord_id);
       Trace event_2{event.trace_info, execution_report};
       broadcast(event_2, client_id);
