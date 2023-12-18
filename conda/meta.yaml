@@ -34,6 +34,8 @@ requirements:
     - roq-oss-tomlplusplus
     - roq-utils
     - roq-web
+  run:
+    - benchmark
 
 about:
   license: BSD-3-Clause
