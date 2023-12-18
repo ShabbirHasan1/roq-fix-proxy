@@ -36,6 +36,8 @@ if roq-fix-proxy --help; then
   (>&2 echo -e "\033[1;31mERROR: Unexpected error code.\033[0m") && exit 1
 fi
 
-roq-fix-proxy-benchmark
+if ! roq-fix-proxy-benchmark --help; then
+  (>&2 echo -e "\033[1;31mERROR: Unexpected error code.\033[0m") && exit 1
+fi
 
 echo -e "\033[1;34m--- DONE ---\033[0m"
