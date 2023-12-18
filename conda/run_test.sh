@@ -5,7 +5,7 @@ set -x
 KERNEL="$(uname -s)"
 MACHINE="$(uname -m)"
 
-echo "ARCH=$KERNEL"
+echo "ARCH=$ARCH"
 echo "KERNEL=$KERNEL"
 echo "MACHINE=$MACHINE"
 
