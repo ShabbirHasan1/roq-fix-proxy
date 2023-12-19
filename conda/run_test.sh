@@ -8,7 +8,7 @@ env | sort
 
 echo -e "\033[1;34m--- CHECK ---\033[0m"
 
-if [[ "$CONDA_TOOLCHAIN_HOST" != "$CONDA_TOOLCHAIN_BUILD" ]]; then
+if [[ "$build_platform" != "$target_platform" ]]; then
   echo -e "Drop testing when cross-compiling..." && exit 0
 fi
 
