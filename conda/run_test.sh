@@ -20,7 +20,7 @@ fi
 
 echo -e "\033[1;34m--- BENCHMARK ---\033[0m"
 
-if [ -f "$PKG_NAME-benchmark" ]; then
+if which "$PKG_NAME-benchmark"; then
   if ! "$PKG_NAME-benchmark" --help; then  # note! benchmark returns 0
     (>&2 echo -e "\033[1;31mERROR: Unexpected error code.\033[0m") && exit 1
   fi
