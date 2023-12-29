@@ -937,6 +937,7 @@ void Controller::operator()(Trace<codec::fix::SecurityDefinitionRequest> const &
         .security_exchange = security_definition_request.security_exchange,
         .trading_session_id = {},
         .min_trade_vol = {},
+        .min_price_increment = {},
     };
     Trace event_2{event.trace_info, security_definition};
     dispatch_to_client(event_2, session_id);
