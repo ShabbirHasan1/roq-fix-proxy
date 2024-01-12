@@ -35,6 +35,8 @@ auto const ERROR_DUPLICATE_MD_REQ_ID = "DUPLICATE_MD_REQ_ID"sv;
 auto const ERROR_UNKNOWN_MD_REQ_ID = "UNKNOWN_MD_REQ_ID"sv;
 auto const ERROR_DUPLICATED_POS_REQ_ID = "DUPLICATED_POS_REQ_ID"sv;
 auto const ERROR_UNKNOWN_POS_REQ_ID = "UNKNOWN_POS_REQ_ID"sv;
+auto const ERROR_DUPLICATE_TRADE_REQUEST_ID = "DUPLICATE_TRADE_REQUEST_ID"sv;
+auto const ERROR_UNKNOWN_TRADE_REQUEST_ID = "UNKNOWN_TRADE_REQUEST_ID"sv;
 }  // namespace
 
 // === HELPERS ===
@@ -1581,7 +1583,7 @@ void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event,
 void Controller::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &event, uint64_t session_id) {
   auto &trade_capture_report_request = event.value;
   auto req_id = trade_capture_report_request.trade_request_id;
-  auto reject = [&]() {
+  auto reject = [&](auto &text) {
     auto request_id = shared_.create_request_id();
     auto trade_capture_report_request_ack = codec::fix::TradeCaptureReportRequestAck{
         .trade_request_id = req_id,                                             // required
@@ -1590,13 +1592,13 @@ void Controller::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &
         .trade_request_status = roq::fix::TradeRequestStatus::REJECTED,         // required
         .symbol = trade_capture_report_request.symbol,                          // required
         .security_exchange = trade_capture_report_request.security_exchange,    // required
-        .text = {},
+        .text = text,
     };
     Trace event_2{event.trace_info, trade_capture_report_request_ack};
     dispatch_to_client(event_2, session_id);
   };
   if (!trade_capture_report_request.is_valid()) {
-    reject();
+    reject(ERROR_VALIDATION);
     return;
   }
   auto &mapping = subscriptions_.trade_request_id;
@@ -1627,18 +1629,18 @@ void Controller::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &
     using enum roq::fix::SubscriptionRequestType;
     case UNDEFINED:
     case UNKNOWN:
-      reject();
+      reject(ERROR_UNKNOWN_SUBSCRIPTION_REQUEST_TYPE);
       break;
     case SNAPSHOT:
       if (exists) {
-        reject();
+        reject(ERROR_DUPLICATE_TRADE_REQUEST_ID);
       } else {
         dispatch(false);
       }
       break;
     case SNAPSHOT_UPDATES:
       if (exists) {
-        reject();
+        reject(ERROR_DUPLICATE_TRADE_REQUEST_ID);
       } else {
         dispatch(true);
       }
@@ -1647,7 +1649,7 @@ void Controller::operator()(Trace<codec::fix::TradeCaptureReportRequest> const &
       if (exists) {
         dispatch(false);
       } else {
-        reject();
+        reject(ERROR_UNKNOWN_TRADE_REQUEST_ID);
       }
       break;
   }
