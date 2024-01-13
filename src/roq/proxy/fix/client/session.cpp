@@ -516,6 +516,7 @@ template <typename T, typename... Args>
 void Session::dispatch(Trace<roq::fix::Message> const &event, Args &&...args) {
   auto &[trace_info, message] = event;
   auto value = T::create(message, std::forward<Args>(args)...);
+  log::info<1>("session_id={}, {}={}"sv, session_id_, nameof::nameof_short_type<T>(), value);
   Trace event_2{trace_info, value};
   (*this)(event_2, message.header);
 }

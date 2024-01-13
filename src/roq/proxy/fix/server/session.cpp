@@ -357,6 +357,7 @@ void Session::parse(Trace<roq::fix::Message> const &event) {
 template <typename T>
 void Session::dispatch(Trace<roq::fix::Message> const &event, T const &value) {
   auto &[trace_info, message] = event;
+  log::info<1>("{}={}"sv, nameof::nameof_short_type<T>(), value);
   Trace event_2{trace_info, value};
   (*this)(event_2, message.header);
 }
