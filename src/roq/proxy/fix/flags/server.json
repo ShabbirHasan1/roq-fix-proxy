@@ -29,7 +29,7 @@
     {
       "name": "auth_method",
       "type": "std::string",
-      "description": "authentication method"
+      "description": "authentication method: (empty), hmac_sha256, hmac_sha256_ts"
     },
     {
       "name": "decode_buffer_size",
