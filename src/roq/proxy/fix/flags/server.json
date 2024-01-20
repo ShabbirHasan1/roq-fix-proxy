@@ -27,6 +27,11 @@
       "description": "password"
     },
     {
+      "name": "auth_method",
+      "type": "std::string",
+      "description": "authentication method"
+    },
+    {
       "name": "decode_buffer_size",
       "type": "uint32_t",
       "validator": "roq::flags::validators::PowerOfTwo<uint32_t>",

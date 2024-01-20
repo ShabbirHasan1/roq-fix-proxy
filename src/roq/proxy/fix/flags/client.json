@@ -17,6 +17,11 @@
       "description": "component name"
     },
     {
+      "name": "auth_method",
+      "type": "std::string",
+      "description": "authentication method"
+    },
+    {
       "name": "logon_timeout",
       "type": "std::chrono::nanoseconds",
       "required": true,
