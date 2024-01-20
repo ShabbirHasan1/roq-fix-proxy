@@ -25,6 +25,7 @@ namespace fix {
 int Application::main(args::Parser const &args) {
   auto params = args.params();
   auto settings = Settings::create(args);
+  log::info("settings={}"sv, settings);
   auto config = Config::parse_file(settings.config_file);
   log::info("config={}"sv, config);
   auto context = io::engine::ContextFactory::create_libevent();
