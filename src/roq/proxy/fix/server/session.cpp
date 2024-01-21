@@ -168,7 +168,6 @@ void Session::operator()(io::net::ConnectionManager::Disconnected const &) {
   outbound_ = {};
   inbound_ = {};
   next_heartbeat_ = {};
-  exchange_symbols_.clear();
   (*this)(State::DISCONNECTED);
 }
 
@@ -379,7 +378,7 @@ void Session::operator()(Trace<codec::fix::Logon> const &event, roq::fix::Header
   Ready ready;
   Trace event_2{trace_info, ready};
   handler_(event_2);
-  download_security_list();
+  (*this)(State::READY);
 }
 
 void Session::operator()(Trace<codec::fix::Logout> const &event, roq::fix::Header const &) {
@@ -410,42 +409,13 @@ void Session::operator()(Trace<codec::fix::BusinessMessageReject> const &event, 
 void Session::operator()(Trace<codec::fix::SecurityList> const &event, roq::fix::Header const &) {
   auto &[trace_info, security_list] = event;
   log::debug("security_list={}, trace_info={}"sv, security_list, trace_info);
-  switch (state_) {
-    using enum State;
-    case DISCONNECTED:
-    case LOGON_SENT:
-      assert(false);
-      break;
-    case GET_SECURITY_LIST: {
-      for (auto &item : security_list.no_related_sym) {
-        if (shared_.include(item.symbol)) {
-          exchange_symbols_[item.security_exchange].emplace(item.symbol);
-        }
-      }
-      (*this)(State::READY);
-      break;
-    }
-    case READY:
-      handler_(event);
-      break;
-  }
+  handler_(event);
 }
 
 void Session::operator()(Trace<codec::fix::SecurityDefinition> const &event, roq::fix::Header const &) {
   auto &[trace_info, security_definition] = event;
   log::debug("security_definition={}, trace_info={}"sv, security_definition, trace_info);
-  switch (state_) {
-    using enum State;
-    case DISCONNECTED:
-    case LOGON_SENT:
-    case GET_SECURITY_LIST:
-      // XXX FIXME we might want to cache security definitions because of e.g. tick-size
-      assert(false);
-      break;
-    case READY:
-      handler_(event);
-      break;
-  }
+  handler_(event);
 }
 
 void Session::operator()(Trace<codec::fix::SecurityStatus> const &event, roq::fix::Header const &) {
@@ -589,37 +559,6 @@ void Session::send_test_request(std::chrono::nanoseconds now) {
       .test_req_id = test_req_id,
   };
   send(test_request);
-}
-
-void Session::send_security_list_request() {
-  auto security_list_request = codec::fix::SecurityListRequest{
-      .security_req_id = "test"sv,
-      .security_list_request_type = roq::fix::SecurityListRequestType::ALL_SECURITIES,
-      .symbol = {},
-      .security_exchange = {},
-      .trading_session_id = {},
-      .subscription_request_type = roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
-  };
-  send(security_list_request);
-}
-
-void Session::send_security_definition_request(std::string_view const &exchange, std::string_view const &symbol) {
-  auto security_definition_request = codec::fix::SecurityDefinitionRequest{
-      .security_req_id = "test"sv,
-      .security_request_type = roq::fix::SecurityRequestType::REQUEST_LIST_SECURITIES,
-      .symbol = symbol,
-      .security_exchange = exchange,
-      .trading_session_id = {},
-      .subscription_request_type = roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES,
-  };
-  send(security_definition_request);
-}
-
-// download
-
-void Session::download_security_list() {
-  send_security_list_request();
-  (*this)(State::GET_SECURITY_LIST);
 }
 
 }  // namespace server

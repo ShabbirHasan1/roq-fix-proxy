@@ -2,9 +2,6 @@
 
 #pragma once
 
-#include <absl/container/flat_hash_map.h>
-#include <absl/container/flat_hash_set.h>
-
 #include <memory>
 #include <string>
 #include <string_view>
@@ -203,13 +200,6 @@ struct Session final : public io::net::ConnectionManager::Handler {
   void send_heartbeat(std::string_view const &test_req_id);
   void send_test_request(std::chrono::nanoseconds now);
 
-  void send_security_list_request();
-  void send_security_definition_request(std::string_view const &exchange, std::string_view const &symbol);
-
-  // download
-
-  void download_security_list();
-
  private:
   Handler &handler_;
   Shared &shared_;
@@ -237,11 +227,9 @@ struct Session final : public io::net::ConnectionManager::Handler {
   enum class State {
     DISCONNECTED,
     LOGON_SENT,
-    GET_SECURITY_LIST,
     READY,
   } state_ = {};
   std::chrono::nanoseconds next_heartbeat_ = {};
-  absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>> exchange_symbols_;
 };
 
 }  // namespace server
