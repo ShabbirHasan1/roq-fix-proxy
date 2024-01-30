@@ -17,7 +17,7 @@ struct Crypto final {
   using Hash = utils::hash::SHA256;
   using MAC = utils::mac::HMAC<utils::hash::SHA256>;
 
-  explicit Crypto(std::string_view const &method, bool simple);
+  explicit Crypto(std::string_view const &method);
 
   Crypto(Crypto &&) = delete;
   Crypto(Crypto const &) = delete;

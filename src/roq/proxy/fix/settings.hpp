@@ -36,7 +36,6 @@ struct Settings final {
   struct {
     bool enable_order_mass_cancel = {};
     bool disable_remove_cl_ord_id = {};
-    bool hmac_sha256 = {};
   } test;
 };
 
@@ -62,8 +61,7 @@ struct fmt::formatter<roq::proxy::fix::Settings> {
         R"(client={}, )"
         R"(test={{)"
         R"(enable_order_mass_cancel={}, )"
-        R"(disable_remove_cl_ord_id={}, )"
-        R"(hmac_sha256={})"
+        R"(disable_remove_cl_ord_id={})"
         R"(}})"
         R"(}})"sv,
         value.config_file,
@@ -73,7 +71,6 @@ struct fmt::formatter<roq::proxy::fix::Settings> {
         value.server,
         value.client,
         value.test.enable_order_mass_cancel,
-        value.test.disable_remove_cl_ord_id,
-        value.test.hmac_sha256);
+        value.test.disable_remove_cl_ord_id);
   }
 };

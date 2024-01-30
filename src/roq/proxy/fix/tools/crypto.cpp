@@ -28,15 +28,7 @@ auto const TIMESTAMP_TOLERANCE = 5s;
 // === HELPERS ===
 
 namespace {
-auto parse_method(auto &auth_method, auto simple) {
-  if (simple) {  // XXX LEGACY
-    if (std::empty(auth_method))
-      return Crypto::Method::UNDEFINED;
-  } else {
-    if (std::empty(auth_method))
-      log::warn(R"(Please use --fix_auth_method instead of --test_hmac_sha256)"sv);
-    return Crypto::Method::HMAC_SHA256;
-  }
+auto parse_method(auto &auth_method) {
   if (std::empty(auth_method))
     return Crypto::Method::UNDEFINED;
   if (auth_method == "hmac_sha256"sv)
@@ -49,7 +41,7 @@ auto parse_method(auto &auth_method, auto simple) {
 
 // === IMPLEMENTATION ===
 
-Crypto::Crypto(std::string_view const &method, bool simple) : method_{parse_method(method, simple)} {
+Crypto::Crypto(std::string_view const &method) : method_{parse_method(method)} {
   log::info("Using method={}"sv, magic_enum::enum_name(method_));
 }
 
