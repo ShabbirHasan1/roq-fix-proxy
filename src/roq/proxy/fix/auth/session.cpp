@@ -4,7 +4,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "roq/web/socket/client_factory.hpp"
+#include "roq/web/socket/client.hpp"
 
 #include "roq/logging.hpp"
 
@@ -39,7 +39,7 @@ auto create_connection(auto &handler, auto &settings, auto &context, auto &uri) 
       .decode_buffer_size = settings.auth.decode_buffer_size,
       .encode_buffer_size = settings.auth.encode_buffer_size,
   };
-  return web::socket::ClientFactory::create(handler, context, config, []() { return std::string(); });
+  return web::socket::Client::create(handler, context, config, []() { return std::string(); });
 }
 }  // namespace
 
