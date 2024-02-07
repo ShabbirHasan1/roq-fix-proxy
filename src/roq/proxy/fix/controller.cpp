@@ -42,19 +42,19 @@ auto const ERROR_UNKNOWN_TRADE_REQUEST_ID = "UNKNOWN_TRADE_REQUEST_ID"sv;
 // === HELPERS ===
 
 namespace {
-auto create_auth_session(auto &handler, auto &settings, auto &context, auto &shared) -> std::unique_ptr<auth::Session> {
+auto create_auth_session(auto &handler, auto &settings, auto &context) -> std::unique_ptr<auth::Session> {
   if (std::empty(settings.auth.uri))
     return {};
   io::web::URI uri{settings.auth.uri};
-  return std::make_unique<auth::Session>(handler, settings, context, shared, uri);
+  return std::make_unique<auth::Session>(handler, settings, context, uri);
 }
 
-auto create_server_session(auto &handler, auto &settings, auto &context, auto &shared, auto &connections) {
+auto create_server_session(auto &handler, auto &settings, auto &context, auto &connections) {
   if (std::size(connections) != 1)
     log::fatal("Unexpected: only supporting a single upstream fix-bridge"sv);
   auto &connection = connections[0];
   auto uri = io::web::URI{connection};
-  return server::Session{handler, settings, context, shared, uri};
+  return server::Session{handler, settings, context, uri};
 }
 
 template <typename T>
@@ -125,8 +125,8 @@ Controller::Controller(
     : context_{context}, terminate_{context.create_signal(*this, io::sys::Signal::Type::TERMINATE)},
       interrupt_{context.create_signal(*this, io::sys::Signal::Type::INTERRUPT)},
       timer_{context.create_timer(*this, TIMER_FREQUENCY)}, shared_{settings, config},
-      auth_session_{create_auth_session(*this, settings, context, shared_)},
-      server_session_{create_server_session(*this, settings, context, shared_, connections)},
+      auth_session_{create_auth_session(*this, settings, context)},
+      server_session_{create_server_session(*this, settings, context, connections)},
       client_manager_{*this, settings, context, shared_} {
 }
 
@@ -846,8 +846,9 @@ void Controller::operator()(Trace<codec::fix::UserRequest> const &event, uint64_
   auto &tmp = subscriptions_.user.client_to_server[session_id];
   if (std::empty(tmp)) {
     tmp = user_request.user_request_id;
-    auto res = subscriptions_.user.server_to_client.try_emplace(user_request.user_request_id, session_id).second;
-    assert(res);
+    [[maybe_unused]] auto res =
+        subscriptions_.user.server_to_client.try_emplace(user_request.user_request_id, session_id);
+    assert(res.second);
     dispatch_to_server(event);
   } else {
     log::fatal("Unexpected"sv);
@@ -1756,7 +1757,7 @@ void Controller::ensure_cl_ord_id(std::string_view const &cl_ord_id, roq::fix::O
   auto iter = cl_ord_id_.state.find(cl_ord_id);
   if (iter == std::end(cl_ord_id_.state)) {
     log::warn(R"(DEBUG: ADD cl_ord_id(server)="{}" ==> {})"sv, cl_ord_id, ord_status);
-    auto res = cl_ord_id_.state.emplace(cl_ord_id, ord_status);
+    [[maybe_unused]] auto res = cl_ord_id_.state.emplace(cl_ord_id, ord_status);
     assert(res.second);
   } else {
     if (utils::update((*iter).second, ord_status))

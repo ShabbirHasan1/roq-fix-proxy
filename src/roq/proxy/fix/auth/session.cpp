@@ -45,9 +45,8 @@ auto create_connection(auto &handler, auto &settings, auto &context, auto &uri) 
 
 // === IMPLEMENTATION ===
 
-Session::Session(
-    Handler &handler, Settings const &settings, io::Context &context, Shared &shared, io::web::URI const &uri)
-    : handler_{handler}, shared_{shared}, connection_{create_connection(*this, settings, context, uri)} {
+Session::Session(Handler &handler, Settings const &settings, io::Context &context, io::web::URI const &uri)
+    : handler_{handler}, connection_{create_connection(*this, settings, context, uri)} {
 }
 
 void Session::operator()(Event<Start> const &) {

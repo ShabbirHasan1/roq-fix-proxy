@@ -54,7 +54,6 @@
 #include "roq/codec/fix/user_response.hpp"
 
 #include "roq/proxy/fix/settings.hpp"
-#include "roq/proxy/fix/shared.hpp"
 
 namespace roq {
 namespace proxy {
@@ -91,7 +90,7 @@ struct Session final : public io::net::ConnectionManager::Handler {
     virtual void operator()(Trace<codec::fix::TradeCaptureReport> const &) = 0;
   };
 
-  Session(Handler &, Settings const &, io::Context &, Shared &, io::web::URI const &);
+  Session(Handler &, Settings const &, io::Context &, io::web::URI const &);
 
   void operator()(Event<Start> const &);
   void operator()(Event<Stop> const &);
@@ -202,7 +201,6 @@ struct Session final : public io::net::ConnectionManager::Handler {
 
  private:
   Handler &handler_;
-  Shared &shared_;
   // config
   std::string_view const username_;
   std::string_view const password_;

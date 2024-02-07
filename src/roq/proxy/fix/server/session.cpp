@@ -56,9 +56,8 @@ auto create_connection_manager(auto &handler, auto &settings, auto &connection_f
 
 // === IMPLEMENTATION ===
 
-Session::Session(
-    Handler &handler, Settings const &settings, io::Context &context, Shared &shared, io::web::URI const &uri)
-    : handler_{handler}, shared_{shared}, username_{settings.server.username}, password_{settings.server.password},
+Session::Session(Handler &handler, Settings const &settings, io::Context &context, io::web::URI const &uri)
+    : handler_{handler}, username_{settings.server.username}, password_{settings.server.password},
       sender_comp_id_{settings.server.sender_comp_id}, target_comp_id_{settings.server.target_comp_id},
       ping_freq_{settings.server.ping_freq}, debug_{settings.server.debug},
       connection_factory_{create_connection_factory(settings, context, uri)},

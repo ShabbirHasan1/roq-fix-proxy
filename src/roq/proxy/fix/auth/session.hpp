@@ -13,7 +13,6 @@
 #include "roq/web/socket/client.hpp"
 
 #include "roq/proxy/fix/settings.hpp"
-#include "roq/proxy/fix/shared.hpp"
 
 namespace roq {
 namespace proxy {
@@ -38,7 +37,7 @@ struct Session final : public web::socket::Client::Handler {
     virtual void operator()(Remove const &) = 0;
   };
 
-  Session(Handler &, Settings const &, io::Context &, Shared &, io::web::URI const &);
+  Session(Handler &, Settings const &, io::Context &, io::web::URI const &);
 
   void operator()(Event<Start> const &);
   void operator()(Event<Stop> const &);
@@ -56,7 +55,6 @@ struct Session final : public web::socket::Client::Handler {
 
  private:
   Handler &handler_;
-  Shared &shared_;
   std::unique_ptr<web::socket::Client> const connection_;
 };
 

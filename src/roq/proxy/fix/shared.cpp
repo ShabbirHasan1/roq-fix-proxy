@@ -115,7 +115,7 @@ std::string_view Shared::session_logon_helper(
   auto res_1 = username_to_session_.try_emplace(username, session_id);
   assert(res_1.second);
   auto &username_1 = (*res_1.first).first;
-  auto res_2 = session_to_username_.try_emplace(session_id, username_1);
+  [[maybe_unused]] auto res_2 = session_to_username_.try_emplace(session_id, username_1);
   assert(res_2.second);
   strategy_id = (*iter_1).second.second;
   return {};
