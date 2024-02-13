@@ -24,7 +24,7 @@ requirements:
     - cmake
     - make
   host:
-    - libabseil
+    - abseil-cpp
     - benchmark
     - catch2
     - nlohmann_json
