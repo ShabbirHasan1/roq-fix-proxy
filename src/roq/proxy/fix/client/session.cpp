@@ -625,7 +625,7 @@ void Session::operator()(Trace<codec::fix::Logon> const &event, roq::fix::Header
             (*this)(State::WAITING_CREATE_ROUTE);
             auto now = clock::get_system();
             user_response_timeout_ = now + shared_.settings.server.request_timeout;
-          } catch (oms::Exception &e) {
+          } catch (NotReady &e) {
             send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, e.what());
           }
         };

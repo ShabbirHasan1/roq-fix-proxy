@@ -836,7 +836,7 @@ void Controller::operator()(Trace<codec::fix::UserRequest> const &event, uint64_
     using enum roq::fix::UserRequestType;
     case LOG_ON_USER:
       if (user_is_locked(user_request.username))
-        throw oms::Rejected{Origin::CLIENT, Error::UNKNOWN, "locked"sv};
+        throw NotReady{"locked"sv};
       break;
     case LOG_OFF_USER:
       break;

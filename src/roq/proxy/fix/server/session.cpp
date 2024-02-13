@@ -6,7 +6,7 @@
 
 #include "roq/logging.hpp"
 
-#include "roq/oms/exceptions.hpp"
+#include "roq/exceptions.hpp"
 
 #include "roq/utils/chrono.hpp"
 #include "roq/utils/traits.hpp"
@@ -496,7 +496,7 @@ void Session::send(T const &value) {
   if constexpr (utils::is_specialization<T, Trace>::value) {
     // external
     if (!ready())
-      throw oms::NotReady{"not ready"sv};
+      throw NotReady{"not ready"sv};
     send_helper(value.value);
   } else {
     // internal
