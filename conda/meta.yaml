@@ -24,9 +24,9 @@ requirements:
     - cmake
     - make
   host:
-    - libabseil
     - benchmark
     - catch2
+    - libabseil
     - nlohmann_json
     - roq-client
     - roq-codec
