@@ -34,6 +34,7 @@ requirements:
     - roq-io
     - roq-oss-nameof
     - roq-oss-tomlplusplus
+    - roq-oss-unordered_dense
     - roq-utils
     - roq-web
   run:

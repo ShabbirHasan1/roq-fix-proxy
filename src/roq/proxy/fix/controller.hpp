@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include <absl/container/flat_hash_map.h>
-
 #include <memory>
 #include <span>
 #include <string_view>
+
+#include "roq/utils/container.hpp"
 
 #include "roq/io/context.hpp"
 
@@ -151,18 +151,18 @@ struct Controller final : public io::sys::Signal::Handler,
   // req_id mappings
   struct {
     struct {
-      absl::flat_hash_map<std::string, uint64_t> client_to_session;
-      absl::flat_hash_map<uint64_t, std::string> session_to_client;
+      utils::unordered_map<std::string, uint64_t> client_to_session;
+      utils::unordered_map<uint64_t, std::string> session_to_client;
       // user_request_id => session_id
-      absl::flat_hash_map<std::string, uint64_t> server_to_client;
+      utils::unordered_map<std::string, uint64_t> server_to_client;
       // session_id => user_request_id
-      absl::flat_hash_map<uint64_t, std::string> client_to_server;
+      utils::unordered_map<uint64_t, std::string> client_to_server;
     } user;
     struct Mapping final {
       // req_id(server) => {session_id, req_id(client), keep_alive}
-      absl::flat_hash_map<std::string, std::tuple<uint64_t, std::string, bool>> server_to_client;
+      utils::unordered_map<std::string, std::tuple<uint64_t, std::string, bool>> server_to_client;
       // session_id => req_id(client) => req_id(server)
-      absl::flat_hash_map<uint64_t, absl::flat_hash_map<std::string, std::string>> client_to_server;
+      utils::unordered_map<uint64_t, utils::unordered_map<std::string, std::string>> client_to_server;
     };
     Mapping security_req_id;
     Mapping security_status_req_id;
@@ -177,7 +177,7 @@ struct Controller final : public io::sys::Signal::Handler,
   } subscriptions_;
   struct {
     // cl_ord_id(server) => order status
-    absl::flat_hash_map<std::string, roq::fix::OrdStatus> state;
+    utils::unordered_map<std::string, roq::fix::OrdStatus> state;
   } cl_ord_id_;
   // WORK-AROUND
   uint32_t total_num_pos_reports_ = {};

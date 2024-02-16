@@ -43,6 +43,7 @@ target_link_libraries(
           roq-flags::roq-flags
           roq-api::roq-api
           tomlplusplus::tomlplusplus
+          unordered_dense::unordered_dense
           fmt::fmt
           ${RT_LIBRARIES})
 

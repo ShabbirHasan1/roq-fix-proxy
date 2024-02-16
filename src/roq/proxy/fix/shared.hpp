@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include <absl/container/flat_hash_map.h>
-#include <absl/container/flat_hash_set.h>
-
 #include <string>
 #include <vector>
+
+#include "roq/utils/container.hpp"
 
 #include "roq/utils/regex/pattern.hpp"
 
@@ -24,7 +23,7 @@ struct Shared final {
 
   uint64_t next_session_id = {};
 
-  absl::flat_hash_set<std::string> symbols;
+  utils::unordered_set<std::string> symbols;
 
   bool include(std::string_view const &symbol) const;
 
@@ -93,10 +92,10 @@ struct Shared final {
   void session_remove_helper(uint64_t session_id);
   void session_cleanup_helper(uint64_t session_id);
 
-  absl::flat_hash_map<std::string, std::pair<std::string, uint32_t>> username_to_password_and_strategy_id_;
-  absl::flat_hash_map<std::string, uint64_t> username_to_session_;
-  absl::flat_hash_map<uint64_t, std::string> session_to_username_;
-  absl::flat_hash_set<uint64_t> sessions_to_remove_;
+  utils::unordered_map<std::string, std::pair<std::string, uint32_t>> username_to_password_and_strategy_id_;
+  utils::unordered_map<std::string, uint64_t> username_to_session_;
+  utils::unordered_map<uint64_t, std::string> session_to_username_;
+  utils::unordered_set<uint64_t> sessions_to_remove_;
 
  private:
   std::vector<utils::regex::Pattern> const regex_symbols_;

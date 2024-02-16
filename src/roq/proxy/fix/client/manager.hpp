@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include <absl/container/flat_hash_map.h>
-
 #include <chrono>
 #include <memory>
 
 #include "roq/start.hpp"
 #include "roq/stop.hpp"
 #include "roq/timer.hpp"
+
+#include "roq/utils/container.hpp"
 
 #include "roq/io/context.hpp"
 
@@ -64,7 +64,7 @@ struct Manager final : public Listener::Handler {
   Session::Handler &handler_;
   Listener fix_listener_;
   Shared &shared_;
-  absl::flat_hash_map<uint64_t, std::unique_ptr<Session>> sessions_;
+  utils::unordered_map<uint64_t, std::unique_ptr<Session>> sessions_;
   std::chrono::nanoseconds next_garbage_collection_ = {};
 };
 
