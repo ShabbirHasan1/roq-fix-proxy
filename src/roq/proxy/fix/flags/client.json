@@ -46,7 +46,7 @@
       "name": "encode_buffer_size",
       "type": "uint32_t",
       "required": true,
-      "default": 10485760,
+      "default": 16777216,
       "description": "encode buffer size"
     }
   ]
