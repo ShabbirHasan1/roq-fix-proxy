@@ -131,7 +131,7 @@ def order_cancel_replace_request(cl_ord_id, orig_cl_ord_id):
     return request
 
 
-def request_for_positions_request():
+def request_for_positions_request(pos_req_id, subscription_request_type):
     msg = simplefix.FixMessage()
     msg.append_pair(8, FIX)
     msg.append_pair(35, "AN")
@@ -139,12 +139,15 @@ def request_for_positions_request():
     msg.append_pair(56, TARGET_COMP_ID)
     msg.append_pair(1, ACCOUNT)
     msg.append_pair(207, EXCHANGE)
-    msg.append_pair(263, "0")  # snapshot
+    msg.append_pair(55, SYMBOL)
+    msg.append_pair(263, subscription_request_type)
     msg.append_pair(581, "1")  # account type
-    msg.append_pair(710, "pos_00002")
-    msg.append_pair(724, "0")  # positoins
+    msg.append_pair(710, pos_req_id)
+    msg.append_pair(724, "0")  # positions
+    msg.append_pair(715, "19700101")  # clearing_business_date
+    msg.append_pair(60, "19700101-23:59:59")  # transact_time
     request = msg.encode()
-    print(request)
+    print_message(request)
     return request
 
 
@@ -207,10 +210,10 @@ if __name__ == "__main__":
         # s.sendall(order_mass_status_request())
         # response = s.recv(4096)
         # print_message(response)
-        s.sendall(order_mass_status_request())
+        # s.sendall(order_mass_status_request())
         # s.sendall(order_mass_cancel_request())
         # s.sendall(trade_capture_report_request())
-        # s.sendall(request_for_positions_request())
+        s.sendall(request_for_positions_request("pos-1", "1"))  # subscribe
         # s.sendall(new_order_single_request("test-4"))
         # s.sendall(order_cancel_request("test-3", "test-2"))
         # s.sendall(order_cancel_replace_request("test-5", "test-1"))
@@ -218,7 +221,7 @@ if __name__ == "__main__":
         response = s.recv(4096)
         print_message(response)
         # request for positions
-        # s.sendall(request_for_positions_request())
+        s.sendall(request_for_positions_request("pos-1", "2"))  # unsubscribe
         # response = s.recv(4096)
         # print_message(response)
         # s.sendall(logout_request())

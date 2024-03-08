@@ -669,14 +669,14 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
 
 void Controller::operator()(Trace<codec::fix::RequestForPositionsAck> const &event) {
   auto remove = true;
-  auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
+  auto dispatch = [&](auto session_id, auto &req_id, auto keep_alive) {
     auto failure = event.value.pos_req_result != roq::fix::PosReqResult::VALID ||
                    event.value.pos_req_status == roq::fix::PosReqStatus::REJECTED;
     if (failure) {
       remove = true;
       total_num_pos_reports_ = {};
     } else {
-      remove = false;
+      remove = !keep_alive;
       total_num_pos_reports_ = event.value.total_num_pos_reports;
       log::warn("Awaiting {} position reports..."sv, total_num_pos_reports_);
     }
@@ -688,9 +688,11 @@ void Controller::operator()(Trace<codec::fix::RequestForPositionsAck> const &eve
   auto req_id = event.value.pos_req_id;
   auto &mapping = subscriptions_.pos_req_id;
   if (find_req_id(mapping, req_id, dispatch)) {
-    if (remove)
+    if (remove) {
+      log::info(R"(DEBUG removing pos_req_id="{}")"sv, req_id);
       if (!remove_req_id(mapping, req_id))
         log::warn(R"(Internal error: pos_req_id="{}")"sv, req_id);
+    }
   } else {
     log::warn(R"(Internal error: pos_req_id="{}")"sv, req_id);
   }
@@ -717,6 +719,7 @@ void Controller::operator()(Trace<codec::fix::PositionReport> const &event) {
   auto req_id = event.value.pos_req_id;
   auto &mapping = subscriptions_.pos_req_id;
   if (find_req_id(mapping, req_id, dispatch)) {
+    log::info("DEBUG remove={}"sv, remove);
     if (remove)
       if (!remove_req_id(mapping, req_id))
         log::warn(R"(Internal error: pos_req_id="{}")"sv, req_id);
@@ -1534,19 +1537,25 @@ void Controller::operator()(Trace<codec::fix::RequestForPositions> const &event,
   auto exists = iter != std::end(client_to_server);
   auto subscription_request_type = get_subscription_request_type(event);
   auto dispatch = [&](auto keep_alive) {
-    auto request_id = shared_.create_request_id();
+    auto request_id = exists ? (*iter).second : shared_.create_request_id();
     auto request_for_positions_2 = request_for_positions;
     request_for_positions_2.pos_req_id = request_id;
     Trace event_2{event.trace_info, request_for_positions_2};
     dispatch_to_server(event_2);
     // note! *after* request has been sent
     if (exists) {
-      assert(subscription_request_type == roq::fix::SubscriptionRequestType::UNSUBSCRIBE);
-      remove_req_id(mapping, request_id);  // note! protocol doesn't have an ack for unsubscribe
+      assert(subscription_request_type == roq::fix::SubscriptionRequestType::UNSUBSCRIBE);  // see below
+      auto iter = mapping.server_to_client.find(request_id);
+      if (iter != std::end(mapping.server_to_client)) {
+        auto &[session_id_2, req_id_2, keep_alive_2] = (*iter).second;
+        keep_alive_2 = keep_alive;
+      } else {
+        log::fatal("Unexpected"sv);
+      }
     } else {
       assert(
           subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT ||
-          subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES);
+          subscription_request_type == roq::fix::SubscriptionRequestType::SNAPSHOT_UPDATES);  // see below
       client_to_server.emplace(req_id, request_id);
       mapping.server_to_client.try_emplace(request_id, session_id, req_id, keep_alive);
     }
