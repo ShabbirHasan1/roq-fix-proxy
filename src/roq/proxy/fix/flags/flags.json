@@ -7,30 +7,30 @@
       "type": "std::string",
       "validator": "roq::flags::validators::Path",
       "required": true,
-      "description": "config file (path)"
+      "description": "Config file"
     },
     {
       "name": "name",
       "type": "std::string",
       "required": true,
-      "description": "service name (CURRENTLY UNUSED)"
+      "description": "Service name (CURRENTLY UNUSED)"
     },
     {
       "name": "service_listen_address",
       "type": "std::string",
-      "description": "service listen address (CURRENTLY UNUSED)"
+      "description": "Service listen address (CURRENTLY UNUSED)"
     },
     {
       "name": "enable_order_mass_cancel",
       "type": "bool",
       "default": false,
-      "description": "enable order mass cancel?"
+      "description": "Enable order mass cancel?"
     },
     {
       "name": "disable_remove_cl_ord_id",
       "type": "bool",
       "default": false,
-      "description": "disable removal of cl_ord_id when order reaches final state"
+      "description": "Disable removal of cl_ord_id when order reaches final state"
     }
   ]
 }

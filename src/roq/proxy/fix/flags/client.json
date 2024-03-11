@@ -8,46 +8,46 @@
       "type": "std::string",
       "validator": "roq::flags::validators::ListenAddress",
       "required": true,
-      "description": "listen address"
+      "description": "Listen address"
     },
     {
       "name": "comp_id",
       "type": "std::string",
       "required": true,
-      "description": "component name"
+      "description": "Component name"
     },
     {
       "name": "auth_method",
       "type": "std::string",
-      "description": "authentication method: (empty), hmac_sha256, hmac_sha256_ts"
+      "description": "Authentication method: (empty), hmac_sha256, hmac_sha256_ts"
     },
     {
       "name": "logon_timeout",
       "type": "std::chrono::nanoseconds",
       "required": true,
       "default": "5s",
-      "description": "logon timeout"
+      "description": "Logon timeout"
     },
     {
       "name": "heartbeat_freq",
       "type": "std::chrono::nanoseconds",
       "required": true,
       "default": "30s",
-      "description": "heartbeat frequency"
+      "description": "Heartbeat frequency"
     },
     {
       "name": "decode_buffer_size",
       "type": "uint32_t",
       "required": true,
       "default": 1048576,
-      "description": "decode buffer size"
+      "description": "Decode buffer size"
     },
     {
       "name": "encode_buffer_size",
       "type": "uint32_t",
       "required": true,
       "default": 16777216,
-      "description": "encode buffer size"
+      "description": "Encode buffer size"
     }
   ]
 }

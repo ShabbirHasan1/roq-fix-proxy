@@ -7,29 +7,29 @@
       "name": "target_comp_id",
       "type": "std::string",
       "required": true,
-      "description": "target comp id"
+      "description": "Target comp id"
     },
     {
       "name": "sender_comp_id",
       "type": "std::string",
       "required": true,
-      "description": "sender comp id"
+      "description": "Sender comp id"
     },
     {
       "name": "username",
       "type": "std::string",
       "required": true,
-      "description": "username"
+      "description": "Username"
     },
     {
       "name": "password",
       "type": "std::string",
-      "description": "password"
+      "description": "Password"
     },
     {
       "name": "auth_method",
       "type": "std::string",
-      "description": "authentication method: (empty), hmac_sha256, hmac_sha256_ts"
+      "description": "Authentication method: (empty), hmac_sha256, hmac_sha256_ts"
     },
     {
       "name": "decode_buffer_size",
@@ -37,7 +37,7 @@
       "validator": "roq::flags::validators::PowerOfTwo<uint32_t>",
       "required": true,
       "default": 16777216,
-      "description": "decode buffer size"
+      "description": "Decode buffer size"
     },
     {
       "name": "encode_buffer_size",
@@ -45,7 +45,7 @@
       "validator": "roq::flags::validators::PowerOfTwo<uint32_t>",
       "required": true,
       "default": 1048576,
-      "description": "encode buffer size"
+      "description": "Encode buffer size"
     },
     {
       "name": "ping_freq",
@@ -53,7 +53,7 @@
       "validator": "roq::flags::validators::TimePeriod",
       "required": true,
       "default": "30s",
-      "description": "ping freq (seconds)"
+      "description": "Ping freq (seconds)"
     },
     {
       "name": "request_timeout",
@@ -61,13 +61,13 @@
       "validator": "roq::flags::validators::TimePeriod",
       "required": true,
       "default": "500ms",
-      "description": "request tiemout"
+      "description": "Request tiemout"
     },
     {
       "name": "debug",
       "type": "bool",
       "default": false,
-      "description": "debug"
+      "description": "Debug"
     }
   ]
 }
