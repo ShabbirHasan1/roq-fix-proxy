@@ -65,11 +65,11 @@ target_link_libraries(${TARGET_NAME} absl::flags)
 
 if(BUILD_DOCS)
 
-install(
-  DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/${PROJECT_NAME}/rst
-  FILES_MATCHING
-  PATTERN "*.rstinc"
-  PATTERN "CMakeFiles" EXCLUDE)
+  install(
+    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/${PROJECT_NAME}/rst
+    FILES_MATCHING
+    PATTERN "*.rstinc"
+    PATTERN "CMakeFiles" EXCLUDE)
 
 endif()
