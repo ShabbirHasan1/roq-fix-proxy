@@ -52,25 +52,21 @@ Flags
 
    $ roq-fix-proxy --help
 
-Common
-~~~~~~
+.. tab:: Flags
 
-.. include:: rst/flags.rstinc
+   .. include:: flags/flags.rstinc
 
-Server
-~~~~~~
+.. tab:: Client
 
-.. include:: rst/server.rstinc
+   .. include:: flags/client.rstinc
 
-Client
-~~~~~~
+.. tab:: Server
 
-.. include:: rst/client.rstinc
+   .. include:: flags/server.rstinc
 
-Authentication
-~~~~~~~~~~~~~~
+.. tab:: Auth
 
-.. include:: rst/auth.rstinc
+   .. include:: flags/auth.rstinc
 
 
 Authentication

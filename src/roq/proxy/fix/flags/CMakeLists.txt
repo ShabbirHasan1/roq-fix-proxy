@@ -6,19 +6,21 @@ set(NAMESPACE "roq/proxy/fix/flags")
 
 set(AUTOGEN_SCHEMAS auth.json server.json client.json flags.json)
 
-roq_autodoc(
-  OUTPUT
-  AUTOGEN_DOC
-  NAMESPACE
-  ${NAMESPACE}
-  OUTPUT_TYPE
-  "doc"
-  FILE_TYPE
-  "rstinc"
-  SOURCES
-  ${AUTOGEN_SCHEMAS})
+if(BUILD_DOCS)
 
-add_custom_target(flags-autogen-doc ALL DEPENDS ${AUTOGEN_DOC})
+  roq_autodoc(
+    OUTPUT
+    AUTOGEN_DOCS
+    NAMESPACE
+    ${NAMESPACE}
+    OUTPUT_TYPE
+    "doc"
+    SOURCES
+    ${AUTOGEN_SCHEMAS})
+
+  add_custom_target(flags-autogen-docs ALL DEPENDS ${AUTOGEN_DOCS})
+
+endif()
 
 roq_autogen(
   OUTPUT
@@ -51,7 +53,7 @@ roq_gitignore(
   .gitignore
   SOURCES
   ${TARGET_NAME}
-  ${AUTOGEN_DOC}
+  ${AUTOGEN_DOCS}
   ${AUTOGEN_HEADERS}
   ${AUTOGEN_SOURCES})
 
@@ -60,16 +62,3 @@ add_library(${TARGET_NAME} OBJECT ${AUTOGEN_SOURCES})
 add_dependencies(${TARGET_NAME} ${TARGET_NAME}-autogen-headers)
 
 target_link_libraries(${TARGET_NAME} absl::flags)
-
-# install
-
-if(BUILD_DOCS)
-
-  install(
-    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/
-    DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/${PROJECT_NAME}/rst
-    FILES_MATCHING
-    PATTERN "*.rstinc"
-    PATTERN "CMakeFiles" EXCLUDE)
-
-endif()

@@ -213,7 +213,8 @@ if __name__ == "__main__":
         # s.sendall(order_mass_status_request())
         # s.sendall(order_mass_cancel_request())
         # s.sendall(trade_capture_report_request())
-        s.sendall(request_for_positions_request("pos-1", "1"))  # subscribe
+        s.sendall(request_for_positions_request("pos-1", "0"))  # snapshot
+        # s.sendall(request_for_positions_request("pos-2", "1"))  # subscribe
         # s.sendall(new_order_single_request("test-4"))
         # s.sendall(order_cancel_request("test-3", "test-2"))
         # s.sendall(order_cancel_replace_request("test-5", "test-1"))
@@ -221,7 +222,7 @@ if __name__ == "__main__":
         response = s.recv(4096)
         print_message(response)
         # request for positions
-        s.sendall(request_for_positions_request("pos-1", "2"))  # unsubscribe
+        # s.sendall(request_for_positions_request("pos-2", "2"))  # unsubscribe
         # response = s.recv(4096)
         # print_message(response)
         # s.sendall(logout_request())
