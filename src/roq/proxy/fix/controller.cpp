@@ -669,14 +669,14 @@ void Controller::operator()(Trace<codec::fix::ExecutionReport> const &event) {
 
 void Controller::operator()(Trace<codec::fix::RequestForPositionsAck> const &event) {
   auto remove = true;
-  auto dispatch = [&](auto session_id, auto &req_id, auto keep_alive) {
+  auto dispatch = [&](auto session_id, auto &req_id, [[maybe_unused]] auto keep_alive) {
     auto failure = event.value.pos_req_result != roq::fix::PosReqResult::VALID ||
                    event.value.pos_req_status == roq::fix::PosReqStatus::REJECTED;
     if (failure) {
       remove = true;
       total_num_pos_reports_ = {};
     } else {
-      remove = !keep_alive;
+      remove = event.value.total_num_pos_reports == 0;  // must await all reports before removing
       total_num_pos_reports_ = event.value.total_num_pos_reports;
       log::warn("Awaiting {} position reports..."sv, total_num_pos_reports_);
     }
