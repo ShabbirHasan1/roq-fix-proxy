@@ -11,6 +11,8 @@
 #include "roq/utils/chrono.hpp"  // hh_mm_ss
 #include "roq/utils/update.hpp"
 
+#include "roq/utils/debug/fix/message.hpp"
+
 #include "roq/utils/codec/base64.hpp"
 
 using namespace std::literals;
@@ -321,6 +323,10 @@ void Session::operator()(io::net::tcp::Connection::Read const &) {
       auto bytes = roq::fix::Reader<FIX_VERSION>::dispatch(buffer, parser, logger);
       if (bytes == 0)
         break;
+      if (shared_.settings.test.fix_debug) {
+        auto message = buffer.subspan(0, bytes);
+        log::info<0>("[session_id={}]: {}"sv, session_id_, utils::debug::fix::Message{message});
+      }
       assert(bytes <= std::size(buffer));
       total_bytes += bytes;
       buffer = buffer.subspan(bytes);

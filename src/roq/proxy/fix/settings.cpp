@@ -33,6 +33,7 @@ Settings Settings::create(args::Parser const &) {
       .test{
           .enable_order_mass_cancel = flags.enable_order_mass_cancel,
           .disable_remove_cl_ord_id = flags.disable_remove_cl_ord_id,
+          .fix_debug = flags.fix_debug,
       },
   };
 }
