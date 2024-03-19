@@ -34,7 +34,7 @@ def logon_request():
     msg.append_pair(554, PASSWORD)
     msg.append_pair(108, 5)
     msg.append_pair(98, '0')  # none
-    msg.append_pair(141, 'N')  # reset
+    msg.append_pair(141, 'Y')  # reset
     request = msg.encode()
     print(request)
     return request
