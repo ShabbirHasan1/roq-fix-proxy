@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <string_view>
 
 #include "roq/utils/hash/sha256.hpp"
@@ -17,7 +18,7 @@ struct Crypto final {
   using Hash = utils::hash::SHA256;
   using MAC = utils::mac::HMAC<utils::hash::SHA256>;
 
-  explicit Crypto(std::string_view const &method);
+  Crypto(std::string_view const &method, std::chrono::nanoseconds timestamp_tolerance);
 
   Crypto(Crypto &&) = delete;
   Crypto(Crypto const &) = delete;
@@ -32,6 +33,7 @@ struct Crypto final {
 
  private:
   Method const method_;
+  std::chrono::nanoseconds const timestamp_tolerance_;
   std::array<std::byte, MAC::DIGEST_LENGTH> digest_;
 };
 

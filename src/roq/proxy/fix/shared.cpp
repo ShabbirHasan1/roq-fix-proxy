@@ -51,7 +51,8 @@ Shared::Shared(Settings const &settings, Config const &config)
       username_to_password_and_strategy_id_{
           create_username_to_password_and_strategy_id<decltype(username_to_password_and_strategy_id_)>(config)},
       regex_symbols_{create_regex_symbols<decltype(regex_symbols_)>(config)},
-      next_request_id_{create_next_request_id()}, crypto_{settings.client.auth_method} {
+      next_request_id_{create_next_request_id()},
+      crypto_{settings.client.auth_method, settings.client.auth_timestamp_tolerance} {
 }
 
 bool Shared::include(std::string_view const &symbol) const {

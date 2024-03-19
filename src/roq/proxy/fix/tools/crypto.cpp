@@ -19,12 +19,6 @@ namespace proxy {
 namespace fix {
 namespace tools {
 
-// === CONSTANTS ===
-
-namespace {
-auto const TIMESTAMP_TOLERANCE = 5s;
-}
-
 // === HELPERS ===
 
 namespace {
@@ -41,7 +35,8 @@ auto parse_method(auto &auth_method) {
 
 // === IMPLEMENTATION ===
 
-Crypto::Crypto(std::string_view const &method) : method_{parse_method(method)} {
+Crypto::Crypto(std::string_view const &method, std::chrono::nanoseconds timestamp_tolerance)
+    : method_{parse_method(method)}, timestamp_tolerance_{timestamp_tolerance} {
   log::info("Using method={}"sv, magic_enum::enum_name(method_));
 }
 
@@ -72,7 +67,7 @@ bool Crypto::validate(
       std::chrono::milliseconds sending_time_utc{tmp};
       auto now = clock::get_realtime();
       auto diff = sending_time_utc < now ? (now - sending_time_utc) : (sending_time_utc - now);
-      if (diff > TIMESTAMP_TOLERANCE) {
+      if (diff > timestamp_tolerance_) {
         log::warn("DEBUG now={}, sending_time_utc={}"sv, now, sending_time_utc);
         return false;
       }

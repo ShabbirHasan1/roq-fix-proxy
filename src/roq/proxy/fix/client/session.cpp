@@ -40,6 +40,9 @@ auto const ERROR_INVALID_REQ_ID = "INVALID_REQ_ID"sv;
 auto const ERROR_INVALID_MD_REQ_ID = "INVALID_MD_REQ_ID"sv;
 auto const ERROR_INVALID_CL_ORD_ID = "INVALID_CL_ORD_ID"sv;
 auto const ERROR_INVALID_ORIG_CL_ORD_ID = "INVALID_ORIG_CL_ORD_ID"sv;
+auto const ERROR_INVALID_LOGON_ENCRYPT_METHOD = "INVALID_LOGON_ENCRYPT_METHOD"sv;
+auto const ERROR_INVALID_LOGON_HEART_BT_INT = "INVALID_LOGON_HEART_BT_INT"sv;
+auto const ERROR_INVALID_LOGON_RESET_SEQ_NUM_FLAG = "INVALID_LOGON_RESET_SEQ_NUM_FLAG"sv;
 }  // namespace
 
 // === HELPERS ===
@@ -607,40 +610,66 @@ void Session::operator()(Trace<codec::fix::Logon> const &event, roq::fix::Header
     using enum State;
     case WAITING_LOGON: {
       comp_id_ = header.sender_comp_id;
+      // validate: target_comp_id
       if (header.target_comp_id != shared_.settings.client.comp_id) {
         log::error(
             R"(Unexpected target_comp_id="{}" (expected: "{}"))"sv,
             header.target_comp_id,
             shared_.settings.client.comp_id);
         send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, ERROR_UNKNOWN_TARGET_COMP_ID);
-      } else {
-        auto success = [&](auto strategy_id) {
-          username_ = logon.username;
-          party_id_ = fmt::format("{}"sv, strategy_id);
-          try {
-            auto user_request_id = shared_.create_request_id();
-            auto user_request = codec::fix::UserRequest{
-                .user_request_id = user_request_id,
-                .user_request_type = roq::fix::UserRequestType::LOG_ON_USER,
-                .username = party_id_,
-                .password = {},
-                .new_password = {},
-            };
-            Trace event_2{trace_info, user_request};
-            handler_(event_2, session_id_);
-            (*this)(State::WAITING_CREATE_ROUTE);
-            auto now = clock::get_system();
-            user_response_timeout_ = now + shared_.settings.server.request_timeout;
-          } catch (NotReady &e) {
-            send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, e.what());
-          }
-        };
-        auto failure = [&](auto &reason) {
-          log::error("Invalid logon (reason: {})"sv, reason);
-          send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, reason);
-        };
-        shared_.session_logon(session_id_, logon.username, logon.password, logon.raw_data, success, failure);
+        return;  // note!
       }
+      // validate: encrypt_method
+      if (logon.encrypt_method != roq::fix::EncryptMethod::NONE) {
+        log::error(R"(Unexpected encrypt_method={} (expected: NONE))"sv, logon.encrypt_method);
+        send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, ERROR_INVALID_LOGON_ENCRYPT_METHOD);
+        return;  // note!
+      }
+      // validate: heart_bt_int
+      std::chrono::seconds heart_bt_int{logon.heart_bt_int};
+      if (heart_bt_int < shared_.settings.client.logon_heartbeat_min ||
+          heart_bt_int > shared_.settings.client.logon_heartbeat_max) {
+        log::error(
+            R"(Unexpected heart_bt_int={} (expected range: [{};{}]"))"sv,
+            heart_bt_int,
+            shared_.settings.client.logon_heartbeat_min,
+            shared_.settings.client.logon_heartbeat_max);
+        send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, ERROR_INVALID_LOGON_HEART_BT_INT);
+        return;  // note!
+      }
+      // validate: reset_seq_num_flag
+      if (!logon.reset_seq_num_flag) {
+        log::error(R"(Unexpected reset_num_flag={} (expected true)))"sv, logon.reset_seq_num_flag);
+        send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, ERROR_INVALID_LOGON_RESET_SEQ_NUM_FLAG);
+        return;  // note!
+      }
+      // authenticate
+      auto success = [&](auto strategy_id) {
+        username_ = logon.username;
+        party_id_ = fmt::format("{}"sv, strategy_id);
+        try {
+          auto user_request_id = shared_.create_request_id();
+          auto user_request = codec::fix::UserRequest{
+              .user_request_id = user_request_id,
+              .user_request_type = roq::fix::UserRequestType::LOG_ON_USER,
+              .username = party_id_,
+              .password = {},
+              .new_password = {},
+          };
+          Trace event_2{trace_info, user_request};
+          handler_(event_2, session_id_);
+          (*this)(State::WAITING_CREATE_ROUTE);
+          auto now = clock::get_system();
+          user_response_timeout_ = now + shared_.settings.server.request_timeout;
+        } catch (NotReady &e) {
+          send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, e.what());
+        }
+      };
+      auto failure = [&](auto &reason) {
+        log::error("Invalid logon (reason: {})"sv, reason);
+        send_reject_and_close(header, roq::fix::SessionRejectReason::OTHER, reason);
+      };
+      shared_.session_logon(session_id_, logon.username, logon.password, logon.raw_data, success, failure);
       break;
     }
     case WAITING_CREATE_ROUTE:
