@@ -84,7 +84,7 @@ bool Crypto::validate(
       return true;
     }
   }
-  std::abort();
+  log::fatal("Unexpected"sv);
 }
 
 }  // namespace tools
